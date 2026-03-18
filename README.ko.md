@@ -6,29 +6,43 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP Badge](https://lobehub.com/badge/mcp/mikusnuz-meta-mcp)](https://lobehub.com/discover/mcp/mikusnuz-meta-mcp)
 
-**Instagram Graph API**, **Threads API**, **Meta 플랫폼** 관리를 위한 완전한 MCP 서버입니다.
-
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.ko.md">한국어</a>
-</p>
+**Instagram Graph API** (v25.0), **Threads API**, **Meta 플랫폼** 관리를 위한 완전한 MCP 서버입니다.
 
 ## 주요 기능
 
-- **52개 도구**: Instagram(31), Threads(15), Meta 플랫폼(6)
-- **Instagram**: 사진/영상/릴스/스토리/캐러셀 게시, 댓글 관리, 인사이트 조회, 해시태그 검색, DM 관리
-- **Threads**: 텍스트/이미지/영상/캐러셀 게시, 답글 관리, 인사이트 조회
+- **57개 도구**: Instagram(33), Threads(18), Meta 플랫폼(6)
+- **Instagram**: 사진/영상/릴스/스토리/캐러셀 게시(alt text 지원), 댓글 관리, 인사이트 조회, 해시태그 검색, DM 관리, 협업 초대 관리
+- **Threads**: 텍스트/이미지/영상/캐러셀 게시(투표, GIF, 토픽 태그, 링크 첨부, alt text, 스포일러 지원), 답글 관리, 게시물 검색, 인사이트 조회, 게시물 삭제
 - **Meta**: token 교환/갱신/디버그, 웹훅 관리
 - **2개 리소스**: Instagram 프로필, Threads 프로필
 - **2개 프롬프트**: 크로스 플랫폼 콘텐츠 게시, 분석 리포트
 - `x-app-usage` 헤더를 통한 속도 제한 추적
+
+## v2.0.0 변경사항
+
+- **Graph API v25.0**: v21.0(2025년 9월 만료)에서 v25.0(현재)으로 업그레이드
+- **폐기된 지표 수정**: `impressions`, `video_views`, `engagement`를 `views`, `reach`, `saved`, `shares`로 교체
+- **Threads 투표**: 대화형 투표 첨부 게시물 생성
+- **Threads GIF**: GIPHY 또는 Tenor에서 GIF 첨부
+- **Threads 토픽 태그**: 게시물에 토픽 태그 분류
+- **Threads 링크 첨부**: 텍스트 게시물에 URL 미리보기 카드 첨부
+- **Threads 게시물 검색**: 키워드 또는 토픽 태그로 공개 게시물 검색
+- **Threads 게시물 삭제**: 게시물 삭제 (하루 100개 제한)
+- **Threads 게시 제한 확인**: 남은 할당량 확인
+- **Threads 인용 게시물**: ID로 다른 게시물 인용
+- **Threads 스포일러 플래그**: 콘텐츠를 스포일러로 표시
+- **Threads alt text**: 모든 미디어 유형에 접근성 설명 추가
+- **Threads 새 답글 제어**: `parent_post_author_only`, `followers_only` 옵션 추가
+- **Instagram alt text**: 사진, 릴스, 캐러셀 항목에 alt text 지원
+- **Instagram 협업 초대**: 협업 초대 조회 및 응답
+- **업데이트된 인사이트 지표**: 새 `clicks`, `reposts`, `reels_skip_rate` 지표
 
 ## 계정 요건
 
 | 플랫폼 | 계정 유형 | 참고 |
 |--------|-----------|------|
 | **Instagram** | 비즈니스 또는 크리에이터 계정 | 개인 계정은 Graph API를 사용할 수 없습니다. Instagram 설정에서 무료로 전환 가능합니다 |
-| **Threads** | 모든 계정 | 모든 Threads 계정이 API를 사용할 수 있습니다 |
+| **Threads** | 모든 계정 | 모든 Threads 계정이 API를 사용할 수 있습니다 (2025년 9월부터 Instagram 계정 연결 불필요) |
 | **Meta** (token/웹훅 도구) | Meta 개발자 앱 | [developers.facebook.com](https://developers.facebook.com)에서 생성하세요 |
 
 ## 설치
@@ -108,10 +122,10 @@ npm run build
 
 | 도구 | 설명 |
 |------|------|
-| `ig_publish_photo` | 사진 게시 |
+| `ig_publish_photo` | 사진 게시 (alt_text 지원) |
 | `ig_publish_video` | 영상 게시 |
-| `ig_publish_carousel` | 캐러셀/앨범 게시 (2~10개 항목) |
-| `ig_publish_reel` | 릴스 게시 |
+| `ig_publish_carousel` | 캐러셀/앨범 게시 (2~10개 항목, 항목별 alt_text 지원) |
+| `ig_publish_reel` | 릴스 게시 (alt_text 지원) |
 | `ig_publish_story` | 스토리 게시 (24시간) |
 | `ig_get_container_status` | 미디어 컨테이너 처리 상태 확인 |
 
@@ -122,7 +136,7 @@ npm run build
 | `ig_get_media_list` | 게시된 미디어 목록 조회 |
 | `ig_get_media` | 미디어 상세 정보 조회 |
 | `ig_delete_media` | 미디어 게시물 삭제 |
-| `ig_get_media_insights` | 미디어 분석 데이터 조회 |
+| `ig_get_media_insights` | 미디어 분석 데이터 조회 (views, reach, saved, shares) |
 | `ig_toggle_comments` | 게시물 댓글 활성화/비활성화 |
 
 ### Instagram — 댓글 (7)
@@ -137,13 +151,15 @@ npm run build
 | `ig_hide_comment` | 댓글 숨기기/숨기기 해제 |
 | `ig_delete_comment` | 댓글 삭제 |
 
-### Instagram — 프로필 & 인사이트 (3)
+### Instagram — 프로필 & 인사이트 (5)
 
 | 도구 | 설명 |
 |------|------|
 | `ig_get_profile` | 계정 프로필 정보 조회 |
-| `ig_get_account_insights` | 계정 수준 분석 데이터 조회 |
+| `ig_get_account_insights` | 계정 수준 분석 데이터 조회 (views, reach, follower_count) |
 | `ig_business_discovery` | 다른 비즈니스 계정 조회 |
+| `ig_get_collaboration_invites` | 대기 중인 협업 초대 조회 |
+| `ig_respond_collaboration_invite` | 협업 초대 수락/거절 |
 
 ### Instagram — 해시태그 (4)
 
@@ -170,29 +186,32 @@ npm run build
 | `ig_send_message` | DM 전송 |
 | `ig_get_message` | 메시지 상세 정보 조회 |
 
-### Threads — 게시 (5)
+### Threads — 게시 (7)
 
 | 도구 | 설명 |
 |------|------|
-| `threads_publish_text` | 텍스트 게시물 게시 |
-| `threads_publish_image` | 이미지 게시물 게시 |
-| `threads_publish_video` | 영상 게시물 게시 |
-| `threads_publish_carousel` | 캐러셀 게시 (2~20개 항목) |
+| `threads_publish_text` | 텍스트 게시물 게시 (투표, GIF, 링크 첨부, 토픽 태그, 인용 게시물, 스포일러 지원) |
+| `threads_publish_image` | 이미지 게시물 게시 (alt_text, 토픽 태그, 스포일러 지원) |
+| `threads_publish_video` | 영상 게시물 게시 (alt_text, 토픽 태그, 스포일러 지원) |
+| `threads_publish_carousel` | 캐러셀 게시 (2~20개 항목, 항목별 alt_text 지원) |
+| `threads_delete_post` | 게시물 삭제 (하루 최대 100개) |
 | `threads_get_container_status` | 컨테이너 처리 상태 확인 |
+| `threads_get_publishing_limit` | 남은 게시 할당량 확인 (하루 250개) |
 
-### Threads — 미디어 (2)
+### Threads — 미디어 & 검색 (3)
 
 | 도구 | 설명 |
 |------|------|
-| `threads_get_posts` | 게시된 게시물 목록 조회 |
+| `threads_get_posts` | 게시된 게시물 목록 조회 (토픽 태그, 투표, GIF 필드 포함) |
 | `threads_get_post` | 게시물 상세 정보 조회 |
+| `threads_search_posts` | 키워드 또는 토픽 태그로 공개 게시물 검색 |
 
 ### Threads — 답글 (4)
 
 | 도구 | 설명 |
 |------|------|
 | `threads_get_replies` | 게시물의 답글 조회 |
-| `threads_reply` | 게시물에 답글 작성 |
+| `threads_reply` | 게시물에 답글 작성 (이미지/영상 첨부 지원) |
 | `threads_hide_reply` | 답글 숨기기 |
 | `threads_unhide_reply` | 답글 숨기기 해제 |
 
@@ -200,14 +219,14 @@ npm run build
 
 | 도구 | 설명 |
 |------|------|
-| `threads_get_profile` | Threads 프로필 정보 조회 |
+| `threads_get_profile` | Threads 프로필 정보 조회 (is_verified 포함) |
 | `threads_get_user_threads` | 사용자의 스레드 목록 조회 |
 
 ### Threads — 인사이트 (2)
 
 | 도구 | 설명 |
 |------|------|
-| `threads_get_post_insights` | 게시물 분석 데이터 조회 |
+| `threads_get_post_insights` | 게시물 분석 데이터 조회 (views, likes, replies, reposts, quotes, clicks) |
 | `threads_get_user_insights` | 계정 수준 분석 데이터 조회 |
 
 ## 리소스
@@ -215,7 +234,7 @@ npm run build
 | 리소스 URI | 설명 |
 |-----------|------|
 | `instagram://profile` | Instagram 계정 프로필 데이터 |
-| `threads://profile` | Threads 계정 프로필 데이터 |
+| `threads://profile` | Threads 계정 프로필 데이터 (is_verified 포함) |
 
 ## 프롬프트
 
@@ -245,11 +264,11 @@ npm run build
 2. **"Instagram Graph API" → "설정"**에서 Facebook 페이지를 통해 Instagram 비즈니스 계정 연결
 3. [Graph API Explorer](https://developers.facebook.com/tools/explorer/) 열기
    - 앱 선택
-   - 권한 추가: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `pages_show_list`, `pages_read_engagement`
+   - 권한 추가: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `instagram_manage_contents`, `pages_show_list`, `pages_read_engagement`
    - **"Generate Access Token"** 클릭 후 인가
 4. 생성된 토큰은 단기 토큰(~1시간)입니다. 장기 토큰(~60일)으로 교환:
    ```
-   GET https://graph.facebook.com/v21.0/oauth/access_token
+   GET https://graph.facebook.com/v25.0/oauth/access_token
      ?grant_type=fb_exchange_token
      &client_id=YOUR_APP_ID
      &client_secret=YOUR_APP_SECRET
@@ -258,17 +277,17 @@ npm run build
    또는 설정 후 `meta_exchange_token` 도구를 사용할 수 있습니다.
 5. **Instagram User ID 조회** — 토큰으로 다음을 호출합니다:
    ```
-   GET https://graph.facebook.com/v21.0/me/accounts?access_token=YOUR_TOKEN
+   GET https://graph.facebook.com/v25.0/me/accounts?access_token=YOUR_TOKEN
    ```
    Facebook 페이지 목록이 반환됩니다. 각 페이지에서 연결된 Instagram 계정을 조회합니다:
    ```
-   GET https://graph.facebook.com/v21.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
+   GET https://graph.facebook.com/v25.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
    ```
    `instagram_business_account.id`가 **`INSTAGRAM_USER_ID`**입니다 (숫자 ID, 예: `17841400123456789`).
 
 ### 3단계: Threads 설정
 
-> **모든 Threads 계정**에서 사용 가능합니다 (개인, 비즈니스 무관).
+> **모든 Threads 계정**에서 사용 가능합니다 (2025년 9월부터 Instagram 계정 연결 불필요).
 
 1. Meta 앱에서 **"제품 추가"** → **"Threads API"** 추가
 2. **"Threads API" → "설정"**:
@@ -338,6 +357,24 @@ Access token은 약 60일 후 만료됩니다. 만료 전에 갱신하세요:
   ```
 
 `meta_debug_token`으로 언제든지 토큰 상태를 확인할 수 있습니다.
+
+## 폐기된 지표 (v22.0+)
+
+다음 Instagram 지표는 Graph API v22.0(2025년 1월)에서 폐기되었으며, 2025년 4월 21일에 모든 버전에서 제거되었습니다:
+
+| 폐기된 지표 | 대체 지표 |
+|------------|----------|
+| `impressions` | `views` |
+| `video_views` | `views` |
+| `plays` | `views` |
+| `clips_replays_count` | `views` |
+| `engagement` | `saves` + `shares` + `likes` + `comments` |
+| `email_contacts` | 제거됨 (대체 없음) |
+| `phone_call_clicks` | 제거됨 (대체 없음) |
+| `text_message_clicks` | 제거됨 (대체 없음) |
+| `get_directions_clicks` | 제거됨 (대체 없음) |
+| `website_clicks` | 제거됨 (대체 없음) |
+| `profile_views` | 제거됨 (대체 없음) |
 
 ## 라이선스
 

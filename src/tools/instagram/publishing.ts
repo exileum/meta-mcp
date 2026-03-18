@@ -22,17 +22,19 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     "ig_publish_photo",
     "Publish a photo to Instagram. Two-step process: creates container then publishes. Requires image_url (publicly accessible HTTPS URL).",
     {
-      image_url: z.string().url().describe("Public HTTPS URL of the image"),
+      image_url: z.string().url().describe("Public HTTPS URL of the image (JPEG only)"),
       caption: z.string().optional().describe("Post caption (max 2200 chars)"),
       location_id: z.string().optional().describe("Facebook Page location ID"),
       user_tags: z.string().optional().describe("JSON array of user tags: [{username, x, y}]"),
+      alt_text: z.string().optional().describe("Alt text for accessibility"),
     },
-    async ({ image_url, caption, location_id, user_tags }) => {
+    async ({ image_url, caption, location_id, user_tags, alt_text }) => {
       try {
         const params: Record<string, unknown> = { image_url };
         if (caption) params.caption = caption;
         if (location_id) params.location_id = location_id;
         if (user_tags) params.user_tags = user_tags;
+        if (alt_text) params.alt_text = alt_text;
         // Step 1: Create container
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
@@ -84,6 +86,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       items: z.array(z.object({
         type: z.enum(["IMAGE", "VIDEO"]).describe("Media type"),
         url: z.string().url().describe("Public HTTPS URL of the media"),
+        alt_text: z.string().optional().describe("Alt text for this image item"),
       })).min(2).max(10).describe("Array of media items"),
       caption: z.string().optional().describe("Post caption"),
       location_id: z.string().optional().describe("Facebook Page location ID"),
@@ -96,6 +99,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           const params: Record<string, unknown> = { is_carousel_item: true };
           if (item.type === "IMAGE") {
             params.image_url = item.url;
+            if (item.alt_text) params.alt_text = item.alt_text;
           } else {
             params.video_url = item.url;
             params.media_type = "VIDEO";
@@ -137,14 +141,16 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       cover_url: z.string().optional().describe("Custom cover image URL"),
       share_to_feed: z.boolean().optional().describe("Also share to feed (default true)"),
       thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
+      alt_text: z.string().optional().describe("Alt text for accessibility"),
     },
-    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset }) => {
+    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, alt_text }) => {
       try {
         const params: Record<string, unknown> = { video_url, media_type: "REELS" };
         if (caption) params.caption = caption;
         if (cover_url) params.cover_url = cover_url;
         if (share_to_feed !== undefined) params.share_to_feed = share_to_feed;
         if (thumb_offset) params.thumb_offset = thumb_offset;
+        if (alt_text) params.alt_text = alt_text;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
         await waitForContainer(client, containerId);

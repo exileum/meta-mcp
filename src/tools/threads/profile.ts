@@ -6,12 +6,12 @@ export function registerThreadsProfileTools(server: McpServer, client: MetaClien
   // ─── threads_get_profile ─────────────────────────────────────
   server.tool(
     "threads_get_profile",
-    "Get Threads user profile information.",
+    "Get Threads user profile information including verification status.",
     {},
     async () => {
       try {
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}`, {
-          fields: "id,username,name,threads_profile_picture_url,threads_biography",
+          fields: "id,username,name,threads_profile_picture_url,threads_biography,is_verified",
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
@@ -33,7 +33,7 @@ export function registerThreadsProfileTools(server: McpServer, client: MetaClien
     async ({ limit, since, until, after }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,media_product_type,media_type,text,permalink,timestamp,shortcode,is_quote_post",
+          fields: "id,media_product_type,media_type,text,permalink,timestamp,shortcode,is_quote_post,topic_tag",
         };
         if (limit) params.limit = limit;
         if (since) params.since = since;

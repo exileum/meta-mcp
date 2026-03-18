@@ -6,24 +6,43 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP Badge](https://lobehub.com/badge/mcp/mikusnuz-meta-mcp)](https://lobehub.com/discover/mcp/mikusnuz-meta-mcp)
 
-Full-coverage MCP server for **Instagram Graph API**, **Threads API**, and **Meta platform** management.
+Full-coverage MCP server for **Instagram Graph API** (v25.0), **Threads API**, and **Meta platform** management.
 
 ## Features
 
-- **52 tools** across Instagram (31), Threads (15), and Meta platform (6)
-- **Instagram**: Publish photos/videos/reels/stories/carousels, manage comments, view insights, search hashtags, handle DMs
-- **Threads**: Publish text/images/videos/carousels, manage replies, view insights
+- **57 tools** across Instagram (33), Threads (18), and Meta platform (6)
+- **Instagram**: Publish photos/videos/reels/stories/carousels with alt text, manage comments, view insights, search hashtags, handle DMs, manage collaboration invites
+- **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; view insights; delete posts
 - **Meta**: Token exchange/refresh/debug, webhook management
 - **2 resources**: Instagram profile, Threads profile
 - **2 prompts**: Cross-platform content publishing, analytics report
 - Rate limit tracking via `x-app-usage` header
+
+## What's New in v2.0.0
+
+- **Graph API v25.0**: Upgraded from v21.0 (expired Sep 2025) to v25.0 (current)
+- **Fixed deprecated metrics**: `impressions`, `video_views`, `engagement` replaced with `views`, `reach`, `saved`, `shares`
+- **Threads polls**: Create posts with interactive poll attachments
+- **Threads GIFs**: Attach GIFs from GIPHY or Tenor
+- **Threads topic tags**: Categorize posts with topic tags
+- **Threads link attachments**: Attach URL preview cards to text posts
+- **Threads post search**: Search public posts by keyword or topic tag
+- **Threads post deletion**: Delete posts (rate limited to 100/day)
+- **Threads publishing limit**: Check remaining quota
+- **Threads quote posts**: Quote other posts by ID
+- **Threads spoiler flag**: Mark content as spoiler
+- **Threads alt text**: Add accessibility descriptions to all media types
+- **Threads new reply controls**: `parent_post_author_only` and `followers_only` options
+- **Instagram alt text**: Support for photo, reel, and carousel items
+- **Instagram collaboration invites**: Query and respond to collab invites
+- **Updated insights metrics**: New `clicks`, `reposts`, `reels_skip_rate` metrics
 
 ## Account Requirements
 
 | Platform | Account Type | Notes |
 |----------|-------------|-------|
 | **Instagram** | Business or Creator account | Personal accounts cannot use the Graph API. Free to switch in Instagram settings |
-| **Threads** | Any account | All Threads accounts can use the API |
+| **Threads** | Any account | All Threads accounts can use the API (Instagram account link no longer required since Sep 2025) |
 | **Meta** (token/webhook tools) | Meta Developer App | Create at [developers.facebook.com](https://developers.facebook.com) |
 
 ## Installation
@@ -103,10 +122,10 @@ You only need to set the variables for the platforms you use. For example, if yo
 
 | Tool | Description |
 |------|-------------|
-| `ig_publish_photo` | Publish a photo post |
+| `ig_publish_photo` | Publish a photo post (supports alt_text) |
 | `ig_publish_video` | Publish a video post |
-| `ig_publish_carousel` | Publish a carousel/album (2-10 items) |
-| `ig_publish_reel` | Publish a Reel |
+| `ig_publish_carousel` | Publish a carousel/album (2-10 items, supports alt_text per item) |
+| `ig_publish_reel` | Publish a Reel (supports alt_text) |
 | `ig_publish_story` | Publish a Story (24hr) |
 | `ig_get_container_status` | Check media container processing status |
 
@@ -117,7 +136,7 @@ You only need to set the variables for the platforms you use. For example, if yo
 | `ig_get_media_list` | List published media |
 | `ig_get_media` | Get media details |
 | `ig_delete_media` | Delete a media post |
-| `ig_get_media_insights` | Get media analytics |
+| `ig_get_media_insights` | Get media analytics (views, reach, saved, shares) |
 | `ig_toggle_comments` | Enable/disable comments on a post |
 
 ### Instagram — Comments (7)
@@ -132,13 +151,15 @@ You only need to set the variables for the platforms you use. For example, if yo
 | `ig_hide_comment` | Hide/unhide a comment |
 | `ig_delete_comment` | Delete a comment |
 
-### Instagram — Profile & Insights (3)
+### Instagram — Profile & Insights (5)
 
 | Tool | Description |
 |------|-------------|
 | `ig_get_profile` | Get account profile info |
-| `ig_get_account_insights` | Get account-level analytics |
+| `ig_get_account_insights` | Get account-level analytics (views, reach, follower_count) |
 | `ig_business_discovery` | Look up another business account |
+| `ig_get_collaboration_invites` | Get pending collaboration invites |
+| `ig_respond_collaboration_invite` | Accept or decline collaboration invites |
 
 ### Instagram — Hashtags (4)
 
@@ -165,29 +186,32 @@ You only need to set the variables for the platforms you use. For example, if yo
 | `ig_send_message` | Send a DM |
 | `ig_get_message` | Get message details |
 
-### Threads — Publishing (5)
+### Threads — Publishing (7)
 
 | Tool | Description |
 |------|-------------|
-| `threads_publish_text` | Publish a text post |
-| `threads_publish_image` | Publish an image post |
-| `threads_publish_video` | Publish a video post |
-| `threads_publish_carousel` | Publish a carousel (2-20 items) |
+| `threads_publish_text` | Publish a text post (supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag) |
+| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag) |
+| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag) |
+| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item) |
+| `threads_delete_post` | Delete a post (max 100/day) |
 | `threads_get_container_status` | Check container processing status |
+| `threads_get_publishing_limit` | Check remaining publishing quota (250 posts/day) |
 
-### Threads — Media (2)
+### Threads — Media & Search (3)
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_posts` | List published posts |
+| `threads_get_posts` | List published posts (includes topic_tag, poll, GIF fields) |
 | `threads_get_post` | Get post details |
+| `threads_search_posts` | Search public posts by keyword or topic tag |
 
 ### Threads — Replies (4)
 
 | Tool | Description |
 |------|-------------|
 | `threads_get_replies` | Get replies to a post |
-| `threads_reply` | Reply to a post |
+| `threads_reply` | Reply to a post (supports image/video attachments) |
 | `threads_hide_reply` | Hide a reply |
 | `threads_unhide_reply` | Unhide a reply |
 
@@ -195,14 +219,14 @@ You only need to set the variables for the platforms you use. For example, if yo
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_profile` | Get Threads profile info |
+| `threads_get_profile` | Get Threads profile info (includes is_verified) |
 | `threads_get_user_threads` | List user's threads |
 
 ### Threads — Insights (2)
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_post_insights` | Get post analytics |
+| `threads_get_post_insights` | Get post analytics (views, likes, replies, reposts, quotes, clicks) |
 | `threads_get_user_insights` | Get account-level analytics |
 
 ## Resources
@@ -210,7 +234,7 @@ You only need to set the variables for the platforms you use. For example, if yo
 | Resource URI | Description |
 |-------------|-------------|
 | `instagram://profile` | Instagram account profile data |
-| `threads://profile` | Threads account profile data |
+| `threads://profile` | Threads account profile data (includes is_verified) |
 
 ## Prompts
 
@@ -240,11 +264,11 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings → Basic
 2. Go to **"Instagram Graph API" → "Settings"** and connect your Instagram Business account via a Facebook Page
 3. Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer/)
    - Select your app
-   - Add permissions: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `pages_show_list`, `pages_read_engagement`
+   - Add permissions: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `instagram_manage_contents`, `pages_show_list`, `pages_read_engagement`
    - Click **"Generate Access Token"** and authorize
 4. The generated token is short-lived (~1 hour). Exchange it for a long-lived token (~60 days):
    ```
-   GET https://graph.facebook.com/v21.0/oauth/access_token
+   GET https://graph.facebook.com/v25.0/oauth/access_token
      ?grant_type=fb_exchange_token
      &client_id=YOUR_APP_ID
      &client_secret=YOUR_APP_SECRET
@@ -253,17 +277,17 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings → Basic
    Or use the `meta_exchange_token` tool after setup.
 5. **Get your Instagram User ID** — call this with your token:
    ```
-   GET https://graph.facebook.com/v21.0/me/accounts?access_token=YOUR_TOKEN
+   GET https://graph.facebook.com/v25.0/me/accounts?access_token=YOUR_TOKEN
    ```
    This returns your Facebook Pages. For each page, get the linked Instagram account:
    ```
-   GET https://graph.facebook.com/v21.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
+   GET https://graph.facebook.com/v25.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
    ```
    The `instagram_business_account.id` is your **`INSTAGRAM_USER_ID`** (a numeric ID like `17841400123456789`).
 
 ### Step 3: Threads Setup
 
-> Works with **any Threads account** (personal or business).
+> Works with **any Threads account** (personal or business). Instagram account link is no longer required since September 2025.
 
 1. In your Meta App, go to **"Add Products"** → add **"Threads API"**
 2. Go to **"Threads API" → "Settings"**:
@@ -333,6 +357,24 @@ Access tokens expire after ~60 days. Refresh before expiration:
   ```
 
 You can check token status anytime with `meta_debug_token`.
+
+## Deprecated Metrics (v22.0+)
+
+The following Instagram metrics were deprecated in Graph API v22.0 (January 2025) and removed for all versions on April 21, 2025:
+
+| Deprecated Metric | Replacement |
+|-------------------|-------------|
+| `impressions` | `views` |
+| `video_views` | `views` |
+| `plays` | `views` |
+| `clips_replays_count` | `views` |
+| `engagement` | `saves` + `shares` + `likes` + `comments` |
+| `email_contacts` | Removed (no replacement) |
+| `phone_call_clicks` | Removed (no replacement) |
+| `text_message_clicks` | Removed (no replacement) |
+| `get_directions_clicks` | Removed (no replacement) |
+| `website_clicks` | Removed (no replacement) |
+| `profile_views` | Removed (no replacement) |
 
 ## License
 

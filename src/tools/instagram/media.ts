@@ -50,7 +50,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   // ─── ig_delete_media ─────────────────────────────────────────
   server.tool(
     "ig_delete_media",
-    "Delete an Instagram media post. This action is irreversible.",
+    "Delete an Instagram media post (posts, carousels, reels, stories). This action is irreversible. Requires instagram_manage_contents permission.",
     {
       media_id: z.string().describe("Media ID to delete"),
     },
@@ -67,14 +67,14 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   // ─── ig_get_media_insights ───────────────────────────────────
   server.tool(
     "ig_get_media_insights",
-    "Get insights/analytics for a specific media post (impressions, reach, engagement, etc.).",
+    "Get insights/analytics for a specific media post. Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. Available metrics: views, reach, saved, shares, likes, comments, reposts, reels_skip_rate.",
     {
       media_id: z.string().describe("Media ID"),
-      metric: z.string().optional().describe("Comma-separated metrics (default: impressions,reach,engagement,saved). For VIDEO/REEL add: video_views,plays"),
+      metric: z.string().optional().describe("Comma-separated metrics (default: views,reach,saved,shares). For REEL add: likes,comments,reposts,reels_skip_rate"),
     },
     async ({ media_id, metric }) => {
       try {
-        const m = metric || "impressions,reach,engagement,saved";
+        const m = metric || "views,reach,saved,shares";
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/insights`, { metric: m });
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
