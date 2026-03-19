@@ -2,7 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, MetaConfig } from "./config.js";
 import { MetaClient } from "./services/meta-client.js";
 
 // Meta platform tools
@@ -68,3 +68,41 @@ main().catch((err) => {
   console.error("Fatal error:", err);
   process.exit(1);
 });
+
+// ── Smithery Sandbox ──
+
+export function createSandboxServer() {
+  const sandbox = new McpServer({
+    name: "meta-mcp",
+    version: "2.0.0",
+  });
+
+  const mockConfig: MetaConfig = {
+    appId: "",
+    appSecret: "",
+    instagramAccessToken: "",
+    instagramUserId: "",
+    threadsAccessToken: "",
+    threadsUserId: "",
+  };
+  const mockClient = new MetaClient(mockConfig);
+
+  registerMetaAuthTools(sandbox, mockClient);
+  registerIgPublishingTools(sandbox, mockClient);
+  registerIgMediaTools(sandbox, mockClient);
+  registerIgCommentTools(sandbox, mockClient);
+  registerIgProfileTools(sandbox, mockClient);
+  registerIgHashtagTools(sandbox, mockClient);
+  registerIgMentionTools(sandbox, mockClient);
+  registerIgMessagingTools(sandbox, mockClient);
+  registerThreadsPublishingTools(sandbox, mockClient);
+  registerThreadsMediaTools(sandbox, mockClient);
+  registerThreadsReplyTools(sandbox, mockClient);
+  registerThreadsProfileTools(sandbox, mockClient);
+  registerThreadsInsightTools(sandbox, mockClient);
+  registerInstagramResources(sandbox, mockClient);
+  registerThreadsResources(sandbox, mockClient);
+  registerPrompts(sandbox);
+
+  return sandbox;
+}
