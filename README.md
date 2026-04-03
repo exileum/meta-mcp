@@ -1,75 +1,20 @@
-**English** | [한국어](README.ko.md)
-
 # meta-mcp
 
-[![npm version](https://img.shields.io/npm/v/@mikusnuz/meta-mcp)](https://www.npmjs.com/package/@mikusnuz/meta-mcp)
+[![npm version](https://img.shields.io/npm/v/@exileum/meta-mcp)](https://www.npmjs.com/package/@exileum/meta-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![MCP Badge](https://lobehub.com/badge/mcp/mikusnuz-meta-mcp)](https://lobehub.com/discover/mcp/mikusnuz-meta-mcp)
 
-Full-coverage MCP server for **Instagram Graph API** (v25.0), **Threads API**, and **Meta platform** management.
+MCP server for **Instagram Graph API** (v25.0), **Threads API**, and **Meta platform** management. Publish content, manage comments, view insights, and handle DMs — all through AI assistants.
 
-## When to Use
+## Quick Start
 
-Tell your AI assistant things like:
-
-- **"Post a photo to Instagram"** — publish photos, videos, reels, stories, and carousels
-- **"Publish a text post on Threads"** — text posts with polls, GIFs, link attachments, and topic tags
-- **"Get my Instagram follower count and insights"** — account and post-level analytics
-- **"Schedule a carousel post"** — multi-image albums on Instagram (2-10) or Threads (2-20)
-- **"Reply to comments on my latest post"** — read and respond to comments on both platforms
-- **"Cross-post to Instagram and Threads"** — use the built-in `content_publish` prompt
-- **"Get analytics for my Threads account"** — views, likes, replies, reposts, quotes, clicks
-- **"Manage Instagram DMs"** — list conversations, read messages, send replies
-
-> **AI Agent Integration**: See [`llms.txt`](llms.txt) for a machine-readable summary, or copy [`templates/CLAUDE.md`](templates/CLAUDE.md) / [`templates/AGENTS.md`](templates/AGENTS.md) into your project for automatic MCP discovery.
-
-## Features
-
-- **57 tools** across Instagram (33), Threads (18), and Meta platform (6)
-- **Instagram**: Publish photos/videos/reels/stories/carousels with alt text, manage comments, view insights, search hashtags, handle DMs, manage collaboration invites
-- **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; view insights; delete posts
-- **Meta**: Token exchange/refresh/debug, webhook management
-- **2 resources**: Instagram profile, Threads profile
-- **2 prompts**: Cross-platform content publishing, analytics report
-- Rate limit tracking via `x-app-usage` header
-
-## What's New in v2.0.0
-
-- **Graph API v25.0**: Upgraded from v21.0 (expired Sep 2025) to v25.0 (current)
-- **Fixed deprecated metrics**: `impressions`, `video_views`, `engagement` replaced with `views`, `reach`, `saved`, `shares`
-- **Threads polls**: Create posts with interactive poll attachments
-- **Threads GIFs**: Attach GIFs from GIPHY or Tenor
-- **Threads topic tags**: Categorize posts with topic tags
-- **Threads link attachments**: Attach URL preview cards to text posts
-- **Threads post search**: Search public posts by keyword or topic tag
-- **Threads post deletion**: Delete posts (rate limited to 100/day)
-- **Threads publishing limit**: Check remaining quota
-- **Threads quote posts**: Quote other posts by ID
-- **Threads spoiler flag**: Mark content as spoiler
-- **Threads alt text**: Add accessibility descriptions to all media types
-- **Threads new reply controls**: `parent_post_author_only` and `followers_only` options
-- **Instagram alt text**: Support for photo, reel, and carousel items
-- **Instagram collaboration invites**: Query and respond to collab invites
-- **Updated insights metrics**: New `clicks`, `reposts`, `reels_skip_rate` metrics
-
-## Account Requirements
-
-| Platform | Account Type | Notes |
-|----------|-------------|-------|
-| **Instagram** | Business or Creator account | Personal accounts cannot use the Graph API. Free to switch in Instagram settings |
-| **Threads** | Any account | All Threads accounts can use the API (Instagram account link no longer required since Sep 2025) |
-| **Meta** (token/webhook tools) | Meta Developer App | Create at [developers.facebook.com](https://developers.facebook.com) |
-
-## Installation
-
-### npx (Recommended)
+Add to your MCP client config:
 
 ```json
 {
   "mcpServers": {
     "meta": {
       "command": "npx",
-      "args": ["-y", "@mikusnuz/meta-mcp"],
+      "args": ["-y", "@exileum/meta-mcp"],
       "env": {
         "INSTAGRAM_ACCESS_TOKEN": "your_ig_token",
         "INSTAGRAM_USER_ID": "your_ig_user_id",
@@ -81,10 +26,12 @@ Tell your AI assistant things like:
 }
 ```
 
-### Manual
+Only set the variables for the platforms you use.
+
+### Manual Installation
 
 ```bash
-git clone https://github.com/mikusnuz/meta-mcp.git
+git clone https://github.com/exileum/meta-mcp.git
 cd meta-mcp
 npm install
 npm run build
@@ -118,7 +65,23 @@ npm run build
 | `META_APP_ID` | For token/webhook tools | Meta App ID |
 | `META_APP_SECRET` | For token/webhook tools | Meta App Secret |
 
-You only need to set the variables for the platforms you use. For example, if you only use Threads, just set `THREADS_ACCESS_TOKEN` and `THREADS_USER_ID`.
+## Account Requirements
+
+| Platform | Account Type | Notes |
+|----------|-------------|-------|
+| **Instagram** | Business or Creator | Personal accounts cannot use the Graph API. Free to switch in settings |
+| **Threads** | Any account | Instagram link no longer required since Sep 2025 |
+| **Meta** (token/webhook) | Meta Developer App | Create at [developers.facebook.com](https://developers.facebook.com) |
+
+## Features
+
+- **57 tools** across Instagram (33), Threads (18), and Meta platform (6)
+- **Instagram**: Publish photos/videos/reels/stories/carousels with alt text, manage comments, view insights, search hashtags, handle DMs, manage collaboration invites
+- **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; view insights
+- **Meta**: Token exchange/refresh/debug, webhook management
+- **2 resources**: Instagram profile, Threads profile
+- **2 prompts**: Cross-platform content publishing, analytics report
+- Rate limit tracking via `x-app-usage` header
 
 ## Tools
 
@@ -262,21 +225,19 @@ You only need to set the variables for the platforms you use. For example, if yo
 
 ### Step 1: Create a Meta Developer App
 
-All platforms (Instagram, Threads) require a Meta Developer App.
-
 1. Go to [developers.facebook.com](https://developers.facebook.com) and log in
-2. Click **"My Apps"** → **"Create App"**
-3. Select **"Other"** → **"Business"** (or "None" for personal use)
+2. Click **"My Apps"** -> **"Create App"**
+3. Select **"Other"** -> **"Business"** (or "None" for personal use)
 4. Enter an app name and create
 
-Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings → Basic**.
+Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic**.
 
 ### Step 2: Instagram Setup
 
-> Requires an **Instagram Business or Creator account**. Switch for free in Instagram app → Settings → Account type.
+> Requires an **Instagram Business or Creator account**. Switch for free in Instagram app -> Settings -> Account type.
 
-1. In your Meta App, go to **"Add Products"** → add **"Instagram Graph API"**
-2. Go to **"Instagram Graph API" → "Settings"** and connect your Instagram Business account via a Facebook Page
+1. In your Meta App, go to **"Add Products"** -> add **"Instagram Graph API"**
+2. Go to **"Instagram Graph API" -> "Settings"** and connect your Instagram Business account via a Facebook Page
 3. Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer/)
    - Select your app
    - Add permissions: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `instagram_manage_contents`, `pages_show_list`, `pages_read_engagement`
@@ -290,24 +251,24 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings → Basic
      &fb_exchange_token=SHORT_LIVED_TOKEN
    ```
    Or use the `meta_exchange_token` tool after setup.
-5. **Get your Instagram User ID** — call this with your token:
+5. **Get your Instagram User ID**:
    ```
    GET https://graph.facebook.com/v25.0/me/accounts?access_token=YOUR_TOKEN
    ```
-   This returns your Facebook Pages. For each page, get the linked Instagram account:
+   For each page, get the linked Instagram account:
    ```
    GET https://graph.facebook.com/v25.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
    ```
-   The `instagram_business_account.id` is your **`INSTAGRAM_USER_ID`** (a numeric ID like `17841400123456789`).
+   The `instagram_business_account.id` is your **`INSTAGRAM_USER_ID`**.
 
 ### Step 3: Threads Setup
 
-> Works with **any Threads account** (personal or business). Instagram account link is no longer required since September 2025.
+> Works with **any Threads account**. Instagram link no longer required since Sep 2025.
 
-1. In your Meta App, go to **"Add Products"** → add **"Threads API"**
-2. Go to **"Threads API" → "Settings"**:
+1. In your Meta App, go to **"Add Products"** -> add **"Threads API"**
+2. Go to **"Threads API" -> "Settings"**:
    - Add your Threads account as a **Threads Tester** under "Roles"
-   - Accept the invitation in the Threads app: **Settings → Account → Website permissions → Invites**
+   - Accept the invitation in the Threads app: **Settings -> Account -> Website permissions -> Invites**
 3. Generate an authorization URL:
    ```
    https://threads.net/oauth/authorize
@@ -316,7 +277,7 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings → Basic
      &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies
      &response_type=code
    ```
-   - For local testing, use `https://localhost/` as redirect URI (configure in App Settings → Threads API → Redirect URIs)
+   For local testing, use `https://localhost/` as redirect URI (configure in App Settings -> Threads API -> Redirect URIs).
 4. After authorization, exchange the code for an access token:
    ```
    POST https://graph.threads.net/oauth/access_token
@@ -335,29 +296,11 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings → Basic
      &client_secret=YOUR_APP_SECRET
      &access_token=SHORT_LIVED_TOKEN
    ```
-6. **Get your Threads User ID** — call this with your token:
+6. **Get your Threads User ID**:
    ```
    GET https://graph.threads.net/v1.0/me?fields=id,username&access_token=YOUR_TOKEN
    ```
-   The `id` field is your **`THREADS_USER_ID`** (a numeric ID like `1234567890`).
-
-### Step 4: Configure Environment Variables
-
-Set only the variables for the platforms you use:
-
-```bash
-# Instagram (requires Business/Creator account)
-INSTAGRAM_ACCESS_TOKEN=EAAxxxxxxx...     # Long-lived token from Step 2
-INSTAGRAM_USER_ID=17841400123456789      # Numeric ID from Step 2.5
-
-# Threads (any account)
-THREADS_ACCESS_TOKEN=THQWxxxxxxx...      # Long-lived token from Step 3
-THREADS_USER_ID=1234567890               # Numeric ID from Step 3.6
-
-# Meta App (for token management & webhooks)
-META_APP_ID=123456789012345              # From App Settings → Basic
-META_APP_SECRET=abcdef0123456789abcdef   # From App Settings → Basic
-```
+   The `id` field is your **`THREADS_USER_ID`**.
 
 ### Token Renewal
 
@@ -371,11 +314,9 @@ Access tokens expire after ~60 days. Refresh before expiration:
     &access_token=CURRENT_LONG_LIVED_TOKEN
   ```
 
-You can check token status anytime with `meta_debug_token`.
+Check token status anytime with `meta_debug_token`.
 
-## Deprecated Metrics (v22.0+)
-
-The following Instagram metrics were deprecated in Graph API v22.0 (January 2025) and removed for all versions on April 21, 2025:
+## Deprecated Metrics (Graph API v22.0+)
 
 | Deprecated Metric | Replacement |
 |-------------------|-------------|
@@ -384,13 +325,11 @@ The following Instagram metrics were deprecated in Graph API v22.0 (January 2025
 | `plays` | `views` |
 | `clips_replays_count` | `views` |
 | `engagement` | `saves` + `shares` + `likes` + `comments` |
-| `email_contacts` | Removed (no replacement) |
-| `phone_call_clicks` | Removed (no replacement) |
-| `text_message_clicks` | Removed (no replacement) |
-| `get_directions_clicks` | Removed (no replacement) |
-| `website_clicks` | Removed (no replacement) |
-| `profile_views` | Removed (no replacement) |
 
 ## License
 
-MIT
+[MIT](LICENSE)
+
+---
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.

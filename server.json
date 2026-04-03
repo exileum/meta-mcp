@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.mikusnuz/meta",
+  "name": "io.github.exileum/meta",
   "description": "MCP server for Instagram Graph API, Threads API & Meta platform management",
   "repository": {
-    "url": "https://github.com/mikusnuz/meta-mcp",
+    "url": "https://github.com/exileum/meta-mcp",
     "source": "github"
   },
-  "version": "2.0.2",
+  "version": "3.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@mikusnuz/meta-mcp",
-      "version": "2.0.2",
+      "identifier": "@exileum/meta-mcp",
+      "version": "3.0.0",
       "transport": {
         "type": "stdio"
       },

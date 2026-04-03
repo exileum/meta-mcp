@@ -38,7 +38,9 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         // Step 1: Create container
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
-        // Step 2: Publish
+        // Step 2: Wait for container to be ready
+        await waitForContainer(client, containerId);
+        // Step 3: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
