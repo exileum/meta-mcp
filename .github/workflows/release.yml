@@ -1,0 +1,57 @@
+name: Release & Publish
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      released: ${{ steps.version.outputs.released }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          if gh release view "$tag" &>/dev/null; then
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        if: steps.version.outputs.released == 'true'
+        run: gh release create "${{ steps.version.outputs.tag }}" --title "${{ steps.version.outputs.tag }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        if: steps.version.outputs.released == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          registry-url: https://registry.npmjs.org
+
+      - name: Install & build
+        if: steps.version.outputs.released == 'true'
+        run: npm ci && npm run build
+
+      - name: Publish to npm
+        if: steps.version.outputs.released == 'true'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

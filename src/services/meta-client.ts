@@ -36,21 +36,21 @@ export class MetaClient {
     let url = `${baseUrl}${path}`;
     const init: RequestInit = { method, signal: AbortSignal.timeout(30_000) };
 
-    if (method === "GET" || method === "DELETE") {
-      const qs = new URLSearchParams();
-      qs.set("access_token", token);
-      if (params) {
-        for (const [k, v] of Object.entries(params)) {
-          if (v !== undefined && v !== null && v !== "") {
-            qs.set(k, String(v));
-          }
+    const qs = new URLSearchParams();
+    qs.set("access_token", token);
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== null && v !== "") {
+          qs.set(k, String(v));
         }
       }
+    }
+
+    if (method === "GET" || method === "DELETE") {
       url += `?${qs.toString()}`;
     } else {
-      const body: Record<string, unknown> = { access_token: token, ...params };
-      init.headers = { "Content-Type": "application/json" };
-      init.body = JSON.stringify(body);
+      init.headers = { "Content-Type": "application/x-www-form-urlencoded" };
+      init.body = qs.toString();
     }
 
     const res = await fetch(url, init);
