@@ -77,7 +77,7 @@ npm run build
 
 - **57 tools** across Instagram (33), Threads (18), and Meta platform (6)
 - **Instagram**: Publish photos/videos/reels/stories/carousels with alt text, manage comments, view insights, search hashtags, handle DMs, manage collaboration invites
-- **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; view insights
+- **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; delete posts; view insights
 - **Meta**: Token exchange/refresh/debug, webhook management
 - **2 resources**: Instagram profile, Threads profile
 - **2 prompts**: Cross-platform content publishing, analytics report
@@ -252,11 +252,11 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
    ```
    Or use the `meta_exchange_token` tool after setup.
 5. **Get your Instagram User ID**:
-   ```
+   ```http
    GET https://graph.facebook.com/v25.0/me/accounts?access_token=YOUR_TOKEN
    ```
    For each page, get the linked Instagram account:
-   ```
+   ```http
    GET https://graph.facebook.com/v25.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
    ```
    The `instagram_business_account.id` is your **`INSTAGRAM_USER_ID`**.
@@ -297,7 +297,7 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
      &access_token=SHORT_LIVED_TOKEN
    ```
 6. **Get your Threads User ID**:
-   ```
+   ```http
    GET https://graph.threads.net/v1.0/me?fields=id,username&access_token=YOUR_TOKEN
    ```
    The `id` field is your **`THREADS_USER_ID`**.
