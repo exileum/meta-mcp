@@ -4,9 +4,9 @@
 
 ## Package
 
-- npm: `@mikusnuz/meta-mcp`
-- Run: `npx @mikusnuz/meta-mcp`
-- GitHub: https://github.com/mikusnuz/meta-mcp
+- npm: `@exileum/meta-mcp`
+- Run: `npx @exileum/meta-mcp`
+- GitHub: https://github.com/exileum/meta-mcp
 
 ## Environment Variables
 
@@ -26,7 +26,7 @@ Only set variables for the platforms you use.
   "mcpServers": {
     "meta": {
       "command": "npx",
-      "args": ["-y", "@mikusnuz/meta-mcp"],
+      "args": ["-y", "@exileum/meta-mcp"],
       "env": {
         "INSTAGRAM_ACCESS_TOKEN": "your_ig_token",
         "INSTAGRAM_USER_ID": "your_ig_user_id",
