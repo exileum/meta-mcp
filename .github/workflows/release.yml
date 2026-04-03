@@ -45,12 +45,6 @@ jobs:
         with:
           node-version: 24
 
-      - name: Verify npm version
-        if: steps.version.outputs.released == 'true'
-        run: |
-          echo "node: $(node -v)"
-          echo "npm: $(npm -v)"
-
       - name: Install & build
         if: steps.version.outputs.released == 'true'
         run: npm ci && npm run build
