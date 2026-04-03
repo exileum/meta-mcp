@@ -1,6 +1,6 @@
 # meta-mcp
 
-> Full-coverage MCP server for Instagram Graph API (v25.0), Threads API, and Meta platform management. Publish content, manage comments, view insights, and handle DMs — all through AI assistants.
+> Enables AI assistants to manage Instagram and Threads accounts — publish content, handle comments, view insights, search hashtags, and manage DMs through the Meta Graph API.
 
 ## Package
 

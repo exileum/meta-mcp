@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@exileum/meta-mcp)](https://www.npmjs.com/package/@exileum/meta-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-MCP server for **Instagram Graph API** (v25.0), **Threads API**, and **Meta platform** management. Publish content, manage comments, view insights, and handle DMs — all through AI assistants.
+Enables AI assistants to manage Instagram and Threads accounts — publish content, handle comments, view insights, search hashtags, and manage DMs through the Meta Graph API.
 
 ## Quick Start
 
