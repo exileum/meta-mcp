@@ -43,8 +43,7 @@ jobs:
         if: steps.version.outputs.released == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          registry-url: https://registry.npmjs.org
+          node-version: 22
 
       - name: Install & build
         if: steps.version.outputs.released == 'true'
@@ -53,5 +52,3 @@ jobs:
       - name: Publish to npm
         if: steps.version.outputs.released == 'true'
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
