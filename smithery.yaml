@@ -25,4 +25,4 @@ startCommand:
         description: Meta App Secret (for token/webhook tools)
   commandFunction:
     |-
-    config => ({ command: 'npx', args: ['-y', '@mikusnuz/meta-mcp'], env: { INSTAGRAM_ACCESS_TOKEN: config.instagramAccessToken || '', INSTAGRAM_USER_ID: config.instagramUserId || '', THREADS_ACCESS_TOKEN: config.threadsAccessToken || '', THREADS_USER_ID: config.threadsUserId || '', META_APP_ID: config.metaAppId || '', META_APP_SECRET: config.metaAppSecret || '' } })
+    config => ({ command: 'npx', args: ['-y', '@exileum/meta-mcp'], env: { INSTAGRAM_ACCESS_TOKEN: config.instagramAccessToken || '', INSTAGRAM_USER_ID: config.instagramUserId || '', THREADS_ACCESS_TOKEN: config.threadsAccessToken || '', THREADS_USER_ID: config.threadsUserId || '', META_APP_ID: config.metaAppId || '', META_APP_SECRET: config.metaAppSecret || '' } })
