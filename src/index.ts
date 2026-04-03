@@ -29,9 +29,11 @@ import { registerInstagramResources } from "./resources/instagram.js";
 import { registerThreadsResources } from "./resources/threads.js";
 import { registerPrompts } from "./prompts/index.js";
 
+const SERVER_VERSION = "3.0.0";
+
 const server = new McpServer({
   name: "meta-mcp",
-  version: "2.0.0",
+  version: SERVER_VERSION,
 });
 
 const config = loadConfig();
@@ -74,7 +76,7 @@ main().catch((err) => {
 export function createSandboxServer() {
   const sandbox = new McpServer({
     name: "meta-mcp",
-    version: "2.0.0",
+    version: SERVER_VERSION,
   });
 
   const mockConfig: MetaConfig = {
