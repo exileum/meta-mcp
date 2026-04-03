@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All registry identifiers updated (MCP Registry, Smithery, Glama)
 - Removed Korean README and agent templates
 
+### Fixed
+- **Container wait consistency** — `waitForContainer` now runs for all media types (IMAGE + VIDEO) in carousel, story, and photo publishing, not just VIDEO
+
 ## [2.0.2] — 2026-03-24
 
 ### Fixed

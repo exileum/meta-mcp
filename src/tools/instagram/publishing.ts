@@ -108,9 +108,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           }
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
           const childId = (child as { id: string }).id;
-          if (item.type === "VIDEO") {
-            await waitForContainer(client, childId);
-          }
+          await waitForContainer(client, childId);
           childIds.push(childId);
         }
         // Step 2: Create carousel container
@@ -185,9 +183,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         }
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
-        if (media_type === "VIDEO") {
-          await waitForContainer(client, containerId);
-        }
+        await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
