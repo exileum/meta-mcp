@@ -43,11 +43,13 @@ jobs:
         if: steps.version.outputs.released == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
-      - name: Upgrade npm
+      - name: Verify npm version
         if: steps.version.outputs.released == 'true'
-        run: npm install -g npm@latest
+        run: |
+          echo "node: $(node -v)"
+          echo "npm: $(npm -v)"
 
       - name: Install & build
         if: steps.version.outputs.released == 'true'
