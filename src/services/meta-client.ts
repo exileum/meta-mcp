@@ -1,7 +1,8 @@
 import { MetaConfig } from "../config.js";
 import { RateLimit } from "../types.js";
 
-const IG_BASE = "https://graph.facebook.com/v25.0";
+const IG_BASE = "https://graph.instagram.com/v25.0";
+const FB_BASE = "https://graph.facebook.com/v25.0";
 const THREADS_BASE = "https://graph.threads.net/v1.0";
 
 interface ClientResponse {
@@ -104,7 +105,7 @@ export class MetaClient {
       throw new Error("META_APP_ID and META_APP_SECRET are required.");
     }
     const appToken = `${this.config.appId}|${this.config.appSecret}`;
-    return this.request(IG_BASE, appToken, method, path, params);
+    return this.request(FB_BASE, appToken, method, path, params);
   }
 
   /** Exchange short-lived token for long-lived token */
@@ -112,7 +113,7 @@ export class MetaClient {
     if (!this.config.appId || !this.config.appSecret) {
       throw new Error("META_APP_ID and META_APP_SECRET are required for token exchange.");
     }
-    return this.request(IG_BASE, shortToken, "GET", "/oauth/access_token", {
+    return this.request(FB_BASE, shortToken, "GET", "/oauth/access_token", {
       grant_type: "fb_exchange_token",
       client_id: this.config.appId,
       client_secret: this.config.appSecret,
@@ -122,7 +123,7 @@ export class MetaClient {
 
   /** Refresh a long-lived token */
   async refreshToken(longToken: string): Promise<ClientResponse> {
-    return this.request(IG_BASE, longToken, "GET", "/oauth/access_token", {
+    return this.request(FB_BASE, longToken, "GET", "/oauth/access_token", {
       grant_type: "fb_exchange_token",
     });
   }
@@ -133,7 +134,7 @@ export class MetaClient {
       throw new Error("META_APP_ID and META_APP_SECRET are required for token debug.");
     }
     const appToken = `${this.config.appId}|${this.config.appSecret}`;
-    return this.request(IG_BASE, appToken, "GET", "/debug_token", {
+    return this.request(FB_BASE, appToken, "GET", "/debug_token", {
       input_token: inputToken,
     });
   }
