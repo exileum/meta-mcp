@@ -2,7 +2,7 @@
   "name": "@exileum/meta-mcp",
   "version": "3.1.0",
   "mcpName": "io.github.exileum/meta",
-  "description": "MCP server for Instagram Graph API, Threads API & Meta platform management",
+  "description": "Enables AI assistants to manage Instagram and Threads accounts through the Meta Graph API",
   "type": "module",
   "bin": {
     "meta-mcp": "dist/index.js"
