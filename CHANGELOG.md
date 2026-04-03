@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-04-04
+
 ### Fixed
+- **Instagram API base URL** — use `graph.instagram.com` for Instagram endpoints; tokens from Instagram Login flow (`IGAA...`) were rejected by `graph.facebook.com`
+- **Meta platform endpoints** — separate `FB_BASE` (`graph.facebook.com`) for token exchange, debug, and webhook tools that only exist on the Facebook Graph API
 - **POST request encoding** — switch from `application/json` to `application/x-www-form-urlencoded` for POST requests; optional parameters like `topic_tag` and `poll` were silently ignored by the Meta API with JSON encoding
 - Deduplicate URLSearchParams building logic in `meta-client.ts`
 
