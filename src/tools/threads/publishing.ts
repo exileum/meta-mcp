@@ -5,14 +5,19 @@ import { MetaClient } from "../../services/meta-client.js";
 export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
   const interval = 2000;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
+  let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     const { data } = await client.threads("GET", `/${containerId}`, { fields: "status" });
     const status = (data as { status?: string }).status;
+    lastStatus = status;
     if (status === "FINISHED") return;
     if (status === "ERROR") throw new Error("Threads container processing failed (ERROR status)");
+    if (status === "EXPIRED") throw new Error("Threads container expired — it was not published within 24 hours and must be recreated");
+    if (status === "PUBLISHED") throw new Error("Threads container already published");
+    if (status && status !== "IN_PROGRESS") throw new Error(`Unexpected Threads container status: ${status}`);
     await new Promise((r) => setTimeout(r, interval));
   }
-  throw new Error(`Threads container processing timed out after ${maxWait}s`);
+  throw new Error(`Threads container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
 }
 
 export function registerThreadsPublishingTools(server: McpServer, client: MetaClient): void {
