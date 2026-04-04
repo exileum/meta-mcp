@@ -5,6 +5,10 @@ const IG_BASE = "https://graph.instagram.com/v25.0";
 const FB_BASE = "https://graph.facebook.com/v25.0";
 const THREADS_BASE = "https://graph.threads.net/v1.0";
 
+// Unversioned bases for OAuth token endpoints
+const IG_TOKEN_BASE = "https://graph.instagram.com";
+const THREADS_TOKEN_BASE = "https://graph.threads.net";
+
 interface ClientResponse {
   data: unknown;
   rateLimit?: RateLimit;
@@ -108,23 +112,39 @@ export class MetaClient {
     return this.request(FB_BASE, appToken, method, path, params);
   }
 
-  /** Exchange short-lived token for long-lived token */
-  async exchangeToken(shortToken: string): Promise<ClientResponse> {
-    if (!this.config.appId || !this.config.appSecret) {
-      throw new Error("META_APP_ID and META_APP_SECRET are required for token exchange.");
+  /** Exchange short-lived Instagram token for long-lived token (60 days) */
+  async igExchangeToken(shortToken: string): Promise<ClientResponse> {
+    if (!this.config.appSecret) {
+      throw new Error("META_APP_SECRET is required for token exchange.");
     }
-    return this.request(FB_BASE, shortToken, "GET", "/oauth/access_token", {
-      grant_type: "fb_exchange_token",
-      client_id: this.config.appId,
+    return this.request(IG_TOKEN_BASE, shortToken, "GET", "/access_token", {
+      grant_type: "ig_exchange_token",
       client_secret: this.config.appSecret,
-      fb_exchange_token: shortToken,
     });
   }
 
-  /** Refresh a long-lived token */
-  async refreshToken(longToken: string): Promise<ClientResponse> {
-    return this.request(FB_BASE, longToken, "GET", "/oauth/access_token", {
-      grant_type: "fb_exchange_token",
+  /** Refresh a long-lived Instagram token (must be at least 24h old and not expired) */
+  async igRefreshToken(longToken: string): Promise<ClientResponse> {
+    return this.request(IG_TOKEN_BASE, longToken, "GET", "/refresh_access_token", {
+      grant_type: "ig_refresh_token",
+    });
+  }
+
+  /** Exchange short-lived Threads token for long-lived token (60 days) */
+  async threadsExchangeToken(shortToken: string): Promise<ClientResponse> {
+    if (!this.config.appSecret) {
+      throw new Error("META_APP_SECRET is required for token exchange.");
+    }
+    return this.request(THREADS_TOKEN_BASE, shortToken, "GET", "/access_token", {
+      grant_type: "th_exchange_token",
+      client_secret: this.config.appSecret,
+    });
+  }
+
+  /** Refresh a long-lived Threads token (must be at least 24h old and not expired) */
+  async threadsRefreshToken(longToken: string): Promise<ClientResponse> {
+    return this.request(THREADS_TOKEN_BASE, longToken, "GET", "/refresh_access_token", {
+      grant_type: "th_refresh_token",
     });
   }
 

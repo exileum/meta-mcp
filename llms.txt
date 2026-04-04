@@ -47,8 +47,8 @@ Only set variables for the platforms you use.
 ## Tools (57)
 
 ### Meta Platform (6)
-- meta_exchange_token — Exchange short-lived token for long-lived (~60 days)
-- meta_refresh_token — Refresh a long-lived token before expiration
+- meta_exchange_token — Exchange short-lived token for long-lived (~60 days). Requires `platform` (instagram or threads)
+- meta_refresh_token — Refresh a long-lived token before expiration. Requires `platform` (instagram or threads)
 - meta_debug_token — Inspect token validity, expiration, and scopes
 - meta_get_app_info — Get Meta App information
 - meta_subscribe_webhook — Subscribe to webhook notifications
