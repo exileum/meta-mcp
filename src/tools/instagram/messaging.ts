@@ -56,7 +56,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
   // ─── ig_send_message ─────────────────────────────────────────
   server.tool(
     "ig_send_message",
-    "Send a DM to a user. Requires 'instagram_business_manage_messages' permission. Can only message users who have messaged you first (24hr window for standard, extended for human agent).",
+    "Send a DM to a user. Requires 'instagram_business_manage_messages' permission. Can only message users who have messaged you first (24hr window).",
     {
       recipient_id: z.string().describe("Instagram-scoped user ID of the recipient"),
       message: z.string().describe("Message text to send"),
