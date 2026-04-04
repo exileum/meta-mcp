@@ -240,31 +240,27 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
 ### Step 2: Instagram Setup
 
 > Requires an **Instagram Business or Creator account**. Switch for free in Instagram app -> Settings -> Account type.
+> No Facebook Page linking required — this uses the [Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/).
 
-1. In your Meta App, go to **"Add Products"** -> add **"Instagram Graph API"**
-2. Go to **"Instagram Graph API" -> "Settings"** and connect your Instagram Business account via a Facebook Page
-3. Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer/)
-   - Select your app
-   - Add permissions: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `instagram_manage_contents`, `pages_show_list`, `pages_read_engagement`
-   - For DM/messaging features, also add: `instagram_business_manage_messages`
-   - Click **"Generate Access Token"** and authorize
-4. The generated token is short-lived (~1 hour). Exchange it for a long-lived token (~60 days):
-   ```
-   GET https://graph.instagram.com/access_token
-     ?grant_type=ig_exchange_token
-     &client_secret=YOUR_APP_SECRET
-     &access_token=SHORT_LIVED_TOKEN
-   ```
-   Or use the `meta_exchange_token` tool with `platform: "instagram"` after setup.
-5. **Get your Instagram User ID**:
+1. In your Meta App, go to **"Instagram"** -> **"API setup with Instagram business login"**
+2. In the **"Generate access tokens"** section, click **"Add account"** -> log in to your Instagram account
+3. The generated token is **long-lived (~60 days)** — no exchange step needed. Copy it as your **`INSTAGRAM_ACCESS_TOKEN`**.
+   - To refresh before expiry, use the `meta_refresh_token` tool with `platform: "instagram"`, or:
+     ```
+     GET https://graph.instagram.com/refresh_access_token
+       ?grant_type=ig_refresh_token
+       &access_token=LONG_LIVED_TOKEN
+     ```
+4. **Get your Instagram User ID**:
    ```http
-   GET https://graph.facebook.com/v25.0/me/accounts?access_token=YOUR_TOKEN
+   GET https://graph.instagram.com/v25.0/me?fields=user_id,username&access_token=YOUR_TOKEN
    ```
-   For each page, get the linked Instagram account:
-   ```http
-   GET https://graph.facebook.com/v25.0/{page-id}?fields=instagram_business_account&access_token=YOUR_TOKEN
-   ```
-   The `instagram_business_account.id` is your **`INSTAGRAM_USER_ID`**.
+   The `user_id` is your **`INSTAGRAM_USER_ID`**.
+5. **Permissions** are configured in your app's Instagram settings. Available scopes:
+   - `instagram_business_basic` — required for all operations
+   - `instagram_business_content_publish` — publishing photos, reels, carousels
+   - `instagram_business_manage_comments` — reading and managing comments
+   - `instagram_business_manage_messages` — DM conversations and messaging
 
 ### Step 3: Threads Setup
 
