@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.1] — 2026-04-05
+
 ### Added
 - **Publish to GitHub Packages** — the release workflow now publishes to the GitHub Packages npm registry (`npm.pkg.github.com`) in addition to npmjs.com, providing an alternative installation source and tighter GitHub ecosystem integration ([#18](https://github.com/exileum/meta-mcp/issues/18))
 
