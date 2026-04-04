@@ -122,6 +122,20 @@ describe("MetaClient token endpoints", () => {
       expect(url).not.toMatch(/\/v\d+/);
     });
 
+    it("igRefreshToken URL has no /v* prefix", async () => {
+      const client = new MetaClient(mockConfig());
+      await client.igRefreshToken("tok");
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).not.toMatch(/\/v\d+/);
+    });
+
+    it("threadsExchangeToken URL has no /v* prefix", async () => {
+      const client = new MetaClient(mockConfig());
+      await client.threadsExchangeToken("tok");
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).not.toMatch(/\/v\d+/);
+    });
+
     it("threadsRefreshToken URL has no /v* prefix", async () => {
       const client = new MetaClient(mockConfig());
       await client.threadsRefreshToken("tok");

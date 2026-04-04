@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Instagram: `graph.instagram.com` with `ig_exchange_token` / `ig_refresh_token`
   - Threads: `graph.threads.net` with `th_exchange_token` / `th_refresh_token`
   - Previously all token operations incorrectly used the Facebook Graph API (`graph.facebook.com` with `fb_exchange_token`), which failed for both Instagram and Threads tokens
-- **`meta_refresh_token` missing parameters** — the old implementation was missing required `client_secret` and token parameters, making refresh fail for all platforms
+- **`meta_refresh_token` broken** — the old implementation used the wrong endpoint (`/oauth/access_token` instead of `/refresh_access_token`) and wrong grant type (`fb_exchange_token` instead of platform-specific refresh grant types), making refresh fail for all platforms
 
 ### Changed
 - **`meta_exchange_token` / `meta_refresh_token`** now require a `platform` parameter (`"instagram"` or `"threads"`) to route to the correct endpoint

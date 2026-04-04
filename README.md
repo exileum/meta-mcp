@@ -311,13 +311,13 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
 Access tokens expire after ~60 days. Refresh before expiration (token must be at least 24h old):
 
 - **Instagram**: Use `meta_refresh_token` with `platform: "instagram"`, or call:
-  ```
+  ```http
   GET https://graph.instagram.com/refresh_access_token
     ?grant_type=ig_refresh_token
     &access_token=CURRENT_LONG_LIVED_TOKEN
   ```
 - **Threads**: Use `meta_refresh_token` with `platform: "threads"`, or call:
-  ```
+  ```http
   GET https://graph.threads.net/refresh_access_token
     ?grant_type=th_refresh_token
     &access_token=CURRENT_LONG_LIVED_TOKEN

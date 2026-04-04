@@ -43,7 +43,7 @@ jobs:
       - run: npm audit --audit-level=high
 
   build:
-    needs: [typecheck, test]
+    needs: [typecheck, test, audit]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
