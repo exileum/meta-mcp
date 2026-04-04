@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Minimum Node.js version** — raised from 18 to 22 LTS (Node 18 reached EOL in April 2025)
+
 ## [3.1.0] — 2026-04-04
+
+### Added
+- **npm provenance** — packages are now published with OIDC trusted publishing for verifiable supply chain security
 
 ### Fixed
 - **Instagram API base URL** — use `graph.instagram.com` for Instagram endpoints; tokens from Instagram Login flow (`IGAA...`) were rejected by `graph.facebook.com`
@@ -22,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - NPM scope changed from `@mikusnuz` to `@exileum`
 - All registry identifiers updated (MCP Registry, Smithery, Glama)
 - Removed Korean README and agent templates
+- **npm package contents** — LICENSE and README are now included in the published package
 
 ### Fixed
 - **Container wait consistency** — `waitForContainer` now runs for all media types (IMAGE + VIDEO) in carousel, story, and photo publishing, not just VIDEO

@@ -5,6 +5,10 @@
 
 Enables AI assistants to manage Instagram and Threads accounts — publish content, handle comments, view insights, search hashtags, and manage DMs through the Meta Graph API.
 
+## Prerequisites
+
+- **Node.js 22+** (LTS recommended)
+
 ## Quick Start
 
 Add to your MCP client config:
