@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import { waitForThreadsContainer } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
+
+// Mirror the gif_provider schema used in threads_publish_text
+const gifProviderSchema = z.enum(["GIPHY"]).optional();
 
 function makeMockClient(statusSequence: string[]): MetaClient {
   let callIndex = 0;
@@ -14,6 +18,20 @@ function makeMockClient(statusSequence: string[]): MetaClient {
     }),
   } as unknown as MetaClient;
 }
+
+describe("gif_provider schema", () => {
+  it("accepts GIPHY", () => {
+    expect(gifProviderSchema.parse("GIPHY")).toBe("GIPHY");
+  });
+
+  it("rejects TENOR (sunset March 31, 2026)", () => {
+    expect(() => gifProviderSchema.parse("TENOR")).toThrow();
+  });
+
+  it("accepts undefined (optional)", () => {
+    expect(gifProviderSchema.parse(undefined)).toBeUndefined();
+  });
+});
 
 describe("waitForThreadsContainer", () => {
   beforeEach(() => {
