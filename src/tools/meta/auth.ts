@@ -6,13 +6,16 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
   // ─── meta_exchange_token ─────────────────────────────────────
   server.tool(
     "meta_exchange_token",
-    "Exchange a short-lived token for a long-lived token (valid ~60 days). Requires META_APP_ID and META_APP_SECRET.",
+    "Exchange a short-lived token for a long-lived token (valid ~60 days). Uses platform-specific endpoints: Instagram (graph.instagram.com) or Threads (graph.threads.net). Requires META_APP_SECRET.",
     {
       short_lived_token: z.string().describe("Short-lived access token to exchange"),
+      platform: z.enum(["instagram", "threads"]).describe("Target platform: 'instagram' or 'threads'"),
     },
-    async ({ short_lived_token }) => {
+    async ({ short_lived_token, platform }) => {
       try {
-        const { data, rateLimit } = await client.exchangeToken(short_lived_token);
+        const { data, rateLimit } = platform === "threads"
+          ? await client.threadsExchangeToken(short_lived_token)
+          : await client.igExchangeToken(short_lived_token);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Token exchange failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
@@ -23,13 +26,16 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
   // ─── meta_refresh_token ──────────────────────────────────────
   server.tool(
     "meta_refresh_token",
-    "Refresh a long-lived token before it expires. Returns a new long-lived token.",
+    "Refresh a long-lived token before it expires (must be at least 24h old). Uses platform-specific endpoints: Instagram (graph.instagram.com) or Threads (graph.threads.net). Returns a new long-lived token valid for 60 days.",
     {
       long_lived_token: z.string().describe("Current long-lived access token to refresh"),
+      platform: z.enum(["instagram", "threads"]).describe("Target platform: 'instagram' or 'threads'"),
     },
-    async ({ long_lived_token }) => {
+    async ({ long_lived_token, platform }) => {
       try {
-        const { data, rateLimit } = await client.refreshToken(long_lived_token);
+        const { data, rateLimit } = platform === "threads"
+          ? await client.threadsRefreshToken(long_lived_token)
+          : await client.igRefreshToken(long_lived_token);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Token refresh failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };

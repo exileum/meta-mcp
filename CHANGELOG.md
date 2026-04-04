@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Token exchange/refresh endpoints** — `meta_exchange_token` and `meta_refresh_token` now use the correct platform-specific endpoints and grant types ([#19](https://github.com/exileum/meta-mcp/issues/19)):
+  - Instagram: `graph.instagram.com` with `ig_exchange_token` / `ig_refresh_token`
+  - Threads: `graph.threads.net` with `th_exchange_token` / `th_refresh_token`
+  - Previously all token operations incorrectly used the Facebook Graph API (`graph.facebook.com` with `fb_exchange_token`), which failed for both Instagram and Threads tokens
+- **`meta_refresh_token` broken** — the old implementation used the wrong endpoint (`/oauth/access_token` instead of `/refresh_access_token`) and wrong grant type (`fb_exchange_token` instead of platform-specific refresh grant types), making refresh fail for all platforms
+
 ### Changed
+- **`meta_exchange_token` / `meta_refresh_token`** now require a `platform` parameter (`"instagram"` or `"threads"`) to route to the correct endpoint
 - **Minimum Node.js version** — raised from 18 to 22 LTS (Node 18 reached EOL in April 2025)
 - **zod** — upgraded from 3.25.76 to 4.3.6
 - **@modelcontextprotocol/sdk** — upgraded from 1.26.0 to 1.29.0

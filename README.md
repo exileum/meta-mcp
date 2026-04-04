@@ -94,8 +94,8 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `meta_exchange_token` | Exchange short-lived token for long-lived token (~60 days) |
-| `meta_refresh_token` | Refresh a long-lived token before expiration |
+| `meta_exchange_token` | Exchange short-lived token for long-lived token (~60 days). Requires `platform` (`instagram` or `threads`) |
+| `meta_refresh_token` | Refresh a long-lived token before expiration. Requires `platform` (`instagram` or `threads`) |
 | `meta_debug_token` | Inspect token validity, expiration, and scopes |
 | `meta_get_app_info` | Get Meta App information |
 | `meta_subscribe_webhook` | Subscribe to webhook notifications |
@@ -249,13 +249,12 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
    - Click **"Generate Access Token"** and authorize
 4. The generated token is short-lived (~1 hour). Exchange it for a long-lived token (~60 days):
    ```
-   GET https://graph.facebook.com/v25.0/oauth/access_token
-     ?grant_type=fb_exchange_token
-     &client_id=YOUR_APP_ID
+   GET https://graph.instagram.com/access_token
+     ?grant_type=ig_exchange_token
      &client_secret=YOUR_APP_SECRET
-     &fb_exchange_token=SHORT_LIVED_TOKEN
+     &access_token=SHORT_LIVED_TOKEN
    ```
-   Or use the `meta_exchange_token` tool after setup.
+   Or use the `meta_exchange_token` tool with `platform: "instagram"` after setup.
 5. **Get your Instagram User ID**:
    ```http
    GET https://graph.facebook.com/v25.0/me/accounts?access_token=YOUR_TOKEN
@@ -309,11 +308,16 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
 
 ### Token Renewal
 
-Access tokens expire after ~60 days. Refresh before expiration:
+Access tokens expire after ~60 days. Refresh before expiration (token must be at least 24h old):
 
-- **Instagram**: Use `meta_exchange_token` with the current valid token
-- **Threads**: Use `meta_refresh_token` or call:
+- **Instagram**: Use `meta_refresh_token` with `platform: "instagram"`, or call:
+  ```http
+  GET https://graph.instagram.com/refresh_access_token
+    ?grant_type=ig_refresh_token
+    &access_token=CURRENT_LONG_LIVED_TOKEN
   ```
+- **Threads**: Use `meta_refresh_token` with `platform: "threads"`, or call:
+  ```http
   GET https://graph.threads.net/refresh_access_token
     ?grant_type=th_refresh_token
     &access_token=CURRENT_LONG_LIVED_TOKEN
