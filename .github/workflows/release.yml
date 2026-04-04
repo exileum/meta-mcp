@@ -47,7 +47,7 @@ jobs:
 
       - name: Upgrade npm for OIDC trusted publishing
         if: steps.version.outputs.released == 'true'
-        run: npm i -g npm@latest
+        run: npm i -g npm@11
 
       - name: Install & build
         if: steps.version.outputs.released == 'true'
