@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Instagram messaging tool descriptions reference wrong permission** — updated `ig_get_conversations` and `ig_send_message` descriptions to reference `instagram_business_manage_messages` (correct for Instagram API with Instagram Login) instead of the deprecated `instagram_manage_messages` (Messenger Platform). Added messaging permission to README setup instructions ([#23](https://github.com/exileum/meta-mcp/issues/23))
+
 ## [3.3.1] — 2026-04-05
 
 ### Added

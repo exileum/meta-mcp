@@ -246,6 +246,7 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
 3. Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer/)
    - Select your app
    - Add permissions: `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `instagram_manage_contents`, `pages_show_list`, `pages_read_engagement`
+   - For DM/messaging features, also add: `instagram_business_manage_messages`
    - Click **"Generate Access Token"** and authorize
 4. The generated token is short-lived (~1 hour). Exchange it for a long-lived token (~60 days):
    ```
