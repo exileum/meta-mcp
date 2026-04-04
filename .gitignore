@@ -3,3 +3,10 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .idea/
+
+# Environment files with secrets
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
