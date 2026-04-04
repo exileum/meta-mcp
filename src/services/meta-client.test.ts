@@ -22,15 +22,13 @@ function jsonResponse(body: object, headers: Record<string, string> = {}) {
 }
 
 describe("parseRateLimit", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   it("maps snake_case x-app-usage fields to camelCase RateLimit", async () => {
     const usage = JSON.stringify({ call_count: 28, total_cpu_time: 15, total_time: 12 });
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({ id: "123" }, { "x-app-usage": usage })
     );
 
@@ -45,7 +43,7 @@ describe("parseRateLimit", () => {
   });
 
   it("returns undefined rateLimit when x-app-usage header is missing", async () => {
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({ id: "123" })
     );
 
@@ -56,7 +54,7 @@ describe("parseRateLimit", () => {
   });
 
   it("returns undefined rateLimit when x-app-usage contains invalid JSON", async () => {
-    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({ id: "123" }, { "x-app-usage": "not-json" })
     );
 
