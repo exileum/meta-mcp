@@ -65,6 +65,66 @@ describe("parseRateLimit", () => {
   });
 });
 
+describe("MetaClient JSON body mode", () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ recipient_id: "123", message_id: "m_456" })
+    );
+  });
+
+  it("sends Content-Type application/json with JSON body when json option is true", async () => {
+    const client = new MetaClient(mockConfig());
+    await client.ig("POST", "/ig-user-id/messages", {
+      recipient: { id: "123" },
+      message: { text: "Hello" },
+      messaging_type: "RESPONSE",
+    }, { json: true });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    const body = JSON.parse(init.body as string);
+    expect(body).toEqual({
+      recipient: { id: "123" },
+      message: { text: "Hello" },
+      messaging_type: "RESPONSE",
+    });
+  });
+
+  it("puts access_token in query string (not body) when using JSON mode", async () => {
+    const client = new MetaClient(mockConfig());
+    await client.ig("POST", "/ig-user-id/messages", {
+      recipient: { id: "123" },
+      message: { text: "Hi" },
+    }, { json: true });
+
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const parsed = new URL(url);
+
+    expect(parsed.searchParams.get("access_token")).toBe("ig-token");
+    const body = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("access_token");
+  });
+
+  it("uses form-encoded body by default for POST requests", async () => {
+    const client = new MetaClient(mockConfig());
+    await client.ig("POST", "/ig-user-id/media_publish", {
+      creation_id: "container-123",
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/x-www-form-urlencoded");
+    const body = new URLSearchParams(init.body as string);
+    expect(body.get("creation_id")).toBe("container-123");
+    expect(body.get("access_token")).toBe("ig-token");
+  });
+});
+
 describe("MetaClient token endpoints", () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
