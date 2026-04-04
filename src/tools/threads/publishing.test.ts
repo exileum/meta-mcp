@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { waitForThreadsContainer } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
@@ -6,7 +6,10 @@ function makeMockClient(statusSequence: string[]): MetaClient {
   let callIndex = 0;
   return {
     threads: vi.fn(async () => {
-      const status = statusSequence[callIndex++] ?? "IN_PROGRESS";
+      const status = statusSequence[callIndex++];
+      if (status === undefined) {
+        throw new Error(`makeMockClient: statusSequence exhausted at call ${callIndex}`);
+      }
       return { data: { status }, rateLimit: undefined };
     }),
   } as unknown as MetaClient;
@@ -15,6 +18,10 @@ function makeMockClient(statusSequence: string[]): MetaClient {
 describe("waitForThreadsContainer", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns immediately when status is FINISHED on first poll", async () => {
