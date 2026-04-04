@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { waitForThreadsContainer } from "./publishing.js";
 
 export function registerThreadsReplyTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_replies ─────────────────────────────────────
@@ -54,16 +55,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         const containerId = (container as { id: string }).id;
         if (video_url) {
-          // Wait for video processing
-          const interval = 2000;
-          const maxAttempts = 15;
-          for (let i = 0; i < maxAttempts; i++) {
-            const { data: status } = await client.threads("GET", `/${containerId}`, { fields: "status" });
-            const s = (status as { status?: string }).status;
-            if (s === "FINISHED") break;
-            if (s === "ERROR") throw new Error("Video processing failed");
-            await new Promise((r) => setTimeout(r, interval));
-          }
+          await waitForThreadsContainer(client, containerId);
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,

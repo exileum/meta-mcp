@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
-async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
+export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
   const interval = 2000;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
   for (let i = 0; i < maxAttempts; i++) {
