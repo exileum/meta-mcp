@@ -25,7 +25,12 @@ export class MetaClient {
     const usage = headers.get("x-app-usage");
     if (!usage) return undefined;
     try {
-      return JSON.parse(usage);
+      const raw = JSON.parse(usage);
+      return {
+        callCount: raw.call_count,
+        totalCpuTime: raw.total_cpu_time,
+        totalTime: raw.total_time,
+      };
     } catch {
       return undefined;
     }
