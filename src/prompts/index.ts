@@ -53,7 +53,7 @@ export function registerPrompts(server: McpServer) {
               "2. ig_get_account_insights — Get Instagram insights for the last 7 days (metric: views,reach,follower_count, period: day)",
               "3. ig_get_media_list — Get recent 10 posts to analyze engagement",
               "4. threads_get_profile — Get Threads profile info",
-              "5. threads_get_user_insights — Get Threads insights (metric: views,likes,replies,reposts,quotes,clicks)",
+              "5. threads_get_user_insights — Get Threads insights (metric: views,likes,replies,reposts,quotes,clicks, period: day)",
               "6. threads_get_posts — Get recent 10 Threads posts",
               "",
               "Then compile a report covering:",

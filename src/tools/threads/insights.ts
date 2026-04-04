@@ -25,15 +25,16 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
   // ─── threads_get_user_insights ───────────────────────────────
   server.tool(
     "threads_get_user_insights",
-    "Get account-level Threads insights (views, likes, replies, reposts, quotes, clicks, followers, follower demographics).",
+    "Get account-level Threads insights (views, likes, replies, reposts, quotes, clicks, followers, follower demographics). Requires period parameter.",
     {
       metric: z.string().describe("Comma-separated metrics: views,likes,replies,reposts,quotes,clicks,followers_count,follower_demographics"),
-      since: z.string().optional().describe("Start date (Unix timestamp)"),
-      until: z.string().optional().describe("End date (Unix timestamp)"),
+      period: z.enum(["day", "lifetime"]).optional().default("day").describe("Time aggregation period. Use 'day' for time-series metrics (views, likes, replies, reposts, quotes, followers_count). Use 'lifetime' only for follower_demographics."),
+      since: z.string().optional().describe("Start date (Unix timestamp). Required when period is 'day'."),
+      until: z.string().optional().describe("End date (Unix timestamp). Required when period is 'day'."),
     },
-    async ({ metric, since, until }) => {
+    async ({ metric, period, since, until }) => {
       try {
-        const params: Record<string, unknown> = { metric };
+        const params: Record<string, unknown> = { metric, period };
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_insights`, params);
