@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-04-04
+
 ### Fixed
 - **Token exchange/refresh endpoints** — `meta_exchange_token` and `meta_refresh_token` now use the correct platform-specific endpoints and grant types ([#19](https://github.com/exileum/meta-mcp/issues/19)):
   - Instagram: `graph.instagram.com` with `ig_exchange_token` / `ig_refresh_token`
