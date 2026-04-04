@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Minimum Node.js version** — raised from 18 to 22 LTS (Node 18 reached EOL in April 2025)
+- **zod** — upgraded from 3.25.76 to 4.3.6
+- **@modelcontextprotocol/sdk** — upgraded from 1.26.0 to 1.29.0
+- **typescript** — upgraded from 5.9.3 to 6.0.2
+- **@types/node** — upgraded from 22.19.11 to 25.5.2
 
 ## [3.1.0] — 2026-04-04
 

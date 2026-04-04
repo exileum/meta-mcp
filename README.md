@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@exileum/meta-mcp)](https://www.npmjs.com/package/@exileum/meta-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![meta-mcp MCP server](https://glama.ai/mcp/servers/exileum/meta-mcp/badges/score.svg)](https://glama.ai/mcp/servers/exileum/meta-mcp)
 
 Enables AI assistants to manage Instagram and Threads accounts — publish content, handle comments, view insights, search hashtags, and manage DMs through the Meta Graph API.
 
@@ -320,15 +321,9 @@ Access tokens expire after ~60 days. Refresh before expiration:
 
 Check token status anytime with `meta_debug_token`.
 
-## Deprecated Metrics (Graph API v22.0+)
+## Glama
 
-| Deprecated Metric | Replacement |
-|-------------------|-------------|
-| `impressions` | `views` |
-| `video_views` | `views` |
-| `plays` | `views` |
-| `clips_replays_count` | `views` |
-| `engagement` | `saves` + `shares` + `likes` + `comments` |
+[![meta-mcp MCP server](https://glama.ai/mcp/servers/exileum/meta-mcp/badges/card.svg)](https://glama.ai/mcp/servers/exileum/meta-mcp)
 
 ## License
 
