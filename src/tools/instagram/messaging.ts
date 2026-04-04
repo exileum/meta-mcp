@@ -6,7 +6,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
   // ─── ig_get_conversations ────────────────────────────────────
   server.tool(
     "ig_get_conversations",
-    "Get Instagram DM conversations list. Requires 'instagram_manage_messages' permission and the Instagram Messaging API.",
+    "Get Instagram DM conversations list. Requires 'instagram_business_manage_messages' permission and the Instagram Messaging API.",
     {
       folder: z.enum(["inbox", "spam"]).optional().describe("Folder to retrieve (default: inbox)"),
       limit: z.number().optional().describe("Number of conversations"),
@@ -56,7 +56,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
   // ─── ig_send_message ─────────────────────────────────────────
   server.tool(
     "ig_send_message",
-    "Send a DM to a user. Requires 'instagram_manage_messages' permission. Can only message users who have messaged you first (24hr window for standard, 7-day for human agent).",
+    "Send a DM to a user. Requires 'instagram_business_manage_messages' permission. Can only message users who have messaged you first (24hr window).",
     {
       recipient_id: z.string().describe("Instagram-scoped user ID of the recipient"),
       message: z.string().describe("Message text to send"),
