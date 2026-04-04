@@ -1,6 +1,6 @@
 ---
 name: meta-mcp-release
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Read, Edit, Grep, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Read, Edit, Grep, Glob, AskUserQuestion, TaskCreate, TaskUpdate, TaskGet, TaskList
 description: Release a new version of meta-mcp — validates changelog, bumps version everywhere, builds, tests, commits, and pushes to main to trigger the CI release workflow that creates a GitHub Release and publishes to npm. Use this skill whenever the user wants to release, publish, ship, or tag a new version, or says things like "release 3.2.0", "cut a release", "bump to 3.3.0", "publish new version", "ship it", "let's release", "version bump", "prepare a release", "we have enough changes for a release". Also triggers when the user provides just a version number in a release context.
 ---
 
@@ -43,7 +43,7 @@ Create tasks to track progress. Run these checks first — if any fail, stop and
 
 1. Read `CHANGELOG.md` and find the `[Unreleased]` section.
 2. It must have content under `### Fixed`, `### Changed`, or `### Added` — reject if empty.
-3. Show the user the unreleased changes and ask for confirmation before proceeding.
+3. Show the unreleased changes and use `AskUserQuestion` to ask for confirmation before proceeding.
 4. Add a new empty `## [Unreleased]` section at the top.
 5. Rename the old `[Unreleased]` content to `## [X.Y.Z] — YYYY-MM-DD` (today's date).
 
@@ -100,7 +100,7 @@ Both must pass. If tests fail, fix them before proceeding.
    ```
    chore: release vX.Y.Z
    ```
-3. **Ask the user before pushing**: show the diff summary (`git log --oneline origin/main..HEAD`) and ask **"Ready to push to main and trigger the release? This will publish vX.Y.Z to npm."** Only push after explicit confirmation.
+3. **Ask before pushing**: show the diff summary (`git log --oneline origin/main..HEAD`) and use `AskUserQuestion` to ask **"Ready to push to main and trigger the release? This will publish vX.Y.Z to npm."** — only push after explicit confirmation.
 4. **Push to main**:
    ```bash
    git push
@@ -136,7 +136,7 @@ If the release workflow fails (e.g., npm publish error, CI regression):
 
 ## Important Rules
 
-- **Be interactive** — whenever a decision, confirmation, or user reaction is needed, ask a direct question and wait for a response. Don't silently proceed or assume the answer.
+- **Be interactive** — whenever a decision, confirmation, or user reaction is needed, use `AskUserQuestion` to ask and wait for a response. Never output a question as plain text — always use the tool so the workflow pauses until the user replies.
 - **Never push without user confirmation** — always ask explicitly before pushing.
 - **Never skip build + test** — both must pass before committing.
 - **Always search for version references** — new files may have been added since this skill was written.

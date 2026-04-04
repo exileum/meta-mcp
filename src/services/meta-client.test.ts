@@ -21,6 +21,50 @@ function jsonResponse(body: object, headers: Record<string, string> = {}) {
   });
 }
 
+describe("parseRateLimit", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("maps snake_case x-app-usage fields to camelCase RateLimit", async () => {
+    const usage = JSON.stringify({ call_count: 28, total_cpu_time: 15, total_time: 12 });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ id: "123" }, { "x-app-usage": usage })
+    );
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.rateLimit).toEqual({
+      callCount: 28,
+      totalCpuTime: 15,
+      totalTime: 12,
+    });
+  });
+
+  it("returns undefined rateLimit when x-app-usage header is missing", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ id: "123" })
+    );
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.rateLimit).toBeUndefined();
+  });
+
+  it("returns undefined rateLimit when x-app-usage contains invalid JSON", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ id: "123" }, { "x-app-usage": "not-json" })
+    );
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.rateLimit).toBeUndefined();
+  });
+});
+
 describe("MetaClient token endpoints", () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 

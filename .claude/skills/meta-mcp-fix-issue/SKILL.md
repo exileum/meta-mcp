@@ -1,6 +1,6 @@
 ---
 name: meta-mcp-fix-issue
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Agent, EnterPlanMode, ExitPlanMode, TaskCreate, TaskUpdate, TaskGet, TaskList
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Agent, EnterPlanMode, ExitPlanMode, AskUserQuestion, TaskCreate, TaskUpdate, TaskGet, TaskList
 description: End-to-end workflow to fix a GitHub issue — fetches the issue, creates a feature branch, enters plan mode for interactive implementation planning, applies the fix with tests, updates all docs (README, CHANGELOG, llms.txt, server.json), creates a detailed PR, and addresses review bot feedback. Use this skill whenever the user mentions a GitHub issue number or URL, wants to fix a bug, implement a feature from an issue, investigate a reported problem, or says things like "fix issue 19", "work on #42", "let's tackle this issue", "look at issue 15", "implement what's described in github.com/.../issues/7", "investigate this bug report". Also triggers for partial references like "fix #19" or just a bare issue number when the context is clearly about fixing something.
 ---
 
@@ -42,10 +42,10 @@ Choose the branch prefix based on the issue type:
 **Enter plan mode** and actively engage the user:
 
 - Present your proposed implementation plan with specific file changes.
-- Ask targeted questions about anything ambiguous — don't assume.
+- Use `AskUserQuestion` for anything ambiguous — don't assume.
 - Propose alternatives where trade-offs exist (e.g., new tools vs. adding a parameter to existing tools).
-- If refactoring would improve the fix area, ask the user whether to include it in scope or keep it separate.
-- Call out breaking changes explicitly and get user confirmation.
+- If refactoring would improve the fix area, use `AskUserQuestion` to ask whether to include it in scope or keep it separate.
+- Call out breaking changes explicitly and use `AskUserQuestion` to get user confirmation before proceeding.
 - Discuss test strategy — what to test, edge cases.
 - Only exit plan mode once the user approves the plan.
 
@@ -103,7 +103,7 @@ Update these files as needed:
 
 ## Step 8: Address Review Bot Feedback
 
-After the PR is created, review bots (CodeRabbit, Greptile, etc.) typically need a minute or two to post their comments. Ask the user: **"PR created. Review bots usually take 1-2 minutes. Want me to check for bot comments now, wait a minute, or skip?"**
+After the PR is created, review bots (CodeRabbit, Greptile, etc.) typically need a minute or two to post their comments. Use `AskUserQuestion` to ask: **"PR created. Review bots usually take 1-2 minutes. Want me to check for bot comments now, wait a minute, or skip?"** — wait for the user's response before proceeding.
 
 When checking:
 
@@ -112,12 +112,12 @@ When checking:
    - **Valid and actionable** — fix it.
    - **Valid but cosmetic/nitpick** — fix it if low effort.
    - **Invalid or not applicable** — skip it, explain why.
-3. **Ask the user** which fixes to apply before proceeding.
+3. Use `AskUserQuestion` to ask which fixes to apply — wait for the user's response before proceeding.
 4. **Apply approved fixes**, run build + tests again, commit and push.
 
 ## Important Rules
 
-- **Be interactive** — whenever a decision, confirmation, or user reaction is needed, ask a direct question and wait for a response. Don't silently proceed or assume the answer.
+- **Be interactive** — whenever a decision, confirmation, or user reaction is needed, use `AskUserQuestion` to ask and wait for a response. Never output a question as plain text — always use the tool so the workflow pauses until the user replies.
 - **Never skip plan mode** — always get user approval before implementing.
 - **Never commit without running build + tests** first.
 - **Never modify files you haven't read** in the current session.

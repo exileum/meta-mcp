@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **RateLimit fields always `undefined`** — `parseRateLimit()` now maps Meta's snake_case `x-app-usage` header fields (`call_count`, `total_cpu_time`, `total_time`) to the camelCase `RateLimit` interface, fixing silently broken rate limit data in all tool responses ([#20](https://github.com/exileum/meta-mcp/issues/20))
+
 ## [3.2.0] — 2026-04-04
 
 ### Fixed
