@@ -17,7 +17,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const params: Record<string, unknown> = {
           fields: "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/comments`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
@@ -78,7 +78,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const params: Record<string, unknown> = {
           fields: "id,text,username,timestamp,like_count",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}/replies`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

@@ -75,7 +75,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     async ({ limit, after }) => {
       try {
         const params: Record<string, unknown> = {};
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/collaboration_invites`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

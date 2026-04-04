@@ -17,7 +17,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         const params: Record<string, unknown> = {
           fields: "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/media`, params);

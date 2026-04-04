@@ -19,7 +19,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
           fields: "id,updated_time,participants,messages{id,message,from,created_time}",
         };
         if (folder) params.folder = folder;
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/conversations`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
@@ -43,7 +43,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         const params: Record<string, unknown> = {
           fields: "id,message,from,created_time,attachments",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${conversation_id}/messages`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

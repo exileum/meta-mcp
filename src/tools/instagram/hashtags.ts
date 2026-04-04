@@ -57,7 +57,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
           user_id: client.igUserId,
           fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/recent_media`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
@@ -82,7 +82,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
           user_id: client.igUserId,
           fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/top_media`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

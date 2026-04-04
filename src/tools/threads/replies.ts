@@ -20,7 +20,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
           fields: "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,is_verified,profile_picture_url",
         };
         if (reverse !== undefined) params.reverse = reverse;
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/replies`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

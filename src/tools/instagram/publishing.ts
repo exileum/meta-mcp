@@ -71,7 +71,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       try {
         const params: Record<string, unknown> = { video_url, media_type: "VIDEO" };
         if (caption) params.caption = caption;
-        if (thumb_offset) params.thumb_offset = thumb_offset;
+        if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (location_id) params.location_id = location_id;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
@@ -155,7 +155,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (caption) params.caption = caption;
         if (cover_url) params.cover_url = cover_url;
         if (share_to_feed !== undefined) params.share_to_feed = share_to_feed;
-        if (thumb_offset) params.thumb_offset = thumb_offset;
+        if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (alt_text) params.alt_text = alt_text;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
