@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`threads_publish_image` skips container status polling before publishing** — added missing `waitForThreadsContainer()` call so image containers are polled for `FINISHED` status before publishing, matching the behavior of `threads_publish_video` and `threads_publish_carousel` and preventing intermittent publish failures for large images ([#29](https://github.com/exileum/meta-mcp/issues/29))
 - **Tenor GIF provider already sunset** — removed `TENOR` from `gif_provider` enum in `threads_publish_text` since Tenor API support was sunset by Meta on March 31, 2026; only GIPHY is currently supported ([#43](https://github.com/exileum/meta-mcp/issues/43))
 - **Instagram messaging tool descriptions reference wrong permission** — updated `ig_get_conversations` and `ig_send_message` descriptions to reference `instagram_business_manage_messages` (correct for Instagram API with Instagram Login) instead of the deprecated `instagram_manage_messages` (Messenger Platform) ([#23](https://github.com/exileum/meta-mcp/issues/23))
 

@@ -83,6 +83,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         const containerId = (container as { id: string }).id;
+        await waitForThreadsContainer(client, containerId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
