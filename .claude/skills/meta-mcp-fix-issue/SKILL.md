@@ -16,17 +16,20 @@ This workflow works best with extended thinking enabled — complex issues benef
 
 Create tasks to track progress throughout this workflow.
 
-1. **Fetch the issue** via `gh issue view <number> --json title,body,labels,state,milestone`.
-2. **Read the issue carefully** — understand the problem, affected files, severity, and any proposed solutions.
-3. **Explore the codebase** — read the files mentioned in the issue. Use the Grep and Glob tools (not bash grep/find) to search efficiently.
-4. **Verify with official documentation** — if the issue references or implies external APIs, specs, or platform behavior (e.g., anything about Instagram API, Threads API, Meta Graph API), proactively look up the official documentation using `WebSearch` / `WebFetch`. Don't wait for the issue to provide links — if the fix touches API endpoints, parameters, or platform-specific behavior, always verify against the source of truth.
-5. **Summarize findings** to the user: what's broken, what the fix should look like, and what files need changes.
+1. **Switch to main and update** — always start from the latest main:
+   ```bash
+   git checkout main
+   git pull
+   ```
+2. **Fetch the issue** via `gh issue view <number> --json title,body,labels,state,milestone`.
+3. **Read the issue carefully** — understand the problem, affected files, severity, and any proposed solutions.
+4. **Explore the codebase** — read the files mentioned in the issue. Use the Grep and Glob tools (not bash grep/find) to search efficiently.
+5. **Verify with official documentation** — if the issue references or implies external APIs, specs, or platform behavior (e.g., anything about Instagram API, Threads API, Meta Graph API), proactively look up the official documentation using `WebSearch` / `WebFetch`. Don't wait for the issue to provide links — if the fix touches API endpoints, parameters, or platform-specific behavior, always verify against the source of truth.
+6. **Summarize findings** to the user: what's broken, what the fix should look like, and what files need changes.
 
 ## Step 2: Create Feature Branch
 
 ```bash
-git checkout main
-git pull
 git checkout -b <prefix>/<short-description>-<issue-number>
 ```
 
