@@ -82,7 +82,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
       author_username: z.string().optional().describe("Filter results by author username"),
       since: z.string().optional().describe("Start date (Unix timestamp)"),
       until: z.string().optional().describe("End date (Unix timestamp)"),
-      limit: z.number().optional().describe("Number of results (max 100, default 25)"),
+      limit: z.number().min(1).max(100).optional().describe("Number of results (max 100, default 25)"),
       after: z.string().optional().describe("Pagination cursor"),
     },
     async ({ q, search_type, search_mode, media_type, author_username, since, until, limit, after }) => {
