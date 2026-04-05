@@ -23,9 +23,10 @@ Create tasks to track progress throughout this workflow.
    ```
 2. **Fetch the issue** via `gh issue view <number> --json title,body,labels,state,milestone`.
 3. **Read the issue carefully** — understand the problem, affected files, severity, and any proposed solutions.
-4. **Explore the codebase** — read the files mentioned in the issue. Use the Grep and Glob tools (not bash grep/find) to search efficiently.
-5. **Verify with official documentation** — if the issue references or implies external APIs, specs, or platform behavior (e.g., anything about Instagram API, Threads API, Meta Graph API), proactively look up the official documentation using `WebSearch` / `WebFetch`. Don't wait for the issue to provide links — if the fix touches API endpoints, parameters, or platform-specific behavior, always verify against the source of truth.
-6. **Summarize findings** to the user: what's broken, what the fix should look like, and what files need changes.
+4. **Check if already fixed** — before exploring code, read `CHANGELOG.md` (especially the `[Unreleased]` section and recent releases) and search for references to the issue number (`#<number>`) or related keywords. When working through a large backlog of issues, earlier fixes may have already resolved or partially addressed the current issue. If the issue is already fixed, inform the user and close the workflow early.
+5. **Explore the codebase** — read the files mentioned in the issue. Use the Grep and Glob tools (not bash grep/find) to search efficiently.
+6. **Verify with official documentation** — if the issue references or implies external APIs, specs, or platform behavior (e.g., anything about Instagram API, Threads API, Meta Graph API), proactively look up the official documentation using `WebSearch` / `WebFetch`. Don't wait for the issue to provide links — if the fix touches API endpoints, parameters, or platform-specific behavior, always verify against the source of truth.
+7. **Summarize findings** to the user: what's broken, what the fix should look like, and what files need changes.
 
 ## Step 2: Create Feature Branch
 

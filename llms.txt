@@ -126,7 +126,7 @@ Only set variables for the platforms you use.
 - threads_get_user_threads — List user's threads
 
 ### Threads — Insights (2)
-- threads_get_post_insights — Post analytics (views, likes, replies, reposts, quotes, clicks)
+- threads_get_post_insights — Post analytics (views, likes, replies, reposts, quotes)
 - threads_get_user_insights — Account-level analytics (period: day/lifetime)
 
 ## Resources
