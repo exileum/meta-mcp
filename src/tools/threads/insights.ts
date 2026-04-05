@@ -34,7 +34,8 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
     },
     async ({ metric, period, since, until }) => {
       try {
-        const params: Record<string, unknown> = { metric, period };
+        const effectivePeriod = period ?? "day";
+        const params: Record<string, unknown> = { metric, period: effectivePeriod };
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_insights`, params);

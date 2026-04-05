@@ -41,8 +41,7 @@ describe("threads_get_user_insights", () => {
     registerThreadsInsightTools(mockServer, client);
 
     const handler = registeredTools.get("threads_get_user_insights")!;
-    // Zod default applies at parse time; handler receives the parsed value
-    await handler({ metric: "likes", period: "day", since: undefined, until: undefined });
+    await handler({ metric: "likes" } as Record<string, unknown>);
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "likes",
