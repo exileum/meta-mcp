@@ -187,6 +187,47 @@ describe("waitForContainer", () => {
   });
 });
 
+describe("ig_publish_carousel", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("polls carousel container status before publishing", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg" },
+        { type: "IMAGE", url: "https://example.com/b.jpg" },
+      ],
+      caption: "test carousel",
+    });
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    // Expected call sequence:
+    // 1. POST /{userId}/media (child 1 container)
+    // 2. GET /container-1 (poll child 1 status)
+    // 3. POST /{userId}/media (child 2 container)
+    // 4. GET /container-1 (poll child 2 status)
+    // 5. POST /{userId}/media (carousel container)
+    // 6. GET /container-1 (poll carousel status) <-- this was missing before the fix
+    // 7. POST /{userId}/media_publish
+    expect(calls.length).toBe(7);
+
+    // Verify the carousel container status poll (call index 5)
+    expect(calls[5][0]).toBe("GET");
+    expect(calls[5][2]).toEqual({ fields: "status_code" });
+
+    // Verify media_publish is the last call (call index 6)
+    expect(calls[6][0]).toBe("POST");
+    expect(calls[6][1]).toBe("/123/media_publish");
+  });
+});
+
 describe("ig_publish_video thumb_offset", () => {
   let server: ReturnType<typeof makeMockServer>;
   let client: ReturnType<typeof makeParamMockClient>;

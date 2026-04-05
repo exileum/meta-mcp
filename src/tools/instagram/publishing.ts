@@ -126,7 +126,9 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (location_id) carouselParams.location_id = location_id;
         const { data: carousel } = await client.ig("POST", `/${client.igUserId}/media`, carouselParams);
         const carouselId = (carousel as { id: string }).id;
-        // Step 3: Publish
+        // Step 3: Wait for carousel container to be ready
+        await waitForContainer(client, carouselId);
+        // Step 4: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: carouselId,
         });
