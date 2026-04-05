@@ -174,12 +174,11 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ media_type, media_url }) => {
       try {
-        const params: Record<string, unknown> = {};
+        const params: Record<string, unknown> = { media_type: "STORIES" };
         if (media_type === "IMAGE") {
           params.image_url = media_url;
         } else {
           params.video_url = media_url;
-          params.media_type = "VIDEO";
         }
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         const containerId = (container as { id: string }).id;
