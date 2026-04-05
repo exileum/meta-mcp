@@ -101,20 +101,20 @@ Update these files as needed:
 3. Use Grep to search for any remaining references to the old/broken behavior.
 4. Review your own diff: `git diff` — check for anything you missed.
 
-## Step 6.5: Manual MCP Testing (when applicable)
+## Step 7: Live MCP Testing
 
-If the fix touches MCP tool handlers (especially Threads or Instagram publishing tools), verify the fix works end-to-end with a real MCP connection:
+If the fix touches any MCP tool handler code (endpoint changes, parameter changes, new tools, modified request/response handling), you **must** verify the fix works end-to-end with a real MCP connection before committing. This applies to all tool handler changes — Threads, Instagram, and Meta API tools alike. Do not skip this step silently; always ask the user explicitly.
 
 1. Build the local server: `npm run build`.
-2. Use `AskUserQuestion` to ask the user: **"The fix changes MCP tool behavior. Want to run a live test? I can publish a test post with the fixed parameter and then delete it. This requires a connected MCP server with valid tokens."**
+2. Use `AskUserQuestion` to ask the user: **"The fix changes MCP tool behavior. Want to run a live test? I can call the affected tool(s) through the connected MCP server to verify the fix works. This requires a connected MCP server with valid tokens."**
 3. If yes:
-   - Start the local MCP server or use the already-connected one.
-   - Use the affected MCP tool to create a test post exercising the fixed behavior (e.g., publish a text post with `topic_tag`).
-   - Verify the fix worked (e.g., check the returned data, fetch the post).
-   - Delete the test post to clean up.
-4. If no or MCP not connected — skip, but note in the PR description that manual end-to-end testing was not performed.
+   - Use the already-connected MCP server, or ask the user to restart it if the server needs to pick up the new build.
+   - Call the affected MCP tool(s) exercising the fixed behavior (e.g., search with new parameters, publish a test post with a fixed field).
+   - Verify the fix worked (e.g., check the returned data, confirm no errors, fetch the created resource).
+   - Clean up any test data (e.g., delete test posts).
+4. If the user declines or MCP is not connected — note in the PR description that live end-to-end testing was not performed.
 
-## Step 7: Commit and Create PR
+## Step 8: Commit and Create PR
 
 1. **Stage specific files** — never `git add .` or `git add -A`.
 2. **Commit** with a descriptive message referencing the issue(s). Use the conventional commit prefix matching the branch type:
@@ -144,7 +144,7 @@ If the fix touches MCP tool handlers (especially Threads or Instagram publishing
    - Copy labels and milestone from the original issue(s) using `gh pr edit`. In multi-issue mode, merge labels from all issues.
    - **Always assign the PR to the current user**: `gh pr edit <number> --add-assignee @me`.
 
-## Step 8: Address Review Bot Feedback
+## Step 9: Address Review Bot Feedback
 
 After the PR is created, review bots (CodeRabbit, Greptile, etc.) typically need a minute or two to post their comments. Use `AskUserQuestion` to ask: **"PR created. Review bots usually take 1-2 minutes. Want me to check for bot comments now, wait a minute, or skip?"** — wait for the user's response before proceeding.
 
@@ -167,4 +167,5 @@ When checking:
 - **Never modify files you haven't read** in the current session.
 - **Always search for ALL references** before updating docs — don't assume you know every place.
 - **Breaking changes require explicit user confirmation** before proceeding.
+- **Never skip live MCP testing when tool handlers changed** — if the fix modifies any MCP tool handler (endpoints, parameters, request/response logic), you must ask the user about live testing via `AskUserQuestion` before committing. The user may decline, but you must always ask — never silently skip this step.
 - **Keep the user informed** — update tasks, report progress at milestones.

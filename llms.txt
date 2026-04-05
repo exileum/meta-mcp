@@ -113,7 +113,7 @@ Only set variables for the platforms you use.
 ### Threads — Media & Search (3)
 - threads_get_posts — List published posts
 - threads_get_post — Get post details
-- threads_search_posts — Search public posts by keyword or topic tag
+- threads_search_posts — Search public posts by keyword or tag (requires threads_keyword_search permission)
 
 ### Threads — Replies (4)
 - threads_get_replies — Get replies to a post

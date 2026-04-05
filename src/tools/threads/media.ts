@@ -73,31 +73,33 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
   // ─── threads_search_posts ────────────────────────────────────
   server.tool(
     "threads_search_posts",
-    "Search for public Threads posts by keyword or topic tag. Results can be filtered by media type and author.",
+    "Search for public Threads posts by keyword or topic tag. Requires threads_keyword_search permission.",
     {
       q: z.string().describe("Search keyword or query"),
-      search_type: z.enum(["keyword", "tag"]).optional().describe("Search by keyword or topic tag (default: keyword)"),
-      media_type: z.enum(["TEXT", "IMAGE", "VIDEO", "CAROUSEL"]).optional().describe("Filter results by media type"),
+      search_type: z.enum(["TOP", "RECENT"]).optional().describe("Result ordering: TOP (default) or RECENT"),
+      search_mode: z.enum(["KEYWORD", "TAG"]).optional().describe("Search by KEYWORD (default) or TAG"),
+      media_type: z.enum(["TEXT", "IMAGE", "VIDEO"]).optional().describe("Filter results by media type"),
       author_username: z.string().optional().describe("Filter results by author username"),
       since: z.string().optional().describe("Start date (Unix timestamp)"),
       until: z.string().optional().describe("End date (Unix timestamp)"),
-      limit: z.number().optional().describe("Number of results"),
+      limit: z.number().min(1).max(100).optional().describe("Number of results (max 100, default 25)"),
       after: z.string().optional().describe("Pagination cursor"),
     },
-    async ({ q, search_type, media_type, author_username, since, until, limit, after }) => {
+    async ({ q, search_type, search_mode, media_type, author_username, since, until, limit, after }) => {
       try {
         const params: Record<string, unknown> = {
           q,
           fields: "id,text,username,permalink,timestamp,media_type,media_url,topic_tag",
         };
         if (search_type) params.search_type = search_type;
+        if (search_mode) params.search_mode = search_mode;
         if (media_type) params.media_type = media_type;
         if (author_username) params.author_username = author_username;
         if (since) params.since = since;
         if (until) params.until = until;
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
-        const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_search`, params);
+        const { data, rateLimit } = await client.threads("GET", `/keyword_search`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Search posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
