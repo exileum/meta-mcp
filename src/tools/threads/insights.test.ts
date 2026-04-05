@@ -20,6 +20,49 @@ function makeMockClient(response: unknown = { data: [] }): MetaClient {
   } as unknown as MetaClient;
 }
 
+describe("threads_get_post_insights", () => {
+  it("defaults to valid post-level metrics (no clicks)", async () => {
+    const client = makeMockClient();
+    registeredTools.clear();
+    registerThreadsInsightTools(mockServer, client);
+
+    const handler = registeredTools.get("threads_get_post_insights")!;
+    await handler({ post_id: "post-456" } as Record<string, unknown>);
+
+    expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
+      metric: "views,likes,replies,reposts,quotes",
+    });
+  });
+
+  it("passes custom metric when provided", async () => {
+    const client = makeMockClient();
+    registeredTools.clear();
+    registerThreadsInsightTools(mockServer, client);
+
+    const handler = registeredTools.get("threads_get_post_insights")!;
+    await handler({ post_id: "post-456", metric: "views,likes" });
+
+    expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
+      metric: "views,likes",
+    });
+  });
+
+  it("returns error content on API failure", async () => {
+    const client = {
+      threads: vi.fn(async () => { throw new Error("Invalid metric"); }),
+      threadsUserId: "user-123",
+    } as unknown as MetaClient;
+    registeredTools.clear();
+    registerThreadsInsightTools(mockServer, client);
+
+    const handler = registeredTools.get("threads_get_post_insights")!;
+    const result = await handler({ post_id: "post-456" } as Record<string, unknown>);
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("Invalid metric");
+  });
+});
+
 describe("threads_get_user_insights", () => {
   it("passes period to the API (explicit value)", async () => {
     const client = makeMockClient();
