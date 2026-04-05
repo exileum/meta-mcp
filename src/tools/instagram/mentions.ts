@@ -38,7 +38,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
         const params: Record<string, unknown> = {
           fields: "id,caption,media_type,media_url,permalink,timestamp,username",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/tags`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

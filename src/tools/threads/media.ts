@@ -19,7 +19,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const params: Record<string, unknown> = {
           fields: "id,media_product_type,media_type,media_url,permalink,text,timestamp,shortcode,is_quote_post,has_replies,reply_audience,topic_tag,link_attachment_url,poll_attachment,gif_attachment,alt_text",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (since) params.since = since;
         if (until) params.until = until;
         if (after) params.after = after;
@@ -76,7 +76,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         if (author_username) params.author_username = author_username;
         if (since) params.since = since;
         if (until) params.until = until;
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_search`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };

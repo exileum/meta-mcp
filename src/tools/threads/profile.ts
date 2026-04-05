@@ -35,7 +35,7 @@ export function registerThreadsProfileTools(server: McpServer, client: MetaClien
         const params: Record<string, unknown> = {
           fields: "id,media_product_type,media_type,text,permalink,timestamp,shortcode,is_quote_post,topic_tag",
         };
-        if (limit) params.limit = limit;
+        if (limit !== undefined) params.limit = limit;
         if (since) params.since = since;
         if (until) params.until = until;
         if (after) params.after = after;

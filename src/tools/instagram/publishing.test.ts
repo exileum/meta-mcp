@@ -40,6 +40,27 @@ function makeMockClient(statusSequence: string[]): MetaClient {
   } as unknown as MetaClient;
 }
 
+/** Lightweight mock server for param-forwarding tests */
+function makeMockServer() {
+  const tools = new Map<string, (...args: unknown[]) => unknown>();
+  return {
+    tools,
+    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
+      tools.set(name, handler);
+    }),
+  };
+}
+
+function makeParamMockClient(): MetaClient {
+  return {
+    igUserId: "123",
+    ig: vi.fn(async () => ({
+      data: { id: "container-1", status_code: "FINISHED" },
+      rateLimit: undefined,
+    })),
+  } as unknown as MetaClient;
+}
+
 describe("ig_publish_story", () => {
   let handlers: Map<string, (...args: unknown[]) => unknown>;
   let client: MetaClient & { ig: ReturnType<typeof vi.fn> };
@@ -163,5 +184,75 @@ describe("waitForContainer", () => {
     await expect(waitForContainer(client, "container-1", 30)).rejects.toThrow(
       "Container status field missing from API response"
     );
+  });
+});
+
+describe("ig_publish_video thumb_offset", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("includes thumb_offset when value is 0", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", thumb_offset: 0 });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("thumb_offset", 0);
+  });
+
+  it("excludes thumb_offset when undefined", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("thumb_offset");
+  });
+
+  it("includes thumb_offset when value is non-zero", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", thumb_offset: 5000 });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("thumb_offset", 5000);
+  });
+});
+
+describe("ig_publish_reel thumb_offset", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("includes thumb_offset when value is 0", async () => {
+    const handler = server.tools.get("ig_publish_reel")!;
+    await handler({ video_url: "https://example.com/reel.mp4", thumb_offset: 0 });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("thumb_offset", 0);
+  });
+
+  it("excludes thumb_offset when undefined", async () => {
+    const handler = server.tools.get("ig_publish_reel")!;
+    await handler({ video_url: "https://example.com/reel.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("thumb_offset");
+  });
+
+  it("includes thumb_offset when value is non-zero", async () => {
+    const handler = server.tools.get("ig_publish_reel")!;
+    await handler({ video_url: "https://example.com/reel.mp4", thumb_offset: 5000 });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("thumb_offset", 5000);
   });
 });
