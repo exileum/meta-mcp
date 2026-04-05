@@ -132,6 +132,7 @@ When checking:
    - **Invalid or not applicable** — skip it, explain why.
 3. Use `AskUserQuestion` to ask which fixes to apply — wait for the user's response before proceeding.
 4. **Apply approved fixes**, run build + tests again, commit and push.
+5. **If creating follow-up issues** (e.g., refactoring suggestions from bots that are out of scope), always add appropriate labels, milestone (matching the original issue's milestone when relevant), and assign to `@me` using `gh issue edit`.
 
 ## Important Rules
 
