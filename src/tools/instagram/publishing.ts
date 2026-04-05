@@ -15,7 +15,8 @@ export async function waitForContainer(client: MetaClient, containerId: string, 
     if (status === "ERROR") throw new Error("Container processing failed (ERROR status)");
     if (status === "EXPIRED") throw new Error("Container expired — it was not published within 24 hours and must be recreated");
     if (status === "PUBLISHED") throw new Error("Container already published");
-    if (status && status !== "IN_PROGRESS") throw new Error(`Unexpected container status: ${status}`);
+    if (!status) throw new Error("Container status field missing from API response");
+    if (status !== "IN_PROGRESS") throw new Error(`Unexpected container status: ${status}`);
     await new Promise((r) => setTimeout(r, interval));
   }
   throw new Error(`Container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);

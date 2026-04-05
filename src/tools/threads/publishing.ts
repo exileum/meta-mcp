@@ -14,7 +14,8 @@ export async function waitForThreadsContainer(client: MetaClient, containerId: s
     if (status === "ERROR") throw new Error("Threads container processing failed (ERROR status)");
     if (status === "EXPIRED") throw new Error("Threads container expired — it was not published within 24 hours and must be recreated");
     if (status === "PUBLISHED") throw new Error("Threads container already published");
-    if (status && status !== "IN_PROGRESS") throw new Error(`Unexpected Threads container status: ${status}`);
+    if (!status) throw new Error("Threads container status field missing from API response");
+    if (status !== "IN_PROGRESS") throw new Error(`Unexpected Threads container status: ${status}`);
     await new Promise((r) => setTimeout(r, interval));
   }
   throw new Error(`Threads container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);

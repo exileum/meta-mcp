@@ -102,4 +102,13 @@ describe("waitForThreadsContainer", () => {
     await waitForThreadsContainer(client, "abc-123", 30);
     expect(client.threads).toHaveBeenCalledWith("GET", "/abc-123", { fields: "status" });
   });
+
+  it("throws when status field is missing from API response", async () => {
+    const client = {
+      threads: vi.fn(async () => ({ data: {}, rateLimit: undefined })),
+    } as unknown as MetaClient;
+    await expect(waitForThreadsContainer(client, "container-1", 30)).rejects.toThrow(
+      "Threads container status field missing from API response"
+    );
+  });
 });

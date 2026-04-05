@@ -155,4 +155,13 @@ describe("waitForContainer", () => {
     await waitForContainer(client, "abc-123", 30);
     expect(client.ig).toHaveBeenCalledWith("GET", "/abc-123", { fields: "status_code" });
   });
+
+  it("throws when status field is missing from API response", async () => {
+    const client = {
+      ig: vi.fn(async () => ({ data: {}, rateLimit: undefined })),
+    } as unknown as MetaClient;
+    await expect(waitForContainer(client, "container-1", 30)).rejects.toThrow(
+      "Container status field missing from API response"
+    );
+  });
 });
