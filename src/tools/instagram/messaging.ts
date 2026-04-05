@@ -64,10 +64,10 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     async ({ recipient_id, message }) => {
       try {
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/messages`, {
-          recipient: JSON.stringify({ id: recipient_id }),
-          message: JSON.stringify({ text: message }),
+          recipient: { id: recipient_id },
+          message: { text: message },
           messaging_type: "RESPONSE",
-        });
+        }, { json: true });
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Send message failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };

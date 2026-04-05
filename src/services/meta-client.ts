@@ -14,6 +14,10 @@ interface ClientResponse {
   rateLimit?: RateLimit;
 }
 
+export interface RequestOptions {
+  json?: boolean;
+}
+
 export class MetaClient {
   private config: MetaConfig;
 
@@ -41,26 +45,41 @@ export class MetaClient {
     token: string,
     method: string,
     path: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    options?: RequestOptions
   ): Promise<ClientResponse> {
     let url = `${baseUrl}${path}`;
     const init: RequestInit = { method, signal: AbortSignal.timeout(30_000) };
 
+    const isWrite = method !== "GET" && method !== "DELETE";
+    const useJson = isWrite && options?.json;
+
     const qs = new URLSearchParams();
     qs.set("access_token", token);
-    if (params) {
-      for (const [k, v] of Object.entries(params)) {
-        if (v !== undefined && v !== null && v !== "") {
-          qs.set(k, String(v));
+
+    if (useJson) {
+      url += (url.includes("?") ? "&" : "?") + qs.toString();
+      init.headers = { "Content-Type": "application/json" };
+      init.body = JSON.stringify(params ?? {});
+    } else if (isWrite) {
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          if (v !== undefined && v !== null && v !== "") {
+            qs.set(k, String(v));
+          }
         }
       }
-    }
-
-    if (method === "GET" || method === "DELETE") {
-      url += `?${qs.toString()}`;
-    } else {
       init.headers = { "Content-Type": "application/x-www-form-urlencoded" };
       init.body = qs.toString();
+    } else {
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          if (v !== undefined && v !== null && v !== "") {
+            qs.set(k, String(v));
+          }
+        }
+      }
+      url += (url.includes("?") ? "&" : "?") + qs.toString();
     }
 
     const res = await fetch(url, init);
@@ -86,35 +105,38 @@ export class MetaClient {
   async ig(
     method: string,
     path: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    options?: RequestOptions
   ): Promise<ClientResponse> {
     if (!this.config.instagramAccessToken) {
       throw new Error("INSTAGRAM_ACCESS_TOKEN is not configured.");
     }
-    return this.request(IG_BASE, this.config.instagramAccessToken, method, path, params);
+    return this.request(IG_BASE, this.config.instagramAccessToken, method, path, params, options);
   }
 
   async threads(
     method: string,
     path: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    options?: RequestOptions
   ): Promise<ClientResponse> {
     if (!this.config.threadsAccessToken) {
       throw new Error("THREADS_ACCESS_TOKEN is not configured.");
     }
-    return this.request(THREADS_BASE, this.config.threadsAccessToken, method, path, params);
+    return this.request(THREADS_BASE, this.config.threadsAccessToken, method, path, params, options);
   }
 
   async meta(
     method: string,
     path: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    options?: RequestOptions
   ): Promise<ClientResponse> {
     if (!this.config.appId || !this.config.appSecret) {
       throw new Error("META_APP_ID and META_APP_SECRET are required.");
     }
     const appToken = `${this.config.appId}|${this.config.appSecret}`;
-    return this.request(FB_BASE, appToken, method, path, params);
+    return this.request(FB_BASE, appToken, method, path, params, options);
   }
 
   /** Exchange short-lived Instagram token for long-lived token (60 days) */
