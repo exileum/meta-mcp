@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`topic_tag` silently accepted invalid characters in Threads publish tools** — added Zod `regex` validation rejecting periods (`.`) and ampersands (`&`) per Meta API docs; added comprehensive tests verifying `topic_tag` is correctly forwarded in all four Threads publish tools (text, image, video, carousel) and form-encoded correctly by MetaClient ([#137](https://github.com/exileum/meta-mcp/issues/137))
+
 ## [3.4.0] — 2026-04-05
 
 ### Fixed

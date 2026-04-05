@@ -84,6 +84,19 @@ Update these files as needed:
 3. Use Grep to search for any remaining references to the old/broken behavior.
 4. Review your own diff: `git diff` — check for anything you missed.
 
+## Step 6.5: Manual MCP Testing (when applicable)
+
+If the fix touches MCP tool handlers (especially Threads or Instagram publishing tools), verify the fix works end-to-end with a real MCP connection:
+
+1. Build the local server: `npm run build`.
+2. Use `AskUserQuestion` to ask the user: **"The fix changes MCP tool behavior. Want to run a live test? I can publish a test post with the fixed parameter and then delete it. This requires a connected MCP server with valid tokens."**
+3. If yes:
+   - Start the local MCP server or use the already-connected one.
+   - Use the affected MCP tool to create a test post exercising the fixed behavior (e.g., publish a text post with `topic_tag`).
+   - Verify the fix worked (e.g., check the returned data, fetch the post).
+   - Delete the test post to clean up.
+4. If no or MCP not connected — skip, but note in the PR description that manual end-to-end testing was not performed.
+
 ## Step 7: Commit and Create PR
 
 1. **Stage specific files** — never `git add .` or `git add -A`.
@@ -98,7 +111,8 @@ Update these files as needed:
 3. **Push** the feature branch.
 4. **Create PR** with `gh pr create`:
    - Detailed body with Summary, What was broken, What this PR does, Breaking changes, Files changed, Test plan sections.
-   - Copy labels, milestone, and assignee from the original issue using `gh pr edit`.
+   - Copy labels and milestone from the original issue using `gh pr edit`.
+   - **Always assign the PR to the current user**: `gh pr edit <number> --add-assignee @me`.
    - Reference the issue with `Fixes #<number>`.
 
 ## Step 8: Address Review Bot Feedback

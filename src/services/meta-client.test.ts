@@ -123,6 +123,24 @@ describe("MetaClient JSON body mode", () => {
     expect(body.get("creation_id")).toBe("container-123");
     expect(body.get("access_token")).toBe("ig-token");
   });
+
+  it("includes topic_tag in form-encoded Threads POST body", async () => {
+    const client = new MetaClient(mockConfig());
+    await client.threads("POST", "/threads-user-id/threads", {
+      media_type: "TEXT",
+      text: "Hello",
+      topic_tag: "Pets",
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/x-www-form-urlencoded");
+    const body = new URLSearchParams(init.body as string);
+    expect(body.get("topic_tag")).toBe("Pets");
+    expect(body.get("media_type")).toBe("TEXT");
+    expect(body.get("text")).toBe("Hello");
+    expect(body.get("access_token")).toBe("threads-token");
+  });
 });
 
 describe("MetaClient token endpoints", () => {
