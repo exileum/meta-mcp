@@ -187,7 +187,7 @@ npm run build
 |------|-------------|
 | `threads_get_posts` | List published posts (includes topic_tag, poll, GIF fields) |
 | `threads_get_post` | Get post details |
-| `threads_search_posts` | Search public posts by keyword or topic tag |
+| `threads_search_posts` | Search public posts by keyword or tag (requires `threads_keyword_search` permission) |
 
 ### Threads — Replies (4)
 
