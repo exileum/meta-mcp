@@ -2,6 +2,25 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+const THREADS_MEDIA_FIELDS = [
+  "id",
+  "media_product_type",
+  "media_type",
+  "media_url",
+  "permalink",
+  "text",
+  "timestamp",
+  "shortcode",
+  "is_quote_post",
+  "has_replies",
+  "reply_audience",
+  "topic_tag",
+  "link_attachment_url",
+  "poll_attachment",
+  "gif_url",
+  "alt_text",
+].join(",");
+
 export function registerThreadsMediaTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_posts ───────────────────────────────────────
   server.tool(
@@ -17,7 +36,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     async ({ limit, since, until, after, before }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,media_product_type,media_type,media_url,permalink,text,timestamp,shortcode,is_quote_post,has_replies,reply_audience,topic_tag,link_attachment_url,poll_attachment,gif_attachment,alt_text",
+          fields: THREADS_MEDIA_FIELDS,
         };
         if (limit !== undefined) params.limit = limit;
         if (since) params.since = since;
@@ -42,7 +61,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     },
     async ({ post_id, fields }) => {
       try {
-        const f = fields || "id,media_product_type,media_type,media_url,permalink,text,timestamp,shortcode,is_quote_post,has_replies,reply_audience,topic_tag,link_attachment_url,poll_attachment,gif_attachment,alt_text";
+        const f = fields || THREADS_MEDIA_FIELDS;
         const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
