@@ -107,7 +107,7 @@ Only set variables for the platforms you use.
 - threads_publish_video — Publish video post (alt_text, topic tags, spoiler)
 - threads_publish_carousel — Publish carousel (2-20 items, alt_text per item)
 - threads_delete_post — Delete a post (max 100/day)
-- threads_get_container_status — Check container processing status
+- threads_get_container_status — Check container processing status (unpublished containers only)
 - threads_get_publishing_limit — Check remaining quota (250 posts/day)
 
 ### Threads — Media & Search (3)
