@@ -55,11 +55,34 @@ describe("waitForThreadsContainer", () => {
     );
   });
 
-  it("throws on timeout after exhausting all attempts", async () => {
+  it("throws on EXPIRED status", async () => {
+    const client = makeMockClient(["EXPIRED"]);
+    await expect(waitForThreadsContainer(client, "container-1", 30)).rejects.toThrow(
+      "Threads container expired — it was not published within 24 hours and must be recreated"
+    );
+  });
+
+  it("throws on PUBLISHED status", async () => {
+    const client = makeMockClient(["PUBLISHED"]);
+    await expect(waitForThreadsContainer(client, "container-1", 30)).rejects.toThrow(
+      "Threads container already published"
+    );
+  });
+
+  it("throws on unexpected status", async () => {
+    const client = makeMockClient(["SOMETHING_NEW"]);
+    await expect(waitForThreadsContainer(client, "container-1", 30)).rejects.toThrow(
+      "Unexpected Threads container status: SOMETHING_NEW"
+    );
+  });
+
+  it("includes last status in timeout message", async () => {
     const client = makeMockClient(Array(20).fill("IN_PROGRESS"));
     const promise = waitForThreadsContainer(client, "container-1", 4);
     // Attach rejection handler before advancing timers to avoid unhandled rejection
-    const rejection = expect(promise).rejects.toThrow("Threads container processing timed out after 4s");
+    const rejection = expect(promise).rejects.toThrow(
+      "Threads container processing timed out after 4s (last status: IN_PROGRESS)"
+    );
     // maxWait=4s, interval=2s → 2 attempts, each with a 2s sleep
     await vi.advanceTimersByTimeAsync(10_000);
     await rejection;
@@ -78,5 +101,14 @@ describe("waitForThreadsContainer", () => {
     const client = makeMockClient(["FINISHED"]);
     await waitForThreadsContainer(client, "abc-123", 30);
     expect(client.threads).toHaveBeenCalledWith("GET", "/abc-123", { fields: "status" });
+  });
+
+  it("throws when status field is missing from API response", async () => {
+    const client = {
+      threads: vi.fn(async () => ({ data: {}, rateLimit: undefined })),
+    } as unknown as MetaClient;
+    await expect(waitForThreadsContainer(client, "container-1", 30)).rejects.toThrow(
+      "Threads container status field missing from API response"
+    );
   });
 });

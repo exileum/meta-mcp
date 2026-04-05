@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`waitForContainer` / `waitForThreadsContainer` ignore EXPIRED and unexpected statuses** — both container polling functions now handle `EXPIRED`, `PUBLISHED`, and unknown statuses immediately instead of silently polling until timeout; timeout error message now includes the last observed status ([#28](https://github.com/exileum/meta-mcp/issues/28))
 - **`ig_publish_story` missing `media_type: 'STORIES'`** — image stories had no `media_type` (defaulting to feed post) and video stories incorrectly used `"VIDEO"` instead of `"STORIES"`; now both set `media_type: "STORIES"` as required by Meta's Content Publishing API ([#50](https://github.com/exileum/meta-mcp/issues/50))
 - **`threads_publish_image` skips container status polling before publishing** — added missing `waitForThreadsContainer()` call so image containers are polled for `FINISHED` status before publishing, matching the behavior of `threads_publish_video` and `threads_publish_carousel` and preventing intermittent publish failures for large images ([#29](https://github.com/exileum/meta-mcp/issues/29))
 - **Tenor GIF provider already sunset** — removed `TENOR` from `gif_provider` enum in `threads_publish_text` since Tenor API support was sunset by Meta on March 31, 2026; only GIPHY is currently supported ([#43](https://github.com/exileum/meta-mcp/issues/43))

@@ -2,18 +2,24 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
-/** Poll container status until FINISHED or error (video upload) */
-async function waitForContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
+/** Poll container status until FINISHED or terminal status (video upload) */
+export async function waitForContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
   const interval = 2000;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
+  let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     const { data } = await client.ig("GET", `/${containerId}`, { fields: "status_code" });
     const status = (data as { status_code?: string }).status_code;
+    lastStatus = status;
     if (status === "FINISHED") return;
     if (status === "ERROR") throw new Error("Container processing failed (ERROR status)");
+    if (status === "EXPIRED") throw new Error("Container expired — it was not published within 24 hours and must be recreated");
+    if (status === "PUBLISHED") throw new Error("Container already published");
+    if (!status) throw new Error("Container status field missing from API response");
+    if (status !== "IN_PROGRESS") throw new Error(`Unexpected container status: ${status}`);
     await new Promise((r) => setTimeout(r, interval));
   }
-  throw new Error(`Container processing timed out after ${maxWait}s`);
+  throw new Error(`Container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
 }
 
 export function registerIgPublishingTools(server: McpServer, client: MetaClient): void {
