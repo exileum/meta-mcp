@@ -29,7 +29,7 @@ import { registerInstagramResources } from "./resources/instagram.js";
 import { registerThreadsResources } from "./resources/threads.js";
 import { registerPrompts } from "./prompts/index.js";
 
-const SERVER_VERSION = "3.3.1";
+const SERVER_VERSION = "3.4.0";
 
 const server = new McpServer({
   name: "meta-mcp",
