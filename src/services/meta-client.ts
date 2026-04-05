@@ -14,7 +14,7 @@ interface ClientResponse {
   rateLimit?: RateLimit;
 }
 
-interface RequestOptions {
+export interface RequestOptions {
   json?: boolean;
 }
 
@@ -58,7 +58,7 @@ export class MetaClient {
     qs.set("access_token", token);
 
     if (useJson) {
-      url += `?${qs.toString()}`;
+      url += (url.includes("?") ? "&" : "?") + qs.toString();
       init.headers = { "Content-Type": "application/json" };
       init.body = JSON.stringify(params ?? {});
     } else if (isWrite) {
@@ -79,7 +79,7 @@ export class MetaClient {
           }
         }
       }
-      url += `?${qs.toString()}`;
+      url += (url.includes("?") ? "&" : "?") + qs.toString();
     }
 
     const res = await fetch(url, init);
