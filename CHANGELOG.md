@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0] — 2026-04-05
+
 ### Fixed
 - **`threads_publish_carousel` fails — carousel container not polled before publish** — added missing `waitForThreadsContainer()` call for the carousel container between creation and publish; without it the Meta API returned error 24 / subcode 4279009 ("Cannot find media with the given ID") when the carousel container was still processing ([#142](https://github.com/exileum/meta-mcp/issues/142))
 - **`threads_get_container_status` fails on published post IDs with confusing error** — updated tool description to clarify it only works with unpublished container IDs; added error handling that detects the "nonexisting field" API error and returns a helpful message explaining the limitation ([#143](https://github.com/exileum/meta-mcp/issues/143))
