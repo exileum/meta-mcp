@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
-import { waitForThreadsContainer } from "./publishing.js";
+import { waitForThreadsContainer, registerThreadsPublishingTools, topicTagSchema } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
@@ -110,5 +110,191 @@ describe("waitForThreadsContainer", () => {
     await expect(waitForThreadsContainer(client, "container-1", 30)).rejects.toThrow(
       "Threads container status field missing from API response"
     );
+  });
+});
+
+// ─── topic_tag parameter forwarding tests ───────────────────────
+
+/** Lightweight mock server for param-forwarding tests */
+function makeMockServer() {
+  const tools = new Map<string, (...args: unknown[]) => unknown>();
+  return {
+    tools,
+    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
+      tools.set(name, handler);
+    }),
+  };
+}
+
+function makeParamMockClient(): MetaClient {
+  return {
+    threadsUserId: "threads-123",
+    threads: vi.fn(async () => ({
+      data: { id: "container-1", status: "FINISHED" },
+      rateLimit: undefined,
+    })),
+  } as unknown as MetaClient;
+}
+
+describe("threads_publish_text topic_tag", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes topic_tag in container creation params", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", topic_tag: "Pets" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[0]).toBe("POST");
+    expect(createCall[2]).toHaveProperty("topic_tag", "Pets");
+  });
+
+  it("excludes topic_tag when not provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("topic_tag");
+  });
+});
+
+describe("threads_publish_image topic_tag", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes topic_tag in container creation params", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg", topic_tag: "Photography" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[0]).toBe("POST");
+    expect(createCall[2]).toHaveProperty("topic_tag", "Photography");
+  });
+
+  it("excludes topic_tag when not provided", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("topic_tag");
+  });
+});
+
+describe("threads_publish_video topic_tag", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes topic_tag in container creation params", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", topic_tag: "Travel" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[0]).toBe("POST");
+    expect(createCall[2]).toHaveProperty("topic_tag", "Travel");
+  });
+
+  it("excludes topic_tag when not provided", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("topic_tag");
+  });
+});
+
+describe("threads_publish_carousel topic_tag", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes topic_tag in carousel container creation params", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/1.jpg" },
+        { type: "IMAGE", url: "https://example.com/2.jpg" },
+      ],
+      topic_tag: "Travel",
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).toHaveProperty("topic_tag", "Travel");
+  });
+
+  it("excludes topic_tag from carousel container when not provided", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/1.jpg" },
+        { type: "IMAGE", url: "https://example.com/2.jpg" },
+      ],
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).not.toHaveProperty("topic_tag");
+  });
+});
+
+describe("topic_tag schema validation", () => {
+  // Uses the exported topicTagSchema from publishing.ts (with .optional() unwrapped)
+  const schema = topicTagSchema.unwrap();
+
+  it("accepts valid simple tag", () => {
+    expect(schema.parse("Pets")).toBe("Pets");
+  });
+
+  it("accepts valid tag with spaces", () => {
+    expect(schema.parse("Dogs of Threads")).toBe("Dogs of Threads");
+  });
+
+  it("accepts single character tag", () => {
+    expect(schema.parse("A")).toBe("A");
+  });
+
+  it("rejects tags with periods", () => {
+    expect(() => schema.parse("test.tag")).toThrow();
+  });
+
+  it("rejects tags with ampersands", () => {
+    expect(() => schema.parse("Arts & Crafts")).toThrow();
+  });
+
+  it("rejects empty string", () => {
+    expect(() => schema.parse("")).toThrow();
+  });
+
+  it("rejects strings exceeding 50 chars", () => {
+    expect(() => schema.parse("a".repeat(51))).toThrow();
   });
 });
