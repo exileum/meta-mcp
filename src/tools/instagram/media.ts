@@ -50,7 +50,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   // ─── ig_delete_media ─────────────────────────────────────────
   server.tool(
     "ig_delete_media",
-    "Delete an Instagram media post (posts, carousels, reels, stories). This action is irreversible. Requires instagram_business_content_publish permission.",
+    "Delete an Instagram media post (posts, carousels, reels, stories). This action is irreversible. Requires instagram_manage_contents permission (Facebook Login only — not available with Instagram Login).",
     {
       media_id: z.string().describe("Media ID to delete"),
     },
