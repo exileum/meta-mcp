@@ -1,14 +1,16 @@
 ---
 name: meta-mcp-fix-issue
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Bash(npx:*), Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Agent, EnterPlanMode, ExitPlanMode, AskUserQuestion, TaskCreate, TaskUpdate, TaskGet, TaskList
-description: End-to-end workflow to fix a GitHub issue — fetches the issue, creates a feature branch, enters plan mode for interactive implementation planning, applies the fix with tests, updates all docs (README, CHANGELOG, llms.txt, server.json), creates a detailed PR, and addresses review bot feedback. Use this skill whenever the user mentions a GitHub issue number or URL, wants to fix a bug, implement a feature from an issue, investigate a reported problem, or says things like "fix issue 19", "work on #42", "let's tackle this issue", "look at issue 15", "implement what's described in github.com/.../issues/7", "investigate this bug report". Also triggers for partial references like "fix #19" or just a bare issue number when the context is clearly about fixing something.
+description: End-to-end workflow to fix one or more GitHub issues — fetches the issue(s), creates a feature branch, enters plan mode for interactive implementation planning, applies the fix with tests, updates all docs (README, CHANGELOG, llms.txt, server.json), creates a detailed PR, and addresses review bot feedback. Supports multiple issue numbers for batching small fixes into a single combined PR. Use this skill whenever the user mentions a GitHub issue number or URL, wants to fix a bug, implement a feature from an issue, investigate a reported problem, or says things like "fix issue 19", "work on #42", "let's tackle this issue", "look at issue 15", "fix 140 146 150", "implement what's described in github.com/.../issues/7", "investigate this bug report". Also triggers for partial references like "fix #19" or just a bare issue number when the context is clearly about fixing something.
 ---
 
-# Fix GitHub Issue
+# Fix GitHub Issue(s)
 
-You are fixing GitHub issue **$ARGUMENTS** in the meta-mcp project.
+You are fixing GitHub issue(s) **$ARGUMENTS** in the meta-mcp project.
 
-If the argument is a URL, extract the issue number. If no argument is provided, ask the user for the issue number.
+**Parse the arguments:** split `$ARGUMENTS` by spaces, commas, or other separators. Each token may be a bare number (`42`), a hash-prefixed number (`#42`), or a full GitHub issue URL. Extract all issue numbers into a list. If no argument is provided, ask the user for the issue number(s).
+
+**Single vs. multi-issue mode:** if there is only one issue, follow the standard single-issue flow below. If there are multiple issues, follow the multi-issue adaptations noted in each step — all issues are fixed together in **one branch, one combined PR**.
 
 This workflow works best with extended thinking enabled — complex issues benefit from deep reasoning about root causes and fix strategies.
 
@@ -21,20 +23,28 @@ Create tasks to track progress throughout this workflow.
    git checkout main
    git pull
    ```
-2. **Fetch the issue** via `gh issue view <number> --json title,body,labels,state,milestone`.
-3. **Read the issue carefully** — understand the problem, affected files, severity, and any proposed solutions.
-4. **Check if already fixed** — before exploring code, read `CHANGELOG.md` (especially the `[Unreleased]` section and recent releases) and search for references to the issue number (`#<number>`) or related keywords. When working through a large backlog of issues, earlier fixes may have already resolved or partially addressed the current issue. If the issue is already fixed, inform the user and close the workflow early.
-5. **Explore the codebase** — read the files mentioned in the issue. Use the Grep and Glob tools (not bash grep/find) to search efficiently.
-6. **Verify with official documentation** — if the issue references or implies external APIs, specs, or platform behavior (e.g., anything about Instagram API, Threads API, Meta Graph API), proactively look up the official documentation using `WebSearch` / `WebFetch`. Don't wait for the issue to provide links — if the fix touches API endpoints, parameters, or platform-specific behavior, always verify against the source of truth.
-7. **Summarize findings** to the user: what's broken, what the fix should look like, and what files need changes.
+2. **Fetch the issue(s)** via `gh issue view <number> --json title,body,labels,state,milestone` — run for **each** issue number.
+3. **Read all issues carefully** — understand each problem, affected files, severity, and any proposed solutions. In multi-issue mode, note overlaps and shared affected areas.
+4. **Check if already fixed** — for **each** issue, before exploring code, read `CHANGELOG.md` (especially the `[Unreleased]` section and recent releases) and search for references to the issue number (`#<number>`) or related keywords. When working through a large backlog of issues, earlier fixes may have already resolved or partially addressed some issues. If an issue is already fixed, drop it from the list and inform the user. If ALL issues are already fixed, close the workflow early.
+5. **Explore the codebase** — read the files mentioned across all issues. Use the Grep and Glob tools (not bash grep/find) to search efficiently.
+6. **Verify with official documentation** — if any issue references or implies external APIs, specs, or platform behavior (e.g., anything about Instagram API, Threads API, Meta Graph API), proactively look up the official documentation using `WebSearch` / `WebFetch`. Don't wait for the issue to provide links — if the fix touches API endpoints, parameters, or platform-specific behavior, always verify against the source of truth.
+7. **Check compatibility** (multi-issue only) — if two issues propose conflicting changes to the same code, flag this to the user via `AskUserQuestion` and suggest splitting them into separate PRs.
+8. **Summarize findings** to the user: for each issue — what's broken, what the fix should look like, and what files need changes. In multi-issue mode, highlight shared files and any interactions between fixes.
 
 ## Step 2: Create Feature Branch
 
+**Single issue:**
 ```bash
 git checkout -b <prefix>/<short-description>-<issue-number>
 ```
 
-Choose the branch prefix based on the issue type:
+**Multiple issues:** use a combined description and list all issue numbers:
+```bash
+git checkout -b <prefix>/<shared-description>-<N>-<M>-<K>
+```
+For example: `fix/threads-api-cleanup-140-146-150`. If there are more than 4 issues, use just the first and last number with a count: `fix/api-fixes-140-to-155` to keep the branch name readable.
+
+Choose the branch prefix based on the dominant issue type:
 - `fix/` — bug fixes (e.g., `fix/token-endpoints-19`)
 - `feat/` — new features (e.g., `feat/threads-polls-25`)
 - `refactor/` — refactoring (e.g., `refactor/client-cleanup-30`)
@@ -45,6 +55,7 @@ Choose the branch prefix based on the issue type:
 
 **Enter plan mode** and actively engage the user:
 
+- In multi-issue mode, present a **unified plan** covering all issues — group related changes, note shared files, and order the work logically.
 - Present your proposed implementation plan with specific file changes.
 - Use `AskUserQuestion` for anything ambiguous — don't assume.
 - Propose alternatives where trade-offs exist (e.g., new tools vs. adding a parameter to existing tools).
@@ -55,7 +66,9 @@ Choose the branch prefix based on the issue type:
 
 ## Step 4: Implement the Fix
 
-Follow the approved plan. For each change:
+Follow the approved plan. In multi-issue mode, implement fixes one issue at a time (in the order agreed during planning) so each change is logically grouped and easier to debug if something breaks.
+
+For each change:
 
 1. **Read the file first** before editing — never edit blind.
 2. **Make the minimal change** that fixes the issue — no drive-by refactors.
@@ -75,7 +88,7 @@ glob: "*.{md,txt,json,ts}"
 
 Update these files as needed:
 
-- **CHANGELOG.md** — add entries under `[Unreleased]`. Only include user-facing changes (no CI-only changes). Use existing format: `### Fixed`, `### Changed`, `### Added`.
+- **CHANGELOG.md** — add entries under `[Unreleased]`. Only include user-facing changes (no CI-only changes). Use existing format: `### Fixed`, `### Changed`, `### Added`. In multi-issue mode, add a separate entry for each issue's changes.
 - **README.md** — update tool descriptions, setup guides, examples if affected.
 - **llms.txt** — update tool descriptions if tool signatures changed.
 - **server.json** — update if version or tool metadata changed.
@@ -104,20 +117,32 @@ If the fix touches MCP tool handlers (especially Threads or Instagram publishing
 ## Step 7: Commit and Create PR
 
 1. **Stage specific files** — never `git add .` or `git add -A`.
-2. **Commit** with a descriptive message referencing the issue. Use the conventional commit prefix matching the branch type:
+2. **Commit** with a descriptive message referencing the issue(s). Use the conventional commit prefix matching the branch type:
+
+   **Single issue:**
    ```
    <type>: <concise description> (#<issue-number>)
 
    <explain what was broken and why>
    <explain what the fix does>
    ```
+
+   **Multiple issues:**
+   ```
+   <type>: <concise combined description> (#<N>, #<M>, #<K>)
+
+   Issue #<N>: <what was broken and what the fix does>
+   Issue #<M>: <what was broken and what the fix does>
+   Issue #<K>: <what was broken and what the fix does>
+   ```
+
    Where `<type>` matches the branch prefix: `fix`, `feat`, `refactor`, `docs`, `chore`.
 3. **Push** the feature branch.
 4. **Create PR** with `gh pr create`:
    - Detailed body with Summary, What was broken, What this PR does, Breaking changes, Files changed, Test plan sections.
-   - Copy labels and milestone from the original issue using `gh pr edit`.
+   - In multi-issue mode, the Summary should list each issue with a one-line description of the fix. Include a `Fixes #<N>` line for **each** issue, **each on its own line** — GitHub only auto-closes issues when `Fixes #N` appears as a separate line or sentence.
+   - Copy labels and milestone from the original issue(s) using `gh pr edit`. In multi-issue mode, merge labels from all issues.
    - **Always assign the PR to the current user**: `gh pr edit <number> --add-assignee @me`.
-   - Reference the issue with `Fixes #<number>`.
 
 ## Step 8: Address Review Bot Feedback
 
