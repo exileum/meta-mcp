@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
-import { waitForThreadsContainer, registerThreadsPublishingTools } from "./publishing.js";
+import { waitForThreadsContainer, registerThreadsPublishingTools, topicTagSchema } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
@@ -267,33 +267,34 @@ describe("threads_publish_carousel topic_tag", () => {
 });
 
 describe("topic_tag schema validation", () => {
-  const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands");
+  // Uses the exported topicTagSchema from publishing.ts (with .optional() unwrapped)
+  const schema = topicTagSchema.unwrap();
 
   it("accepts valid simple tag", () => {
-    expect(topicTagSchema.parse("Pets")).toBe("Pets");
+    expect(schema.parse("Pets")).toBe("Pets");
   });
 
   it("accepts valid tag with spaces", () => {
-    expect(topicTagSchema.parse("Dogs of Threads")).toBe("Dogs of Threads");
+    expect(schema.parse("Dogs of Threads")).toBe("Dogs of Threads");
   });
 
   it("accepts single character tag", () => {
-    expect(topicTagSchema.parse("A")).toBe("A");
+    expect(schema.parse("A")).toBe("A");
   });
 
   it("rejects tags with periods", () => {
-    expect(() => topicTagSchema.parse("test.tag")).toThrow();
+    expect(() => schema.parse("test.tag")).toThrow();
   });
 
   it("rejects tags with ampersands", () => {
-    expect(() => topicTagSchema.parse("Arts & Crafts")).toThrow();
+    expect(() => schema.parse("Arts & Crafts")).toThrow();
   });
 
   it("rejects empty string", () => {
-    expect(() => topicTagSchema.parse("")).toThrow();
+    expect(() => schema.parse("")).toThrow();
   });
 
   it("rejects strings exceeding 50 chars", () => {
-    expect(() => topicTagSchema.parse("a".repeat(51))).toThrow();
+    expect(() => schema.parse("a".repeat(51))).toThrow();
   });
 });

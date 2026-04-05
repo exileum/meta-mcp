@@ -2,6 +2,8 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
+
 export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
   const interval = 2000;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
@@ -30,7 +32,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
       link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post)"),
-      topic_tag: z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)"),
+      topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       poll_options: z.array(z.string()).min(2).max(4).optional().describe("Poll options (2-4 choices). Creates a poll attachment."),
       gif_id: z.string().optional().describe("GIPHY GIF ID"),
@@ -73,7 +75,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       image_url: z.string().url().describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
       text: z.string().max(500).optional().describe("Caption text"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
-      topic_tag: z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)"),
+      topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
@@ -108,7 +110,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       video_url: z.string().url().describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
-      topic_tag: z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)"),
+      topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
@@ -147,7 +149,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       })).min(2).max(20).describe("Array of media items"),
       text: z.string().max(500).optional().describe("Caption text"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
-      topic_tag: z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)"),
+      topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
     },
     async ({ items, text, reply_control, topic_tag, quote_post_id }) => {
