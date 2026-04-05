@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`threads_get_post` and `threads_get_posts` request non-existent field `gif_attachment`** — replaced `gif_attachment` with `gif_url` in the default `fields` parameter for both tools; `gif_attachment` is a write-only parameter used when creating posts, while `gif_url` is the correct readable field per the Threads Media API docs ([#139](https://github.com/exileum/meta-mcp/issues/139))
 - **`ig_publish_carousel` calls `media_publish` before carousel container finishes processing** — added missing `waitForContainer()` call for the carousel container, matching the pattern used in all other Instagram publish tools; without it the Meta API returned error 9007 / subcode 2207027 ("Media ID is not available") when the container was still `IN_PROGRESS` ([#138](https://github.com/exileum/meta-mcp/issues/138))
 - **`topic_tag` silently accepted invalid characters in Threads publish tools** — added Zod `regex` validation rejecting periods (`.`) and ampersands (`&`) per Meta API docs; added comprehensive tests verifying `topic_tag` is correctly forwarded in all four Threads publish tools (text, image, video, carousel) and form-encoded correctly by MetaClient ([#137](https://github.com/exileum/meta-mcp/issues/137))
 
