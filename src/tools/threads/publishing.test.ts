@@ -266,6 +266,97 @@ describe("threads_publish_carousel topic_tag", () => {
   });
 });
 
+describe("threads_publish_carousel waits for carousel container", () => {
+  let server: ReturnType<typeof makeMockServer>;
+
+  it("calls waitForThreadsContainer on the carousel container before publishing", async () => {
+    server = makeMockServer();
+    const calls: Array<[string, string, Record<string, unknown>?]> = [];
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async (method: string, path: string, params?: Record<string, unknown>) => {
+        calls.push([method, path, params]);
+        // Child container creation or carousel container creation → return id
+        if (method === "POST" && path.includes("/threads") && !path.includes("threads_publish")) {
+          return { data: { id: `container-${calls.length}` }, rateLimit: undefined };
+        }
+        // GET status poll → FINISHED
+        if (method === "GET") {
+          return { data: { status: "FINISHED" }, rateLimit: undefined };
+        }
+        // Publish
+        return { data: { id: "published-1" }, rateLimit: undefined };
+      }),
+    } as unknown as MetaClient;
+
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/1.jpg" },
+        { type: "IMAGE", url: "https://example.com/2.jpg" },
+      ],
+    });
+
+    // Calls should be:
+    // 1. POST child 1 container
+    // 2. GET child 1 status (wait)
+    // 3. POST child 2 container
+    // 4. GET child 2 status (wait)
+    // 5. POST carousel container
+    // 6. GET carousel status (wait) ← THIS IS THE FIX
+    // 7. POST publish
+    expect(calls).toHaveLength(7);
+    expect(calls[4][2]).toHaveProperty("media_type", "CAROUSEL");
+    // The GET after carousel creation is the wait poll
+    expect(calls[5][0]).toBe("GET");
+    expect(calls[5][1]).toContain("container-5");
+    // Final call is the publish
+    expect(calls[6][0]).toBe("POST");
+    expect(calls[6][1]).toContain("threads_publish");
+  });
+});
+
+describe("threads_get_container_status error handling", () => {
+  let server: ReturnType<typeof makeMockServer>;
+
+  it("returns helpful message when called with a published post ID", async () => {
+    server = makeMockServer();
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async () => {
+        throw new Error("Tried accessing nonexisting field (status)");
+      }),
+    } as unknown as MetaClient;
+
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_get_container_status")!;
+    const result = await handler({ container_id: "published-post-123" }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("published post");
+    expect(result.content[0].text).toContain("unpublished container");
+  });
+
+  it("returns generic error for other failures", async () => {
+    server = makeMockServer();
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async () => {
+        throw new Error("Some other API error");
+      }),
+    } as unknown as MetaClient;
+
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_get_container_status")!;
+    const result = await handler({ container_id: "bad-id" }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("Get container status failed");
+    expect(result.content[0].text).toContain("Some other API error");
+  });
+});
+
 describe("topic_tag schema validation", () => {
   // Uses the exported topicTagSchema from publishing.ts (with .optional() unwrapped)
   const schema = topicTagSchema.unwrap();

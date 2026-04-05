@@ -178,6 +178,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
         const carouselId = (carousel as { id: string }).id;
+        await waitForThreadsContainer(client, carouselId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: carouselId,
         });
@@ -208,9 +209,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_get_container_status ────────────────────────────
   server.tool(
     "threads_get_container_status",
-    "Check the processing status of a Threads media container.",
+    "Check the processing status of a Threads media container. Only works with unpublished container IDs (returned from container creation endpoints) — not with published post IDs.",
     {
-      container_id: z.string().describe("Container ID to check"),
+      container_id: z.string().describe("Unpublished container ID to check (from container creation, not a published post ID)"),
     },
     async ({ container_id }) => {
       try {
@@ -219,7 +220,11 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get container status failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes("nonexisting field")) {
+          return { content: [{ type: "text", text: "This ID appears to be a published post, not an unpublished container. The status and error_message fields are only available on unpublished media containers (returned from container creation endpoints before calling threads_publish)." }], isError: true };
+        }
+        return { content: [{ type: "text", text: `Get container status failed: ${msg}` }], isError: true };
       }
     }
   );

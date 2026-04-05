@@ -178,7 +178,7 @@ npm run build
 | `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag) |
 | `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item) |
 | `threads_delete_post` | Delete a post (max 100/day) |
-| `threads_get_container_status` | Check container processing status |
+| `threads_get_container_status` | Check container processing status (unpublished containers only) |
 | `threads_get_publishing_limit` | Check remaining publishing quota (250 posts/day) |
 
 ### Threads — Media & Search (3)
