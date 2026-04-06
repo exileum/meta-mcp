@@ -127,7 +127,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_video ───────────────────────────────────
   server.tool(
     "threads_publish_video",
-    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories.",
+    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories. Note: cross-share to IG Stories may silently fail for video posts (the Threads post still publishes).",
     {
       video_url: z.string().url().describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
