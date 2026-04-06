@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
-import { waitForThreadsContainer, registerThreadsPublishingTools, topicTagSchema } from "./publishing.js";
+import { waitForThreadsContainer, registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
@@ -387,5 +387,213 @@ describe("topic_tag schema validation", () => {
 
   it("rejects strings exceeding 50 chars", () => {
     expect(() => schema.parse("a".repeat(51))).toThrow();
+  });
+});
+
+// ─── share_to_ig_story schema validation ──────────────────────────
+
+describe("shareToIgStorySchema validation", () => {
+  const schema = shareToIgStorySchema;
+
+  it("accepts 'light'", () => {
+    expect(schema.parse("light")).toBe("light");
+  });
+
+  it("accepts 'dark'", () => {
+    expect(schema.parse("dark")).toBe("dark");
+  });
+
+  it("accepts undefined (optional)", () => {
+    expect(schema.parse(undefined)).toBeUndefined();
+  });
+
+  it("rejects invalid values", () => {
+    expect(() => schema.parse("auto")).toThrow();
+  });
+});
+
+// ─── share_to_ig_story parameter forwarding tests ─────────────────
+
+describe("threads_publish_text share_to_ig_story", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes crossreshare_to_ig when share_to_ig_story is 'light'", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", share_to_ig_story: "light" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+
+  it("includes both crossreshare params when share_to_ig_story is 'dark'", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", share_to_ig_story: "dark" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig_dark_mode", true);
+  });
+
+  it("excludes cross-share params when share_to_ig_story not provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig");
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+});
+
+describe("threads_publish_image share_to_ig_story", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes crossreshare_to_ig when share_to_ig_story is 'light'", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg", share_to_ig_story: "light" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+
+  it("includes both crossreshare params when share_to_ig_story is 'dark'", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg", share_to_ig_story: "dark" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig_dark_mode", true);
+  });
+
+  it("excludes cross-share params when not provided", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig");
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+});
+
+describe("threads_publish_video share_to_ig_story", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes crossreshare_to_ig when share_to_ig_story is 'light'", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", share_to_ig_story: "light" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+
+  it("includes both crossreshare params when share_to_ig_story is 'dark'", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", share_to_ig_story: "dark" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(createCall[2]).toHaveProperty("crossreshare_to_ig_dark_mode", true);
+  });
+
+  it("excludes cross-share params when not provided", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig");
+    expect(createCall[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+});
+
+describe("threads_publish_carousel share_to_ig_story", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  const twoItems = [
+    { type: "IMAGE", url: "https://example.com/1.jpg" },
+    { type: "IMAGE", url: "https://example.com/2.jpg" },
+  ];
+
+  it("includes crossreshare_to_ig on carousel container when share_to_ig_story is 'light'", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems, share_to_ig_story: "light" });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(carouselCreateCall![2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+
+  it("includes both crossreshare params on carousel container when share_to_ig_story is 'dark'", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems, share_to_ig_story: "dark" });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).toHaveProperty("crossreshare_to_ig", true);
+    expect(carouselCreateCall![2]).toHaveProperty("crossreshare_to_ig_dark_mode", true);
+  });
+
+  it("excludes cross-share params from carousel container when not provided", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).not.toHaveProperty("crossreshare_to_ig");
+    expect(carouselCreateCall![2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+  });
+
+  it("does not add cross-share params to child containers", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems, share_to_ig_story: "dark" });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const childCalls = calls.filter(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.is_carousel_item === true
+    );
+    expect(childCalls).toHaveLength(2);
+    for (const call of childCalls) {
+      expect(call[2]).not.toHaveProperty("crossreshare_to_ig");
+      expect(call[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
+    }
   });
 });
