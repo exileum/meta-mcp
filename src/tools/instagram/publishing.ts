@@ -9,7 +9,7 @@ export async function waitForContainer(client: MetaClient, containerId: string, 
   let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     const { data } = await client.ig("GET", `/${containerId}`, { fields: "status_code" });
-    const status = (data as { status_code?: string }).status_code;
+    const status = data.status_code as string | undefined;
     lastStatus = status;
     if (status === "FINISHED") return;
     if (status === "ERROR") throw new Error("Container processing failed (ERROR status)");
@@ -43,14 +43,14 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (alt_text) params.alt_text = alt_text;
         // Step 1: Create container
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         // Step 2: Wait for container to be ready
         await waitForContainer(client, containerId);
         // Step 3: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish photo failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -74,12 +74,12 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (location_id) params.location_id = location_id;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish video failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -113,7 +113,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
             params.media_type = "VIDEO";
           }
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
-          const childId = (child as { id: string }).id;
+          const childId = child.id as string;
           await waitForContainer(client, childId);
           childIds.push(childId);
         }
@@ -125,14 +125,14 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (caption) carouselParams.caption = caption;
         if (location_id) carouselParams.location_id = location_id;
         const { data: carousel } = await client.ig("POST", `/${client.igUserId}/media`, carouselParams);
-        const carouselId = (carousel as { id: string }).id;
+        const carouselId = carousel.id as string;
         // Step 3: Wait for carousel container to be ready
         await waitForContainer(client, carouselId);
         // Step 4: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: carouselId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish carousel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -160,12 +160,12 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (alt_text) params.alt_text = alt_text;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish reel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -189,12 +189,12 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           params.video_url = media_url;
         }
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish story failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -213,7 +213,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("GET", `/${container_id}`, {
           fields: "id,status,status_code",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get container status failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

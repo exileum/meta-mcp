@@ -16,7 +16,7 @@ export async function waitForThreadsContainer(client: MetaClient, containerId: s
   let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     const { data } = await client.threads("GET", `/${containerId}`, { fields: "status" });
-    const status = (data as { status?: string }).status;
+    const status = data.status as string | undefined;
     lastStatus = status;
     if (status === "FINISHED") return;
     if (status === "ERROR") throw new Error("Threads container processing failed (ERROR status)");
@@ -76,11 +76,11 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish text failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -112,12 +112,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         await waitForThreadsContainer(client, containerId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish image failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -149,12 +149,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = (container as { id: string }).id;
+        const containerId = container.id as string;
         await waitForThreadsContainer(client, containerId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish video failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -189,7 +189,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           }
           if (item.alt_text) params.alt_text = item.alt_text;
           const { data: child } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-          const childId = (child as { id: string }).id;
+          const childId = child.id as string;
           await waitForThreadsContainer(client, childId);
           childIds.push(childId);
         }
@@ -203,12 +203,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
         applyShareToIgStory(carouselParams, share_to_ig_story);
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
-        const carouselId = (carousel as { id: string }).id;
+        const carouselId = carousel.id as string;
         await waitForThreadsContainer(client, carouselId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: carouselId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Publish carousel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -225,7 +225,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     async ({ post_id }) => {
       try {
         const { data, rateLimit } = await client.threads("DELETE", `/${post_id}`);
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Delete post failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -244,7 +244,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("GET", `/${container_id}`, {
           fields: "id,status,error_message",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg.includes("nonexisting field")) {
@@ -265,7 +265,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_publishing_limit`, {
           fields: "quota_usage,config",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get publishing limit failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

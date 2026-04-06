@@ -16,7 +16,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = platform === "threads"
           ? await client.threadsExchangeToken(short_lived_token)
           : await client.igExchangeToken(short_lived_token);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Token exchange failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -36,7 +36,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = platform === "threads"
           ? await client.threadsRefreshToken(long_lived_token)
           : await client.igRefreshToken(long_lived_token);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Token refresh failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -53,7 +53,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
     async ({ input_token }) => {
       try {
         const { data, rateLimit } = await client.debugToken(input_token);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Token debug failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -70,7 +70,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = await client.meta("GET", `/app`, {
           fields: "id,name,category,namespace,link,company,description",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get app info failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -95,7 +95,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
           verify_token,
           fields,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Webhook subscribe failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -110,7 +110,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
     async () => {
       try {
         const { data, rateLimit } = await client.meta("GET", `/app/subscriptions`);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get webhooks failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

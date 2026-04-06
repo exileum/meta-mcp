@@ -15,7 +15,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
       try {
         const m = metric || "views,likes,replies,reposts,quotes";
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/insights`, { metric: m });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get post insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -39,7 +39,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_insights`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get user insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

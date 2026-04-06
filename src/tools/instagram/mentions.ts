@@ -18,7 +18,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
           comment_id,
           fields: f,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get mentioned comments failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -41,7 +41,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/tags`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get tagged media failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

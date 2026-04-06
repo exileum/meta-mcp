@@ -44,7 +44,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -63,7 +63,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
       try {
         const f = fields || THREADS_MEDIA_FIELDS;
         const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields: f });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get post failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -100,7 +100,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.threads("GET", `/keyword_search`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Search posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

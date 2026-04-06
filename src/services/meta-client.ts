@@ -10,7 +10,7 @@ const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
 
 interface ClientResponse {
-  data: unknown;
+  data: Record<string, unknown>;
   rateLimit?: RateLimit;
 }
 
@@ -99,7 +99,7 @@ export class MetaClient {
       return { data, rateLimit };
     }
     const text = await res.text();
-    return { data: text || { success: true }, rateLimit };
+    return { data: text ? { raw: text, success: true } : { success: true }, rateLimit };
   }
 
   async ig(
