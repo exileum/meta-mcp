@@ -1,6 +1,6 @@
 {
   "name": "@exileum/meta-mcp",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "mcpName": "io.github.exileum/meta",
   "description": "Enables AI assistants to manage Instagram and Threads accounts — publish content, handle comments, view insights, search hashtags, and manage DMs through the Meta Graph API",
   "type": "module",
