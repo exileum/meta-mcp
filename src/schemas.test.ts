@@ -8,6 +8,11 @@ describe("httpsUrl schema", () => {
     expect(httpsUrl.safeParse("https://example.com").success).toBe(true);
   });
 
+  it("accepts HTTPS URLs with mixed-case scheme (RFC 3986)", () => {
+    expect(httpsUrl.safeParse("HTTPS://example.com").success).toBe(true);
+    expect(httpsUrl.safeParse("Https://example.com/image.jpg").success).toBe(true);
+  });
+
   it("rejects HTTP URLs", () => {
     const result = httpsUrl.safeParse("http://example.com/image.jpg");
     expect(result.success).toBe(false);
