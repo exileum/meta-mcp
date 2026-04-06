@@ -748,6 +748,103 @@ describe("threads_publish_text text_attachment mutual exclusion", () => {
 
     expect(client.threads).toHaveBeenCalled();
   });
+
+  it("rejects styling range exceeding text_attachment length", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      text_attachment: "Short",
+      text_attachment_styling: [{ offset: 0, length: 50, styles: ["bold"] }],
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("exceeds text_attachment length");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects styling range where offset is beyond text_attachment end", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      text_attachment: "Short",
+      text_attachment_styling: [{ offset: 10, length: 2, styles: ["bold"] }],
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("exceeds text_attachment length");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+});
+
+// ─── text_attachment char→byte offset conversion ────────────────────
+
+describe("threads_publish_text text_attachment byte offset conversion", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("converts Cyrillic character offsets to UTF-8 byte offsets", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    // "Жирный" = 6 chars / 12 bytes; " и " = 3 chars / 4 bytes (space+и+space = 1+2+1); "курсив" = 6 chars / 12 bytes
+    await handler({
+      text: "Hello",
+      text_attachment: "Жирный и курсив",
+      text_attachment_styling: [
+        { offset: 0, length: 6, styles: ["bold"] },       // "Жирный" → byte 0, byte len 12
+        { offset: 9, length: 6, styles: ["italic"] },     // "курсив" → byte 16, byte len 12
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed.text_with_styling_info).toEqual([
+      { offset: 0, length: 12, styling_info: ["bold"] },
+      { offset: 16, length: 12, styling_info: ["italic"] },
+    ]);
+  });
+
+  it("keeps ASCII offsets unchanged (1 byte per char)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({
+      text: "Hello",
+      text_attachment: "Bold and italic text",
+      text_attachment_styling: [
+        { offset: 0, length: 4, styles: ["bold"] },
+        { offset: 9, length: 6, styles: ["italic"] },
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed.text_with_styling_info).toEqual([
+      { offset: 0, length: 4, styling_info: ["bold"] },
+      { offset: 9, length: 6, styling_info: ["italic"] },
+    ]);
+  });
+
+  it("handles emoji offsets correctly (4 bytes per emoji)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    // "🔥Hot" = "🔥" is 1 char (length 2 in JS) + "Hot" 3 chars
+    await handler({
+      text: "Hello",
+      text_attachment: "🔥Hot stuff",
+      text_attachment_styling: [
+        { offset: 2, length: 3, styles: ["bold"] },     // "Hot" starts at char 2 (after 🔥 which is 2 JS chars)
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    // 🔥 = 4 bytes in UTF-8, so "Hot" starts at byte 4
+    expect(parsed.text_with_styling_info).toEqual([
+      { offset: 4, length: 3, styling_info: ["bold"] },
+    ]);
+  });
 });
 
 // ─── textAttachmentStylingSchema validation ─────────────────────────

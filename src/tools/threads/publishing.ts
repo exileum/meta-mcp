@@ -13,8 +13,8 @@ export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4
 export const textStylingEnum = z.enum(["bold", "italic", "highlight", "underline", "strikethrough"]);
 
 export const textAttachmentStylingSchema = z.array(z.object({
-  offset: z.number().int().min(0).describe("Starting character position"),
-  length: z.number().int().min(1).describe("Number of characters to style"),
+  offset: z.number().int().min(0).describe("Starting character position (0-based, automatically converted to UTF-8 byte offsets for the API)"),
+  length: z.number().int().min(1).describe("Number of characters to style (automatically converted to UTF-8 byte length for the API)"),
   styles: z.array(textStylingEnum).min(1).describe("Styles to apply (bold, italic, highlight, underline, strikethrough)"),
 })).optional().describe("Text formatting for the text attachment. Ranges must not overlap.");
 
@@ -44,7 +44,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
-      text_attachment: z.string().max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
+      text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
     },
@@ -63,13 +63,19 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (text_attachment_styling && !text_attachment) {
           return { content: [{ type: "text", text: "text_attachment_styling requires text_attachment" }], isError: true };
         }
-        // Validate styling ranges do not overlap
-        if (text_attachment_styling && text_attachment_styling.length > 1) {
-          const sorted = [...text_attachment_styling].sort((a, b) => a.offset - b.offset);
-          for (let i = 1; i < sorted.length; i++) {
-            const prev = sorted[i - 1];
-            if (sorted[i].offset < prev.offset + prev.length) {
-              return { content: [{ type: "text", text: `text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}` }], isError: true };
+        if (text_attachment_styling) {
+          for (const range of text_attachment_styling) {
+            if (range.offset + range.length > text_attachment!.length) {
+              return { content: [{ type: "text", text: `text_attachment_styling range at offset ${range.offset} with length ${range.length} exceeds text_attachment length (${text_attachment!.length})` }], isError: true };
+            }
+          }
+          if (text_attachment_styling.length > 1) {
+            const sorted = [...text_attachment_styling].sort((a, b) => a.offset - b.offset);
+            for (let i = 1; i < sorted.length; i++) {
+              const prev = sorted[i - 1];
+              if (sorted[i].offset < prev.offset + prev.length) {
+                return { content: [{ type: "text", text: `text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}` }], isError: true };
+              }
             }
           }
         }
@@ -96,8 +102,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           const obj: Record<string, unknown> = { plaintext: text_attachment };
           if (text_attachment_link) obj.link_attachment_url = text_attachment_link;
           if (text_attachment_styling) {
+            // Convert character offsets to UTF-8 byte offsets (API requirement)
+            const encoder = new TextEncoder();
             obj.text_with_styling_info = text_attachment_styling.map(s => ({
-              offset: s.offset, length: s.length, styling_info: s.styles,
+              offset: encoder.encode(text_attachment.substring(0, s.offset)).length,
+              length: encoder.encode(text_attachment.substring(s.offset, s.offset + s.length)).length,
+              styling_info: s.styles,
             }));
           }
           params.text_attachment = JSON.stringify(obj);
