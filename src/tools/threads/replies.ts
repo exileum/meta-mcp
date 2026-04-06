@@ -23,7 +23,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/replies`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get replies failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -53,14 +53,15 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (image_url) params.image_url = image_url;
         if (video_url) params.video_url = video_url;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = (container as { id: string }).id;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         if (video_url) {
           await waitForThreadsContainer(client, containerId);
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -77,7 +78,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     async ({ reply_id }) => {
       try {
         const { data, rateLimit } = await client.threads("POST", `/${reply_id}/manage_reply`, { hide: true });
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: true, ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Hide reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -94,7 +95,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     async ({ reply_id }) => {
       try {
         const { data, rateLimit } = await client.threads("POST", `/${reply_id}/manage_reply`, { hide: false });
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: false, ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: false, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Unhide reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

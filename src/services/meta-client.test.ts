@@ -21,6 +21,40 @@ function jsonResponse(body: object, headers: Record<string, string> = {}) {
   });
 }
 
+describe("non-JSON response handling", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wraps non-empty text response in { raw, success } object", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("plain text body", {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      })
+    );
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.data).toEqual({ raw: "plain text body", success: true });
+  });
+
+  it("returns { raw: '', success: true } when text response is empty", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("", {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      })
+    );
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.data).toEqual({ raw: "", success: true });
+  });
+});
+
 describe("parseRateLimit", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

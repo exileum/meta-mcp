@@ -13,7 +13,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
           fields: "id,name,username,biography,followers_count,follows_count,media_count,profile_picture_url,website",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get profile failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -36,7 +36,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/insights`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get account insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -57,7 +57,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
           fields: `business_discovery.fields(${f}){username=${username}}`,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Business discovery failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -78,7 +78,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/collaboration_invites`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get collaboration invites failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -99,7 +99,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
           invite_id,
           action,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Respond to collaboration invite failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }

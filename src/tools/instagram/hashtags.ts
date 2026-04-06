@@ -16,7 +16,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
           q,
           user_id: client.igUserId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Hashtag search failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -35,7 +35,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}`, {
           fields: "id,name,media_count",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get hashtag failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -60,7 +60,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/recent_media`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get hashtag recent failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
@@ -85,7 +85,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/top_media`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data as object, _rateLimit: rateLimit }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get hashtag top failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
