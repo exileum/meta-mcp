@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Dockerfile now runs as non-root user** — added a dedicated `app` user/group so the Node.js process no longer runs as root inside the container, following the principle of least privilege ([#35](https://github.com/exileum/meta-mcp/issues/35))
+- **Added `.dockerignore` to exclude unnecessary files from build context** — prevents `.git/`, `node_modules/`, `src/`, `.env`, and other non-runtime files from being sent to the Docker daemon, reducing build context size and eliminating risk of secrets leaking into the image ([#36](https://github.com/exileum/meta-mcp/issues/36))
+
 ### Fixed
 - **`ClientResponse.data` typed as `unknown` forces 57 unsafe `as object` casts** — changed `data` type from `unknown` to `Record<string, unknown>`, eliminating all 57 unsafe type assertions across 13 tool handler files; fixed the non-JSON response path in `MetaClient.request()` to always return an object (`{ raw: text, success: true }`) instead of a raw string, preventing silent data corruption when the response is spread ([#24](https://github.com/exileum/meta-mcp/issues/24))
 
