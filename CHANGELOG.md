@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Cross-share Threads posts to Instagram Stories** — all four publish tools (`threads_publish_text`, `threads_publish_image`, `threads_publish_video`, `threads_publish_carousel`) now accept optional `share_to_ig_story` parameter (`"light"`/`"dark"`) to cross-share the post to the user's linked Instagram account as a Story; requires `threads_share_to_instagram` permission; the Threads post publishes normally even if cross-share fails; response includes `crossreshare_to_ig_status` (`"SUCCESS"` or `"FAILED"`)
 
+### Fixed
+- **`threads_publish_text` sends wrong `poll_attachment` format — polls silently fail** — changed `poll_attachment` JSON structure from `{"options":[{"option_text":"..."},...]}` (array of objects) to `{"option_a":"...","option_b":"..."}` (named keys) matching the [Threads Poll API](https://developers.facebook.com/docs/threads/create-posts/polls); the old format was silently ignored by the API, creating text-only posts instead of polls
+- **`threads_publish_text` missing per-option length validation for polls** — each poll option string is now validated to 1-25 characters via Zod `.min(1).max(25)`; previously only the array length (2-4) was checked
+- **`threads_get_posts` and `threads_get_post` return empty `poll_attachment` data** — added sub-field expansion syntax (`poll_attachment{option_a,...,total_votes,expiration_timestamp}`) to default fields; without expansion the API omits vote percentages and totals
+
 ## [3.5.0] — 2026-04-05
 
 ### Fixed

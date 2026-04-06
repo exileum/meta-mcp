@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
-import { waitForThreadsContainer, registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema } from "./publishing.js";
+import { waitForThreadsContainer, registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
@@ -595,5 +595,88 @@ describe("threads_publish_carousel share_to_ig_story", () => {
       expect(call[2]).not.toHaveProperty("crossreshare_to_ig");
       expect(call[2]).not.toHaveProperty("crossreshare_to_ig_dark_mode");
     }
+  });
+});
+
+// ─── poll_attachment format tests ─────────────────────────────────
+
+describe("threads_publish_text poll_attachment format", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("sends option_a/option_b keys for 2 options", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Vote!", poll_options: ["Yes", "No"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2].poll_attachment).toBe(JSON.stringify({ option_a: "Yes", option_b: "No" }));
+  });
+
+  it("sends option_a through option_c for 3 options", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Pick", poll_options: ["A", "B", "C"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].poll_attachment as string);
+    expect(parsed).toEqual({ option_a: "A", option_b: "B", option_c: "C" });
+    expect(parsed).not.toHaveProperty("option_d");
+  });
+
+  it("sends option_a through option_d for 4 options", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Pick", poll_options: ["A", "B", "C", "D"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2].poll_attachment).toBe(
+      JSON.stringify({ option_a: "A", option_b: "B", option_c: "C", option_d: "D" })
+    );
+  });
+
+  it("excludes poll_attachment when poll_options not provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("poll_attachment");
+  });
+});
+
+// ─── pollOptionsSchema validation tests ───────────────────────────
+
+describe("pollOptionsSchema validation", () => {
+  const schema = pollOptionsSchema;
+
+  it("accepts 2 valid options", () => {
+    expect(schema.parse(["Yes", "No"])).toEqual(["Yes", "No"]);
+  });
+
+  it("accepts 4 valid options", () => {
+    expect(schema.parse(["A", "B", "C", "D"])).toEqual(["A", "B", "C", "D"]);
+  });
+
+  it("accepts undefined (optional)", () => {
+    expect(schema.parse(undefined)).toBeUndefined();
+  });
+
+  it("rejects option longer than 25 chars", () => {
+    expect(() => schema.parse(["Valid", "a".repeat(26)])).toThrow();
+  });
+
+  it("rejects empty option string", () => {
+    expect(() => schema.parse(["Valid", ""])).toThrow();
+  });
+
+  it("rejects fewer than 2 options", () => {
+    expect(() => schema.parse(["Only one"])).toThrow();
+  });
+
+  it("rejects more than 4 options", () => {
+    expect(() => schema.parse(["A", "B", "C", "D", "E"])).toThrow();
   });
 });
