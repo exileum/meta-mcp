@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { httpsUrl } from "../../schemas.js";
 
 export function registerMetaAuthTools(server: McpServer, client: MetaClient): void {
   // ─── meta_exchange_token ─────────────────────────────────────
@@ -83,7 +84,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
     "Subscribe to webhook notifications for an object (e.g., 'instagram', 'page'). Requires META_APP_ID and META_APP_SECRET.",
     {
       object: z.enum(["instagram", "page", "user", "permissions"]).describe("Object type to subscribe to"),
-      callback_url: z.string().url().describe("HTTPS webhook endpoint URL"),
+      callback_url: httpsUrl.describe("HTTPS webhook endpoint URL"),
       verify_token: z.string().describe("Verification token for the webhook"),
       fields: z.string().describe("Comma-separated list of fields to subscribe (e.g., 'messages,feed')"),
     },
