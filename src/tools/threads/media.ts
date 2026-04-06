@@ -16,7 +16,7 @@ const THREADS_MEDIA_FIELDS = [
   "reply_audience",
   "topic_tag",
   "link_attachment_url",
-  "poll_attachment",
+  "poll_attachment{option_a,option_b,option_c,option_d,option_a_votes_percentage,option_b_votes_percentage,option_c_votes_percentage,option_d_votes_percentage,total_votes,expiration_timestamp}",
   "gif_url",
   "alt_text",
 ].join(",");

@@ -66,6 +66,24 @@ describe("threads_get_post default fields", () => {
   });
 });
 
+describe("threads_get_posts poll_attachment field expansion", () => {
+  it("requests poll_attachment with sub-field expansion syntax", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsMediaTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_posts")!;
+    await handler({});
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const fields = call[2].fields as string;
+    expect(fields).toContain("poll_attachment{option_a,");
+    expect(fields).toContain("total_votes");
+    expect(fields).toContain("expiration_timestamp}");
+    expect(fields).not.toMatch(/(?:^|,)poll_attachment(?:,|$)/);
+  });
+});
+
 describe("threads_search_posts", () => {
   it("calls /keyword_search endpoint (not user-scoped)", async () => {
     const server = makeMockServer();

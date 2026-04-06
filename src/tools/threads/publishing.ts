@@ -6,6 +6,10 @@ export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic
 
 export const shareToIgStorySchema = z.enum(["light", "dark"]).optional().describe("Cross-share this post to linked Instagram as a Story. 'light' = normal, 'dark' = dark mode. Requires threads_share_to_instagram permission and a linked Instagram account. The Threads post still publishes even if cross-share fails.");
 
+export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment.");
+
+const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
+
 export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
   const interval = 2000;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
@@ -43,7 +47,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post)"),
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
-      poll_options: z.array(z.string()).min(2).max(4).optional().describe("Poll options (2-4 choices). Creates a poll attachment."),
+      poll_options: pollOptionsSchema,
       gif_id: z.string().optional().describe("GIPHY GIF ID"),
       gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported."),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
@@ -58,7 +62,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (topic_tag) params.topic_tag = topic_tag;
         if (quote_post_id) params.quote_post_id = quote_post_id;
         if (poll_options) {
-          params.poll_attachment = JSON.stringify({ options: poll_options.map(o => ({ option_text: o })) });
+          const pollObj: Record<string, string> = {};
+          poll_options.forEach((opt, i) => {
+            const key = POLL_OPTION_KEYS[i];
+            if (key) pollObj[key] = opt;
+          });
+          params.poll_attachment = JSON.stringify(pollObj);
         }
         if (gif_id && gif_provider) {
           params.gif_attachment = JSON.stringify({ gif_id, provider: gif_provider });
