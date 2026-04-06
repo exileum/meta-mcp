@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Unified container polling logic** — extracted `waitForContainer` (Instagram) and `waitForThreadsContainer` (Threads) into a single `pollContainerStatus()` utility in `src/utils/container.ts`, eliminating 3x code duplication; the two platform-specific functions are now thin wrappers over the shared implementation ([#46](https://github.com/exileum/meta-mcp/issues/46))
 - **Dockerfile now runs as non-root user** — added a dedicated `app` user/group so the Node.js process no longer runs as root inside the container, following the principle of least privilege ([#35](https://github.com/exileum/meta-mcp/issues/35))
 - **Added `.dockerignore` to exclude unnecessary files from build context** — prevents `.git/`, `node_modules/`, `src/`, `.env`, and other non-runtime files from being sent to the Docker daemon, reducing build context size and eliminating risk of secrets leaking into the image ([#36](https://github.com/exileum/meta-mcp/issues/36))
 - **Server version no longer hardcoded in `src/index.ts`** — `SERVER_VERSION` is now read from `package.json` at runtime via `createRequire`, eliminating one of the four locations that previously required manual sync during version bumps; added a `version-sync` CI job that validates `server.json` versions match `package.json` on every PR ([#39](https://github.com/exileum/meta-mcp/issues/39))

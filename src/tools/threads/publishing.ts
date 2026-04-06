@@ -2,6 +2,9 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
+import { waitForThreadsContainer } from "../../utils/container.js";
+
+export { waitForThreadsContainer };
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
@@ -10,25 +13,6 @@ export const shareToIgStorySchema = z.enum(["light", "dark"]).optional().describ
 export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment.");
 
 const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
-
-export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
-  const interval = 2000;
-  const maxAttempts = Math.ceil((maxWait * 1000) / interval);
-  let lastStatus: string | undefined;
-  for (let i = 0; i < maxAttempts; i++) {
-    const { data } = await client.threads("GET", `/${containerId}`, { fields: "status" });
-    const status = data.status as string | undefined;
-    lastStatus = status;
-    if (status === "FINISHED") return;
-    if (status === "ERROR") throw new Error("Threads container processing failed (ERROR status)");
-    if (status === "EXPIRED") throw new Error("Threads container expired — it was not published within 24 hours and must be recreated");
-    if (status === "PUBLISHED") throw new Error("Threads container already published");
-    if (!status) throw new Error("Threads container status field missing from API response");
-    if (status !== "IN_PROGRESS") throw new Error(`Unexpected Threads container status: ${status}`);
-    await new Promise((r) => setTimeout(r, interval));
-  }
-  throw new Error(`Threads container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
-}
 
 function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?: "light" | "dark"): void {
   if (share_to_ig_story) {
