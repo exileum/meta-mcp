@@ -10,6 +10,14 @@ export const shareToIgStorySchema = z.enum(["light", "dark"]).optional().describ
 
 export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment.");
 
+export const textStylingEnum = z.enum(["bold", "italic", "highlight", "underline", "strikethrough"]);
+
+export const textAttachmentStylingSchema = z.array(z.object({
+  offset: z.number().int().min(0).describe("Starting character position (0-based, automatically converted to UTF-8 byte offsets for the API)"),
+  length: z.number().int().min(1).describe("Number of characters to style (automatically converted to UTF-8 byte length for the API)"),
+  styles: z.array(textStylingEnum).min(1).describe("Styles to apply (bold, italic, highlight, underline, strikethrough)"),
+})).optional().describe("Text formatting for the text attachment. Ranges must not overlap.");
+
 const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
 
 function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?: "light" | "dark"): void {
@@ -23,11 +31,11 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. Supports optional link attachment, poll, GIF, topic tag, quote post, and cross-share to Instagram Stories.",
+    "Publish a text-only post on Threads. Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
-      link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post)"),
+      link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post). Cannot be combined with text_attachment."),
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       poll_options: pollOptionsSchema,
@@ -36,9 +44,42 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
+      text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
+      text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
+      text_attachment_styling: textAttachmentStylingSchema,
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, text_attachment, text_attachment_link, text_attachment_styling }) => {
       try {
+        // Validate mutual exclusions
+        if (text_attachment && poll_options) {
+          return { content: [{ type: "text", text: "text_attachment cannot be combined with poll_options" }], isError: true };
+        }
+        if (text_attachment && link_attachment) {
+          return { content: [{ type: "text", text: "text_attachment cannot be combined with link_attachment. Use text_attachment_link instead to include a link inside the text attachment." }], isError: true };
+        }
+        if (text_attachment_link && !text_attachment) {
+          return { content: [{ type: "text", text: "text_attachment_link requires text_attachment" }], isError: true };
+        }
+        if (text_attachment_styling && !text_attachment) {
+          return { content: [{ type: "text", text: "text_attachment_styling requires text_attachment" }], isError: true };
+        }
+        if (text_attachment_styling) {
+          for (const range of text_attachment_styling) {
+            if (range.offset + range.length > text_attachment!.length) {
+              return { content: [{ type: "text", text: `text_attachment_styling range at offset ${range.offset} with length ${range.length} exceeds text_attachment length (${text_attachment!.length})` }], isError: true };
+            }
+          }
+          if (text_attachment_styling.length > 1) {
+            const sorted = [...text_attachment_styling].sort((a, b) => a.offset - b.offset);
+            for (let i = 1; i < sorted.length; i++) {
+              const prev = sorted[i - 1];
+              if (sorted[i].offset < prev.offset + prev.length) {
+                return { content: [{ type: "text", text: `text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}` }], isError: true };
+              }
+            }
+          }
+        }
+
         const params: Record<string, unknown> = { media_type: "TEXT", text };
         if (reply_control) params.reply_control = reply_control;
         if (link_attachment) params.link_attachment = link_attachment;
@@ -57,6 +98,20 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         }
         if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
+        if (text_attachment) {
+          const obj: Record<string, unknown> = { plaintext: text_attachment };
+          if (text_attachment_link) obj.link_attachment_url = text_attachment_link;
+          if (text_attachment_styling) {
+            // Convert character offsets to UTF-8 byte offsets (API requirement)
+            const encoder = new TextEncoder();
+            obj.text_with_styling_info = text_attachment_styling.map(s => ({
+              offset: encoder.encode(text_attachment.substring(0, s.offset)).length,
+              length: encoder.encode(text_attachment.substring(s.offset, s.offset + s.length)).length,
+              styling_info: s.styles,
+            }));
+          }
+          params.text_attachment = JSON.stringify(obj);
+        }
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");

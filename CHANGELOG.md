@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`threads_publish_text` now supports `text_attachment` for long-form posts (up to 10,000 chars)** — new `text_attachment` parameter renders as an expandable "Read more" block beneath the primary text; also supports `text_attachment_link` (URL inside the attachment card) and `text_attachment_styling` (bold, italic, highlight, underline, strikethrough formatting with character-based offset/length ranges that are automatically converted to UTF-8 byte offsets for the API); includes bounds validation for styling ranges; `text_attachment` cannot be combined with `poll_options` or `link_attachment` per the [Threads Text Attachments API](https://developers.facebook.com/docs/threads/create-posts/text-attachments/) ([#42](https://github.com/exileum/meta-mcp/issues/42))
+
 ### Changed
 - **Unified container polling logic** — extracted `waitForContainer` (Instagram) and `waitForThreadsContainer` (Threads) into a single `pollContainerStatus()` utility in `src/utils/container.ts`, eliminating 3x code duplication; the two platform-specific functions are now thin wrappers over the shared implementation ([#46](https://github.com/exileum/meta-mcp/issues/46))
 - **Dockerfile now runs as non-root user** — added a dedicated `app` user/group so the Node.js process no longer runs as root inside the container, following the principle of least privilege ([#35](https://github.com/exileum/meta-mcp/issues/35))

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
-import { registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema } from "./publishing.js";
+import { registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema, textAttachmentStylingSchema } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
@@ -589,5 +589,296 @@ describe("pollOptionsSchema validation", () => {
 
   it("rejects more than 4 options", () => {
     expect(() => schema.parse(["A", "B", "C", "D", "E"])).toThrow();
+  });
+});
+
+// ─── text_attachment tests ──────────────────────────────────────────
+
+describe("threads_publish_text text_attachment serialization", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("serializes plaintext-only text_attachment as JSON", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", text_attachment: "Long form content here" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2].text_attachment).toBe(JSON.stringify({ plaintext: "Long form content here" }));
+  });
+
+  it("serializes text_attachment with link_attachment_url", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", text_attachment: "Read more", text_attachment_link: "https://example.com/article" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed).toEqual({
+      plaintext: "Read more",
+      link_attachment_url: "https://example.com/article",
+    });
+  });
+
+  it("serializes text_attachment with styling info", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({
+      text: "Hello",
+      text_attachment: "Bold and italic text",
+      text_attachment_styling: [
+        { offset: 0, length: 4, styles: ["bold"] },
+        { offset: 9, length: 6, styles: ["italic"] },
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed).toEqual({
+      plaintext: "Bold and italic text",
+      text_with_styling_info: [
+        { offset: 0, length: 4, styling_info: ["bold"] },
+        { offset: 9, length: 6, styling_info: ["italic"] },
+      ],
+    });
+  });
+
+  it("serializes text_attachment with all sub-fields", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({
+      text: "Hello",
+      text_attachment: "Full featured text",
+      text_attachment_link: "https://example.com",
+      text_attachment_styling: [{ offset: 0, length: 4, styles: ["bold", "underline"] }],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed).toEqual({
+      plaintext: "Full featured text",
+      link_attachment_url: "https://example.com",
+      text_with_styling_info: [{ offset: 0, length: 4, styling_info: ["bold", "underline"] }],
+    });
+  });
+
+  it("excludes text_attachment when not provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("text_attachment");
+  });
+});
+
+describe("threads_publish_text text_attachment mutual exclusion", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("rejects text_attachment + poll_options", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", text_attachment: "Long text", poll_options: ["Yes", "No"] }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("text_attachment cannot be combined with poll_options");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects text_attachment + link_attachment", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", text_attachment: "Long text", link_attachment: "https://example.com" }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("text_attachment cannot be combined with link_attachment");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects text_attachment_link without text_attachment", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", text_attachment_link: "https://example.com" }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("text_attachment_link requires text_attachment");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects text_attachment_styling without text_attachment", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", text_attachment_styling: [{ offset: 0, length: 5, styles: ["bold"] }] }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("text_attachment_styling requires text_attachment");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects overlapping styling ranges", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      text_attachment: "Overlapping styles",
+      text_attachment_styling: [
+        { offset: 0, length: 10, styles: ["bold"] },
+        { offset: 5, length: 8, styles: ["italic"] },
+      ],
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("must not overlap");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("accepts non-overlapping adjacent styling ranges", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({
+      text: "Hello",
+      text_attachment: "Adjacent styles here",
+      text_attachment_styling: [
+        { offset: 0, length: 8, styles: ["bold"] },
+        { offset: 8, length: 6, styles: ["italic"] },
+      ],
+    });
+
+    expect(client.threads).toHaveBeenCalled();
+  });
+
+  it("rejects styling range exceeding text_attachment length", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      text_attachment: "Short",
+      text_attachment_styling: [{ offset: 0, length: 50, styles: ["bold"] }],
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("exceeds text_attachment length");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects styling range where offset is beyond text_attachment end", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      text_attachment: "Short",
+      text_attachment_styling: [{ offset: 10, length: 2, styles: ["bold"] }],
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("exceeds text_attachment length");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+});
+
+// ─── text_attachment char→byte offset conversion ────────────────────
+
+describe("threads_publish_text text_attachment byte offset conversion", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("converts Cyrillic character offsets to UTF-8 byte offsets", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    // "Жирный" = 6 chars / 12 bytes; " и " = 3 chars / 4 bytes (space+и+space = 1+2+1); "курсив" = 6 chars / 12 bytes
+    await handler({
+      text: "Hello",
+      text_attachment: "Жирный и курсив",
+      text_attachment_styling: [
+        { offset: 0, length: 6, styles: ["bold"] },       // "Жирный" → byte 0, byte len 12
+        { offset: 9, length: 6, styles: ["italic"] },     // "курсив" → byte 16, byte len 12
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed.text_with_styling_info).toEqual([
+      { offset: 0, length: 12, styling_info: ["bold"] },
+      { offset: 16, length: 12, styling_info: ["italic"] },
+    ]);
+  });
+
+  it("keeps ASCII offsets unchanged (1 byte per char)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({
+      text: "Hello",
+      text_attachment: "Bold and italic text",
+      text_attachment_styling: [
+        { offset: 0, length: 4, styles: ["bold"] },
+        { offset: 9, length: 6, styles: ["italic"] },
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    expect(parsed.text_with_styling_info).toEqual([
+      { offset: 0, length: 4, styling_info: ["bold"] },
+      { offset: 9, length: 6, styling_info: ["italic"] },
+    ]);
+  });
+
+  it("handles emoji offsets correctly (4 bytes per emoji)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    // "🔥Hot" = "🔥" is 1 char (length 2 in JS) + "Hot" 3 chars
+    await handler({
+      text: "Hello",
+      text_attachment: "🔥Hot stuff",
+      text_attachment_styling: [
+        { offset: 2, length: 3, styles: ["bold"] },     // "Hot" starts at char 2 (after 🔥 which is 2 JS chars)
+      ],
+    });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(createCall[2].text_attachment as string);
+    // 🔥 = 4 bytes in UTF-8, so "Hot" starts at byte 4
+    expect(parsed.text_with_styling_info).toEqual([
+      { offset: 4, length: 3, styling_info: ["bold"] },
+    ]);
+  });
+});
+
+// ─── textAttachmentStylingSchema validation ─────────────────────────
+
+describe("textAttachmentStylingSchema validation", () => {
+  const schema = textAttachmentStylingSchema;
+
+  it("accepts valid styling array", () => {
+    const result = schema.parse([{ offset: 0, length: 5, styles: ["bold"] }]);
+    expect(result).toEqual([{ offset: 0, length: 5, styles: ["bold"] }]);
+  });
+
+  it("accepts multiple styles per range", () => {
+    const result = schema.parse([{ offset: 0, length: 5, styles: ["bold", "italic", "underline"] }]);
+    expect(result![0].styles).toEqual(["bold", "italic", "underline"]);
+  });
+
+  it("accepts undefined (optional)", () => {
+    expect(schema.parse(undefined)).toBeUndefined();
+  });
+
+  it("rejects invalid style name", () => {
+    expect(() => schema.parse([{ offset: 0, length: 5, styles: ["comic-sans"] }])).toThrow();
+  });
+
+  it("rejects empty styles array", () => {
+    expect(() => schema.parse([{ offset: 0, length: 5, styles: [] }])).toThrow();
+  });
+
+  it("rejects negative offset", () => {
+    expect(() => schema.parse([{ offset: -1, length: 5, styles: ["bold"] }])).toThrow();
+  });
+
+  it("rejects zero length", () => {
+    expect(() => schema.parse([{ offset: 0, length: 0, styles: ["bold"] }])).toThrow();
   });
 });

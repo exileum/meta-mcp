@@ -173,7 +173,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_publish_text` | Publish a text post (supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories) |
+| `threads_publish_text` | Publish a text post (supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories, text attachments up to 10K chars with styling) |
 | `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories) |
 | `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories) |
 | `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories) |
