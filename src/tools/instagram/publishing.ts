@@ -2,26 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
-
-/** Poll container status until FINISHED or terminal status (video upload) */
-export async function waitForContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
-  const interval = 2000;
-  const maxAttempts = Math.ceil((maxWait * 1000) / interval);
-  let lastStatus: string | undefined;
-  for (let i = 0; i < maxAttempts; i++) {
-    const { data } = await client.ig("GET", `/${containerId}`, { fields: "status_code" });
-    const status = data.status_code as string | undefined;
-    lastStatus = status;
-    if (status === "FINISHED") return;
-    if (status === "ERROR") throw new Error("Container processing failed (ERROR status)");
-    if (status === "EXPIRED") throw new Error("Container expired — it was not published within 24 hours and must be recreated");
-    if (status === "PUBLISHED") throw new Error("Container already published");
-    if (!status) throw new Error("Container status field missing from API response");
-    if (status !== "IN_PROGRESS") throw new Error(`Unexpected container status: ${status}`);
-    await new Promise((r) => setTimeout(r, interval));
-  }
-  throw new Error(`Container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
-}
+import { waitForIgContainer } from "../../utils/container.js";
 
 export function registerIgPublishingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_publish_photo ────────────────────────────────────────
@@ -47,7 +28,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
         // Step 2: Wait for container to be ready
-        await waitForContainer(client, containerId);
+        await waitForIgContainer(client, containerId);
         // Step 3: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
@@ -78,7 +59,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForContainer(client, containerId);
+        await waitForIgContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
@@ -118,7 +99,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
-          await waitForContainer(client, childId);
+          await waitForIgContainer(client, childId);
           childIds.push(childId);
         }
         // Step 2: Create carousel container
@@ -132,7 +113,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
         // Step 3: Wait for carousel container to be ready
-        await waitForContainer(client, carouselId);
+        await waitForIgContainer(client, carouselId);
         // Step 4: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: carouselId,
@@ -167,7 +148,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForContainer(client, containerId);
+        await waitForIgContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
@@ -197,7 +178,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForContainer(client, containerId);
+        await waitForIgContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });

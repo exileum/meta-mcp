@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
-import { waitForThreadsContainer } from "./publishing.js";
+import { waitForThreadsContainer } from "../../utils/container.js";
 
 export function registerThreadsReplyTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_replies ─────────────────────────────────────

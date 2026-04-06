@@ -9,7 +9,7 @@ const THREADS_BASE = "https://graph.threads.net/v1.0";
 const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
 
-interface ClientResponse {
+export interface ClientResponse {
   data: Record<string, unknown>;
   rateLimit?: RateLimit;
 }
