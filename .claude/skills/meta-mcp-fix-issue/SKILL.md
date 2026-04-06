@@ -92,7 +92,6 @@ Update these files as needed:
 - **README.md** — update tool descriptions, setup guides, examples if affected.
 - **llms.txt** — update tool descriptions if tool signatures changed.
 - **server.json** — update if version or tool metadata changed.
-- **src/index.ts** — if `SERVER_VERSION` needs updating.
 
 ## Step 6: Final Verification
 

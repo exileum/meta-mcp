@@ -62,8 +62,9 @@ Files that typically need version bumps:
 | File | Location |
 |------|----------|
 | `package.json` | `"version": "X.Y.Z"` |
-| `src/index.ts` | `SERVER_VERSION = "X.Y.Z"` |
 | `server.json` | `"version": "X.Y.Z"` (appears twice) |
+
+> **Note:** `src/index.ts` reads the version from `package.json` at runtime via `createRequire` — no manual bump needed there.
 
 After finding all occurrences, update each one. **Do not touch version references inside `node_modules/`, `dist/`, or `package-lock.json`** — the lock file will be regenerated.
 
