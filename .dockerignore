@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Source (only dist/ is needed)
+src/
+*.ts
+tsconfig.json
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets
+.env
+.env.*
+
+# CI/CD
+.github/
+
+# Docs
+*.md
+LICENSE
+
+# Build artifacts
+*.tsbuildinfo
+coverage/
