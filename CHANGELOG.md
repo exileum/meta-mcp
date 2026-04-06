@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Added `.dockerignore` to exclude unnecessary files from build context** — prevents `.git/`, `node_modules/`, `src/`, `.env`, and other non-runtime files from being sent to the Docker daemon, reducing build context size and eliminating risk of secrets leaking into the image ([#36](https://github.com/exileum/meta-mcp/issues/36))
 
 ### Fixed
+- **No HTTPS enforcement on user-provided media URLs** — all media and callback URL parameters now validate that URLs use the `https://` scheme via a shared `httpsUrl` Zod schema; previously `z.string().url()` accepted any scheme (`http://`, `ftp://`, `file://`, `data:`), enabling potential SSRF and non-secure media transfer; also added missing URL validation to `ig_publish_reel`'s `cover_url` parameter ([#44](https://github.com/exileum/meta-mcp/issues/44))
 - **`ClientResponse.data` typed as `unknown` forces 57 unsafe `as object` casts** — changed `data` type from `unknown` to `Record<string, unknown>`, eliminating all 57 unsafe type assertions across 13 tool handler files; fixed the non-JSON response path in `MetaClient.request()` to always return an object (`{ raw: text, success: true }`) instead of a raw string, preventing silent data corruption when the response is spread ([#24](https://github.com/exileum/meta-mcp/issues/24))
 
 ## [3.6.0] — 2026-04-06

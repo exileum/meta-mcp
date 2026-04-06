@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "./publishing.js";
 
 export function registerThreadsReplyTools(server: McpServer, client: MetaClient): void {
@@ -37,8 +38,8 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     {
       reply_to_id: z.string().describe("Post ID to reply to"),
       text: z.string().max(500).describe("Reply text"),
-      image_url: z.string().url().optional().describe("Optional image URL to attach"),
-      video_url: z.string().url().optional().describe("Optional video URL to attach"),
+      image_url: httpsUrl.optional().describe("Optional image HTTPS URL to attach"),
+      video_url: httpsUrl.optional().describe("Optional video HTTPS URL to attach"),
     },
     async ({ reply_to_id, text, image_url, video_url }) => {
       try {

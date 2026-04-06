@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { httpsUrl } from "../../schemas.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
@@ -93,7 +94,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     "threads_publish_image",
     "Publish an image post on Threads. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories.",
     {
-      image_url: z.string().url().describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
+      image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
       text: z.string().max(500).optional().describe("Caption text"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
       topic_tag: topicTagSchema,
@@ -131,7 +132,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     "threads_publish_video",
     "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories. Note: cross-share to IG Stories may silently fail for video posts (the Threads post still publishes).",
     {
-      video_url: z.string().url().describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
+      video_url: httpsUrl.describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
       topic_tag: topicTagSchema,
@@ -171,7 +172,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     {
       items: z.array(z.object({
         type: z.enum(["IMAGE", "VIDEO"]).describe("Media type"),
-        url: z.string().url().describe("Public HTTPS URL"),
+        url: httpsUrl.describe("Public HTTPS URL"),
         alt_text: z.string().max(1000).optional().describe("Alt text for this item"),
       })).min(2).max(20).describe("Array of media items"),
       text: z.string().max(500).optional().describe("Caption text"),
