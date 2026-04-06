@@ -43,7 +43,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (alt_text) params.alt_text = alt_text;
         // Step 1: Create container
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         // Step 2: Wait for container to be ready
         await waitForContainer(client, containerId);
         // Step 3: Publish
@@ -74,7 +75,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (location_id) params.location_id = location_id;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
@@ -113,7 +115,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
             params.media_type = "VIDEO";
           }
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
-          const childId = child.id as string;
+          if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
+          const childId = child.id;
           await waitForContainer(client, childId);
           childIds.push(childId);
         }
@@ -125,7 +128,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (caption) carouselParams.caption = caption;
         if (location_id) carouselParams.location_id = location_id;
         const { data: carousel } = await client.ig("POST", `/${client.igUserId}/media`, carouselParams);
-        const carouselId = carousel.id as string;
+        if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
+        const carouselId = carousel.id;
         // Step 3: Wait for carousel container to be ready
         await waitForContainer(client, carouselId);
         // Step 4: Publish
@@ -160,7 +164,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (alt_text) params.alt_text = alt_text;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
@@ -189,7 +194,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           params.video_url = media_url;
         }
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         await waitForContainer(client, containerId);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,

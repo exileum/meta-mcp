@@ -53,7 +53,8 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (image_url) params.image_url = image_url;
         if (video_url) params.video_url = video_url;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         if (video_url) {
           await waitForThreadsContainer(client, containerId);
         }

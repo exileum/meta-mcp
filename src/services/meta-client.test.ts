@@ -40,7 +40,7 @@ describe("non-JSON response handling", () => {
     expect(result.data).toEqual({ raw: "plain text body", success: true });
   });
 
-  it("returns { success: true } when text response is empty", async () => {
+  it("returns { raw: '', success: true } when text response is empty", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("", {
         status: 200,
@@ -51,7 +51,7 @@ describe("non-JSON response handling", () => {
     const client = new MetaClient(mockConfig());
     const result = await client.ig("GET", "/me");
 
-    expect(result.data).toEqual({ success: true });
+    expect(result.data).toEqual({ raw: "", success: true });
   });
 });
 

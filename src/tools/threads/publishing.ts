@@ -76,7 +76,8 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
@@ -112,7 +113,8 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         await waitForThreadsContainer(client, containerId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
@@ -149,7 +151,8 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        const containerId = container.id as string;
+        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
+        const containerId = container.id;
         await waitForThreadsContainer(client, containerId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
@@ -189,7 +192,8 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           }
           if (item.alt_text) params.alt_text = item.alt_text;
           const { data: child } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-          const childId = child.id as string;
+          if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
+          const childId = child.id;
           await waitForThreadsContainer(client, childId);
           childIds.push(childId);
         }
@@ -203,7 +207,8 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
         applyShareToIgStory(carouselParams, share_to_ig_story);
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
-        const carouselId = carousel.id as string;
+        if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
+        const carouselId = carousel.id;
         await waitForThreadsContainer(client, carouselId);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: carouselId,

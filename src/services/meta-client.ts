@@ -92,14 +92,15 @@ export class MetaClient {
     const rateLimit = this.parseRateLimit(res.headers);
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
-      const data = await res.json();
+      const data = (await res.json()) as Record<string, unknown>;
       if (data.error) {
-        throw new Error(`Meta API error: ${data.error.message} (code ${data.error.code})`);
+        const err = data.error as Record<string, unknown>;
+        throw new Error(`Meta API error: ${err.message} (code ${err.code})`);
       }
       return { data, rateLimit };
     }
     const text = await res.text();
-    return { data: text ? { raw: text, success: true } : { success: true }, rateLimit };
+    return { data: { raw: text, success: true }, rateLimit };
   }
 
   async ig(
