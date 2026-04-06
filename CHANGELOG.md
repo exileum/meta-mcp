@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Dockerfile now runs as non-root user** — added a dedicated `app` user/group so the Node.js process no longer runs as root inside the container, following the principle of least privilege ([#35](https://github.com/exileum/meta-mcp/issues/35))
 - **Added `.dockerignore` to exclude unnecessary files from build context** — prevents `.git/`, `node_modules/`, `src/`, `.env`, and other non-runtime files from being sent to the Docker daemon, reducing build context size and eliminating risk of secrets leaking into the image ([#36](https://github.com/exileum/meta-mcp/issues/36))
+- **Server version no longer hardcoded in `src/index.ts`** — `SERVER_VERSION` is now read from `package.json` at runtime via `createRequire`, eliminating one of the four locations that previously required manual sync during version bumps; added a `version-sync` CI job that validates `server.json` versions match `package.json` on every PR ([#39](https://github.com/exileum/meta-mcp/issues/39))
 
 ### Fixed
 - **No HTTPS enforcement on user-provided media URLs** — all media and callback URL parameters now validate that URLs use the `https://` scheme via a shared `httpsUrl` Zod schema; previously `z.string().url()` accepted any scheme (`http://`, `ftp://`, `file://`, `data:`), enabling potential SSRF and non-secure media transfer; also added missing URL validation to `ig_publish_reel`'s `cover_url` parameter ([#44](https://github.com/exileum/meta-mcp/issues/44))

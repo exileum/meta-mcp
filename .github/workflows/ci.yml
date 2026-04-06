@@ -42,8 +42,25 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=high
 
+  version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check server.json version matches package.json
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          SRV_ROOT=$(node -p "require('./server.json').version")
+          SRV_PKG=$(node -p "require('./server.json').packages[0].version")
+          if [ "$PKG" != "$SRV_ROOT" ] || [ "$PKG" != "$SRV_PKG" ]; then
+            echo "::error::Version mismatch: package.json=$PKG server.json(root)=$SRV_ROOT server.json(packages)=$SRV_PKG"
+            exit 1
+          fi
+
   build:
-    needs: [typecheck, test, audit]
+    needs: [typecheck, test, audit, version-sync]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
