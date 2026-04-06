@@ -173,10 +173,10 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_publish_text` | Publish a text post (supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag) |
-| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag) |
-| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag) |
-| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item) |
+| `threads_publish_text` | Publish a text post (supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories) |
+| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories) |
+| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories) |
+| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories) |
 | `threads_delete_post` | Delete a post (max 100/day) |
 | `threads_get_container_status` | Check container processing status (unpublished containers only) |
 | `threads_get_publishing_limit` | Check remaining publishing quota (250 posts/day) |
@@ -275,7 +275,7 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
    https://threads.net/oauth/authorize
      ?client_id=YOUR_APP_ID
      &redirect_uri=YOUR_REDIRECT_URI
-     &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies
+     &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_share_to_instagram
      &response_type=code
    ```
    For local testing, use `https://localhost/` as redirect URI (configure in App Settings -> Threads API -> Redirect URIs).

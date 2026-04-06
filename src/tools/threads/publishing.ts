@@ -4,6 +4,8 @@ import { MetaClient } from "../../services/meta-client.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
+export const shareToIgStorySchema = z.enum(["light", "dark"]).optional().describe("Cross-share this post to linked Instagram as a Story. 'light' = normal, 'dark' = dark mode. Requires threads_share_to_instagram permission and a linked Instagram account. The Threads post still publishes even if cross-share fails.");
+
 export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
   const interval = 2000;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
@@ -23,11 +25,18 @@ export async function waitForThreadsContainer(client: MetaClient, containerId: s
   throw new Error(`Threads container processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
 }
 
+function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?: "light" | "dark"): void {
+  if (share_to_ig_story) {
+    params.crossreshare_to_ig = true;
+    if (share_to_ig_story === "dark") params.crossreshare_to_ig_dark_mode = true;
+  }
+}
+
 export function registerThreadsPublishingTools(server: McpServer, client: MetaClient): void {
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. Supports optional link attachment, poll, GIF, topic tag, and quote post.",
+    "Publish a text-only post on Threads. Supports optional link attachment, poll, GIF, topic tag, quote post, and cross-share to Instagram Stories.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
@@ -39,8 +48,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported."),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
+      share_to_ig_story: shareToIgStorySchema,
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story }) => {
       try {
         const params: Record<string, unknown> = { media_type: "TEXT", text };
         if (reply_control) params.reply_control = reply_control;
@@ -55,6 +65,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         }
         if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
+        applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         const containerId = (container as { id: string }).id;
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
@@ -70,7 +81,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_image ───────────────────────────────────
   server.tool(
     "threads_publish_image",
-    "Publish an image post on Threads. Supports topic tag, quote post, alt text, and spoiler flag.",
+    "Publish an image post on Threads. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories.",
     {
       image_url: z.string().url().describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
       text: z.string().max(500).optional().describe("Caption text"),
@@ -79,8 +90,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
+      share_to_ig_story: shareToIgStorySchema,
     },
-    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler }) => {
+    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story }) => {
       try {
         const params: Record<string, unknown> = { media_type: "IMAGE", image_url };
         if (text) params.text = text;
@@ -89,6 +101,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) params.quote_post_id = quote_post_id;
         if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
+        applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         const containerId = (container as { id: string }).id;
         await waitForThreadsContainer(client, containerId);
@@ -105,7 +118,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_video ───────────────────────────────────
   server.tool(
     "threads_publish_video",
-    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, and spoiler flag.",
+    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories.",
     {
       video_url: z.string().url().describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
@@ -114,8 +127,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
+      share_to_ig_story: shareToIgStorySchema,
     },
-    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler }) => {
+    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story }) => {
       try {
         const params: Record<string, unknown> = { media_type: "VIDEO", video_url };
         if (text) params.text = text;
@@ -124,6 +138,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) params.quote_post_id = quote_post_id;
         if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
+        applyShareToIgStory(params, share_to_ig_story);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         const containerId = (container as { id: string }).id;
         await waitForThreadsContainer(client, containerId);
@@ -140,7 +155,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_carousel ────────────────────────────────
   server.tool(
     "threads_publish_carousel",
-    "Publish a carousel post on Threads with 2-20 images/videos.",
+    "Publish a carousel post on Threads with 2-20 images/videos. Supports cross-share to Instagram Stories.",
     {
       items: z.array(z.object({
         type: z.enum(["IMAGE", "VIDEO"]).describe("Media type"),
@@ -151,8 +166,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
+      share_to_ig_story: shareToIgStorySchema,
     },
-    async ({ items, text, reply_control, topic_tag, quote_post_id }) => {
+    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story }) => {
       try {
         const childIds: string[] = [];
         for (const item of items) {
@@ -176,6 +192,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (reply_control) carouselParams.reply_control = reply_control;
         if (topic_tag) carouselParams.topic_tag = topic_tag;
         if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
+        applyShareToIgStory(carouselParams, share_to_ig_story);
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
         const carouselId = (carousel as { id: string }).id;
         await waitForThreadsContainer(client, carouselId);

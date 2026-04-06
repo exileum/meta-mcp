@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Cross-share Threads posts to Instagram Stories** — all four publish tools (`threads_publish_text`, `threads_publish_image`, `threads_publish_video`, `threads_publish_carousel`) now accept optional `share_to_ig_story` parameter (`"light"`/`"dark"`) to cross-share the post to the user's linked Instagram account as a Story; requires `threads_share_to_instagram` permission; the Threads post publishes normally even if cross-share fails; response includes `crossreshare_to_ig_status` (`"SUCCESS"` or `"FAILED"`)
+
 ## [3.5.0] — 2026-04-05
 
 ### Fixed
