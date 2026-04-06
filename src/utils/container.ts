@@ -1,9 +1,4 @@
-import { MetaClient } from "../services/meta-client.js";
-
-interface ClientResponse {
-  data: Record<string, unknown>;
-  rateLimit?: unknown;
-}
+import { MetaClient, ClientResponse } from "../services/meta-client.js";
 
 type ApiCallFn = (method: string, path: string, params?: Record<string, unknown>) => Promise<ClientResponse>;
 
