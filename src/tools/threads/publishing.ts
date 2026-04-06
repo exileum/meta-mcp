@@ -63,7 +63,10 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) params.quote_post_id = quote_post_id;
         if (poll_options) {
           const pollObj: Record<string, string> = {};
-          poll_options.forEach((opt, i) => { pollObj[POLL_OPTION_KEYS[i]] = opt; });
+          poll_options.forEach((opt, i) => {
+            const key = POLL_OPTION_KEYS[i];
+            if (key) pollObj[key] = opt;
+          });
           params.poll_attachment = JSON.stringify(pollObj);
         }
         if (gif_id && gif_provider) {

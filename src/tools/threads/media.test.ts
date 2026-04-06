@@ -80,7 +80,7 @@ describe("threads_get_posts poll_attachment field expansion", () => {
     expect(fields).toContain("poll_attachment{option_a,");
     expect(fields).toContain("total_votes");
     expect(fields).toContain("expiration_timestamp}");
-    expect(fields).not.toBe("poll_attachment");
+    expect(fields).not.toMatch(/(?:^|,)poll_attachment(?:,|$)/);
   });
 });
 

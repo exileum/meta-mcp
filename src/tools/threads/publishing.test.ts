@@ -664,6 +664,10 @@ describe("pollOptionsSchema validation", () => {
     expect(schema.parse(undefined)).toBeUndefined();
   });
 
+  it("accepts option with exactly 25 chars", () => {
+    expect(schema.parse(["Valid", "a".repeat(25)])).toEqual(["Valid", "a".repeat(25)]);
+  });
+
   it("rejects option longer than 25 chars", () => {
     expect(() => schema.parse(["Valid", "a".repeat(26)])).toThrow();
   });
