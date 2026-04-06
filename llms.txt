@@ -102,7 +102,7 @@ Only set variables for the platforms you use.
 - ig_get_message — Get message details
 
 ### Threads — Publishing (7)
-- threads_publish_text — Publish text post (polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories)
+- threads_publish_text — Publish text post (polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, text attachments up to 10K chars with styling)
 - threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories)
 - threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories)
 - threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories)
