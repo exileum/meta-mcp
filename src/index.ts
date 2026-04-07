@@ -24,6 +24,7 @@ import { registerThreadsMediaTools } from "./tools/threads/media.js";
 import { registerThreadsReplyTools } from "./tools/threads/replies.js";
 import { registerThreadsProfileTools } from "./tools/threads/profile.js";
 import { registerThreadsInsightTools } from "./tools/threads/insights.js";
+import { registerThreadsMentionsTools } from "./tools/threads/mentions.js";
 
 // Resources & Prompts
 import { registerInstagramResources } from "./resources/instagram.js";
@@ -55,6 +56,7 @@ registerThreadsMediaTools(server, client);
 registerThreadsReplyTools(server, client);
 registerThreadsProfileTools(server, client);
 registerThreadsInsightTools(server, client);
+registerThreadsMentionsTools(server, client);
 
 // Register resources
 registerInstagramResources(server, client);
@@ -104,6 +106,7 @@ export function createSandboxServer() {
   registerThreadsReplyTools(sandbox, mockClient);
   registerThreadsProfileTools(sandbox, mockClient);
   registerThreadsInsightTools(sandbox, mockClient);
+  registerThreadsMentionsTools(sandbox, mockClient);
   registerInstagramResources(sandbox, mockClient);
   registerThreadsResources(sandbox, mockClient);
   registerPrompts(sandbox);

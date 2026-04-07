@@ -882,3 +882,41 @@ describe("textAttachmentStylingSchema validation", () => {
     expect(() => schema.parse([{ offset: 0, length: 0, styles: ["bold"] }])).toThrow();
   });
 });
+
+describe("threads_repost", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("calls POST /{media_id}/repost with empty body", async () => {
+    const handler = server.tools.get("threads_repost")!;
+    await handler({ media_id: "post-77" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toBe("POST");
+    expect(call[1]).toBe("/post-77/repost");
+    expect(call[2]).toEqual({});
+  });
+
+  it("returns repost id from API response", async () => {
+    const repostClient = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async () => ({
+        data: { id: "repost-999" },
+        rateLimit: undefined,
+      })),
+    } as unknown as MetaClient;
+
+    const localServer = makeMockServer();
+    registerThreadsPublishingTools(localServer as never, repostClient);
+    const handler = localServer.tools.get("threads_repost")!;
+    const result = await handler({ media_id: "post-77" }) as { content: Array<{ text: string }> };
+
+    expect(result.content[0].text).toContain("repost-999");
+  });
+});

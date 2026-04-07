@@ -169,7 +169,7 @@ npm run build
 | `ig_send_message` | Send a DM |
 | `ig_get_message` | Get message details |
 
-### Threads — Publishing (7)
+### Threads — Publishing (8)
 
 | Tool | Description |
 |------|-------------|
@@ -180,6 +180,7 @@ npm run build
 | `threads_delete_post` | Delete a post (max 100/day) |
 | `threads_get_container_status` | Check container processing status (unpublished containers only) |
 | `threads_get_publishing_limit` | Check remaining publishing quota (250 posts/day) |
+| `threads_repost` | Repost an existing thread to your profile (requires `threads_content_publish`) |
 
 ### Threads — Media & Search (3)
 
@@ -193,10 +194,16 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_replies` | Get replies to a post |
+| `threads_get_replies` | Get replies to a post (`mode='top_level'` default, or `mode='full_tree'` for the entire conversation flattened) |
 | `threads_reply` | Reply to a post (supports image/video attachments) |
 | `threads_hide_reply` | Hide a reply |
 | `threads_unhide_reply` | Unhide a reply |
+
+### Threads — Mentions (1)
+
+| Tool | Description |
+|------|-------------|
+| `threads_get_mentions` | List posts where the user was @mentioned (requires `threads_manage_mentions`) |
 
 ### Threads — Profile (2)
 

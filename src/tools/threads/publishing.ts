@@ -314,4 +314,21 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       }
     }
   );
+
+  // ─── threads_repost ──────────────────────────────────────────
+  server.tool(
+    "threads_repost",
+    "Repost an existing Threads post to your own profile. Reposts appear under the Reposts tab on your profile. Requires the threads_content_publish permission. Note: this is a simple repost — for quote-reposts use threads_publish_text with quote_post_id.",
+    {
+      media_id: z.string().describe("Threads post ID to repost"),
+    },
+    async ({ media_id }) => {
+      try {
+        const { data, rateLimit } = await client.threads("POST", `/${media_id}/repost`, {});
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Repost failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+      }
+    }
+  );
 }
