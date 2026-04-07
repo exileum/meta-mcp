@@ -44,7 +44,7 @@ Only set variables for the platforms you use.
 - Threads: Any account
 - Meta token/webhook tools: Meta Developer App
 
-## Tools (57)
+## Tools (59)
 
 ### Meta Platform (6)
 - meta_exchange_token — Exchange short-lived token for long-lived (~60 days). Requires `platform` (instagram or threads)

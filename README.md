@@ -282,7 +282,7 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
    https://threads.net/oauth/authorize
      ?client_id=YOUR_APP_ID
      &redirect_uri=YOUR_REDIRECT_URI
-     &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_share_to_instagram
+     &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_share_to_instagram,threads_manage_mentions
      &response_type=code
    ```
    For local testing, use `https://localhost/` as redirect URI (configure in App Settings -> Threads API -> Redirect URIs).

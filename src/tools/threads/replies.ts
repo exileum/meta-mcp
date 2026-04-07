@@ -19,7 +19,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     async ({ post_id, mode, reverse, limit, after }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,is_verified,profile_picture_url,root_post,replied_to,is_reply",
+          fields: "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,is_verified,profile_picture_url,root_post,replied_to,is_reply,is_quote_post",
         };
         if (reverse !== undefined) params.reverse = reverse;
         if (limit !== undefined) params.limit = limit;

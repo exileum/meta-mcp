@@ -893,9 +893,9 @@ describe("threads_repost", () => {
     registerThreadsPublishingTools(server as never, client);
   });
 
-  it("calls POST /{media_id}/repost with empty body", async () => {
+  it("calls POST /{post_id}/repost with empty body", async () => {
     const handler = server.tools.get("threads_repost")!;
-    await handler({ media_id: "post-77" });
+    await handler({ post_id: "post-77" });
 
     const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("POST");
@@ -915,7 +915,7 @@ describe("threads_repost", () => {
     const localServer = makeMockServer();
     registerThreadsPublishingTools(localServer as never, repostClient);
     const handler = localServer.tools.get("threads_repost")!;
-    const result = await handler({ media_id: "post-77" }) as { content: Array<{ text: string }> };
+    const result = await handler({ post_id: "post-77" }) as { content: Array<{ text: string }> };
 
     expect(result.content[0].text).toContain("repost-999");
   });
