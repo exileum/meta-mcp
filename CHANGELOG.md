@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0] — 2026-04-07
+
 ### Added
 - **`threads_get_replies` now supports `mode='full_tree'`** — new optional `mode` parameter switches the underlying endpoint between `/{post}/replies` (default `mode='top_level'`, direct replies only) and `/{post}/conversation` (full conversation tree with every reply at every nesting level flattened); the response shape is identical and the new fields `root_post`, `replied_to`, `is_reply` are now included in both modes so callers can reconstruct the tree; per the [Replies and Conversations docs](https://developers.facebook.com/docs/threads/retrieve-and-manage-replies/replies-and-conversations/)
 - **`threads_get_mentions`** — list posts where the authenticated user has been @mentioned via `GET /{user-id}/mentions`; supports `since`/`until` Unix-timestamp filtering and pagination; requires the `threads_manage_mentions` permission; private profiles are excluded by the API; per the [Threads Mentions docs](https://developers.facebook.com/docs/threads/threads-mentions/)
