@@ -44,7 +44,7 @@ Only set variables for the platforms you use.
 - Threads: Any account
 - Meta token/webhook tools: Meta Developer App
 
-## Tools (57)
+## Tools (59)
 
 ### Meta Platform (6)
 - meta_exchange_token — Exchange short-lived token for long-lived (~60 days). Requires `platform` (instagram or threads)
@@ -101,7 +101,7 @@ Only set variables for the platforms you use.
 - ig_send_message — Send a DM
 - ig_get_message — Get message details
 
-### Threads — Publishing (7)
+### Threads — Publishing (8)
 - threads_publish_text — Publish text post (polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, text attachments up to 10K chars with styling)
 - threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories)
 - threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories)
@@ -109,6 +109,7 @@ Only set variables for the platforms you use.
 - threads_delete_post — Delete a post (max 100/day)
 - threads_get_container_status — Check container processing status (unpublished containers only)
 - threads_get_publishing_limit — Check remaining quota (250 posts/day)
+- threads_repost — Repost an existing thread to your profile (requires threads_content_publish)
 
 ### Threads — Media & Search (3)
 - threads_get_posts — List published posts
@@ -116,10 +117,13 @@ Only set variables for the platforms you use.
 - threads_search_posts — Search public posts by keyword or tag (requires threads_keyword_search permission)
 
 ### Threads — Replies (4)
-- threads_get_replies — Get replies to a post
+- threads_get_replies — Get replies to a post (mode='top_level' default, or mode='full_tree' for the entire conversation flattened)
 - threads_reply — Reply to a post (supports image/video attachments)
 - threads_hide_reply — Hide a reply
 - threads_unhide_reply — Unhide a reply
+
+### Threads — Mentions (1)
+- threads_get_mentions — Posts where the user was @mentioned (requires threads_manage_mentions)
 
 ### Threads — Profile (2)
 - threads_get_profile — Get Threads profile info

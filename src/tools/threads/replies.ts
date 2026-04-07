@@ -8,22 +8,24 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
   // ─── threads_get_replies ─────────────────────────────────────
   server.tool(
     "threads_get_replies",
-    "Get replies (conversation) for a specific Threads post.",
+    "Get replies for a specific Threads post. By default returns only top-level replies (mode='top_level', endpoint /{post}/replies). Set mode='full_tree' to get the entire conversation flattened — every reply at every nesting level (endpoint /{post}/conversation). Both modes share the same response shape; full_tree additionally populates root_post, replied_to, is_reply so the caller can reconstruct the tree.",
     {
       post_id: z.string().describe("Threads post ID to get replies for"),
+      mode: z.enum(["top_level", "full_tree"]).optional().describe("'top_level' (default) returns only direct replies; 'full_tree' returns the full conversation tree flattened"),
       reverse: z.boolean().optional().describe("Reverse chronological order"),
       limit: z.number().optional().describe("Number of replies"),
       after: z.string().optional().describe("Pagination cursor"),
     },
-    async ({ post_id, reverse, limit, after }) => {
+    async ({ post_id, mode, reverse, limit, after }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,is_verified,profile_picture_url",
+          fields: "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,is_verified,profile_picture_url,root_post,replied_to,is_reply,is_quote_post",
         };
         if (reverse !== undefined) params.reverse = reverse;
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
-        const { data, rateLimit } = await client.threads("GET", `/${post_id}/replies`, params);
+        const edge = mode === "full_tree" ? "conversation" : "replies";
+        const { data, rateLimit } = await client.threads("GET", `/${post_id}/${edge}`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get replies failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
