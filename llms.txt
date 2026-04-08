@@ -102,7 +102,7 @@ Only set variables for the platforms you use.
 - ig_get_message — Get message details
 
 ### Threads — Publishing (8)
-- threads_publish_text — Publish text post (polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, text attachments up to 10K chars with styling)
+- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, text attachments up to 10K chars with styling
 - threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories)
 - threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories)
 - threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories)
@@ -118,7 +118,7 @@ Only set variables for the platforms you use.
 
 ### Threads — Replies (4)
 - threads_get_replies — Get replies to a post (mode='top_level' default, or mode='full_tree' for the entire conversation flattened)
-- threads_reply — Reply to a post (supports image/video attachments)
+- threads_reply — Reply to a post. Text-only replies publish in a single API call by default (auto_publish_text=true); media replies (image/video) use the two-step flow
 - threads_hide_reply — Hide a reply
 - threads_unhide_reply — Unhide a reply
 

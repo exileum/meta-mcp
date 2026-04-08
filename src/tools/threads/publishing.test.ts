@@ -883,6 +883,65 @@ describe("textAttachmentStylingSchema validation", () => {
   });
 });
 
+// ─── auto_publish (auto_publish_text=true shortcut) ─────────────────
+
+describe("threads_publish_text auto_publish", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("sends auto_publish_text=true and makes a single API call by default", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]).toBe("POST");
+    expect(calls[0][1]).toBe("/threads-123/threads");
+    expect(calls[0][2]).toHaveProperty("auto_publish_text", true);
+  });
+
+  it("omits auto_publish_text and makes two calls when auto_publish=false", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", auto_publish: false });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][2]).not.toHaveProperty("auto_publish_text");
+    expect(calls[1][0]).toBe("POST");
+    expect(calls[1][1]).toBe("/threads-123/threads_publish");
+    expect(calls[1][2]).toHaveProperty("creation_id", "container-1");
+  });
+
+  it("keeps auto_publish_text=true alongside advanced params (poll, link, topic_tag)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({
+      text: "Vote!",
+      poll_options: ["Yes", "No"],
+      link_attachment: "https://example.com",
+      topic_tag: "Polls",
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][2]).toHaveProperty("auto_publish_text", true);
+    expect(calls[0][2]).toHaveProperty("poll_attachment");
+    expect(calls[0][2]).toHaveProperty("link_attachment", "https://example.com");
+    expect(calls[0][2]).toHaveProperty("topic_tag", "Polls");
+  });
+
+  it("returns the id from the single-call response (treated as the published post id)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello" }) as { content: Array<{ text: string }> };
+    expect(result.content[0].text).toContain("container-1");
+  });
+});
+
 describe("threads_repost", () => {
   let server: ReturnType<typeof makeMockServer>;
   let client: ReturnType<typeof makeParamMockClient>;

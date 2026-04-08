@@ -31,7 +31,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment.",
+    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
@@ -47,8 +47,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
+      auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, text_attachment, text_attachment_link, text_attachment_styling }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       try {
         // Validate mutual exclusions
         if (text_attachment && poll_options) {
@@ -113,11 +114,20 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           params.text_attachment = JSON.stringify(obj);
         }
         applyShareToIgStory(params, share_to_ig_story);
-        const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
-        const containerId = container.id;
+        // Treat `undefined` as the default (true) so the behavior is stable even
+        // if a caller bypasses Zod's schema-level default (e.g., direct handler
+        // invocation in tests). Only an explicit `false` takes the legacy path.
+        const useAutoPublish = auto_publish !== false;
+        if (useAutoPublish) params.auto_publish_text = true;
+        // `createResponse.id` is the published post id when useAutoPublish is true,
+        // and the unpublished container id otherwise.
+        const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
+        if (typeof createResponse.id !== "string") throw new Error("Container creation did not return a valid id");
+        if (useAutoPublish) {
+          return { content: [{ type: "text", text: JSON.stringify({ ...createResponse, _rateLimit: createRateLimit }, null, 2) }] };
+        }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
-          creation_id: containerId,
+          creation_id: createResponse.id,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {

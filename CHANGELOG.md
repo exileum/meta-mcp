@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`threads_publish_text` and `threads_reply` now publish text posts in a single API call by default** — both tools now pass `auto_publish_text=true` on the container-creation endpoint so the post is created **and** published in one HTTP request, instead of the previous two-step `POST /threads` → `POST /threads_publish` flow. This eliminates the `4279009` "container not propagated yet" race condition at its source (no second request → no propagation window) and saves one API round-trip per text post. A new optional `auto_publish` parameter (default `true`) is added to both tools as an escape hatch: set to `false` to force the legacy two-step flow. For `threads_reply`, the optimization only applies when the reply is text-only — replies with `image_url` or `video_url` continue to use the two-step flow with container polling for video. Only applicable to text posts per the [Threads Publishing API](https://developers.facebook.com/docs/threads/reference/publishing); image/video/carousel tools are unchanged.
+
 ## [3.8.0] — 2026-04-07
 
 ### Added
