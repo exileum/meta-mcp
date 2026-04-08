@@ -46,14 +46,14 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     },
     async ({ reply_to_id, text, image_url, video_url, auto_publish }) => {
       try {
-        const isTextOnly = !image_url && !video_url;
+        let mediaType = "TEXT";
+        if (image_url) mediaType = "IMAGE";
+        if (video_url) mediaType = "VIDEO";
+        const isTextOnly = mediaType === "TEXT";
         // Treat `undefined` as the default (true) so the behavior is stable even
         // if a caller bypasses Zod's schema-level default. Only an explicit `false`
         // forces the legacy two-step flow for text replies.
         const useAutoPublish = isTextOnly && auto_publish !== false;
-        let mediaType = "TEXT";
-        if (image_url) mediaType = "IMAGE";
-        if (video_url) mediaType = "VIDEO";
         const params: Record<string, unknown> = {
           media_type: mediaType,
           text,
@@ -62,16 +62,18 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (image_url) params.image_url = image_url;
         if (video_url) params.video_url = video_url;
         if (useAutoPublish) params.auto_publish_text = true;
-        const { data: first, rateLimit: firstRate } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        if (typeof first.id !== "string") throw new Error("Container creation did not return a valid id");
+        // `createResponse.id` is the published post id when useAutoPublish is true,
+        // and the unpublished container id otherwise.
+        const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
+        if (typeof createResponse.id !== "string") throw new Error("Container creation did not return a valid id");
         if (useAutoPublish) {
-          return { content: [{ type: "text", text: JSON.stringify({ ...first, _rateLimit: firstRate }, null, 2) }] };
+          return { content: [{ type: "text", text: JSON.stringify({ ...createResponse, _rateLimit: createRateLimit }, null, 2) }] };
         }
         if (video_url) {
-          await waitForThreadsContainer(client, first.id);
+          await waitForThreadsContainer(client, createResponse.id);
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
-          creation_id: first.id,
+          creation_id: createResponse.id,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {

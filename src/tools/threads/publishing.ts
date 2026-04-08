@@ -119,13 +119,15 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         // invocation in tests). Only an explicit `false` takes the legacy path.
         const useAutoPublish = auto_publish !== false;
         if (useAutoPublish) params.auto_publish_text = true;
-        const { data: first, rateLimit: firstRate } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        if (typeof first.id !== "string") throw new Error("Container creation did not return a valid id");
+        // `createResponse.id` is the published post id when useAutoPublish is true,
+        // and the unpublished container id otherwise.
+        const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
+        if (typeof createResponse.id !== "string") throw new Error("Container creation did not return a valid id");
         if (useAutoPublish) {
-          return { content: [{ type: "text", text: JSON.stringify({ ...first, _rateLimit: firstRate }, null, 2) }] };
+          return { content: [{ type: "text", text: JSON.stringify({ ...createResponse, _rateLimit: createRateLimit }, null, 2) }] };
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
-          creation_id: first.id,
+          creation_id: createResponse.id,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
