@@ -104,3 +104,97 @@ describe("threads_get_replies mode", () => {
     expect(call[2]).not.toHaveProperty("after");
   });
 });
+
+// ─── threads_reply auto_publish (auto_publish_text=true shortcut) ────
+
+/** Mock client that returns a container id for POST /threads and FINISHED status for GET polls */
+function makePublishMockClient(): MetaClient {
+  return {
+    threadsUserId: "threads-123",
+    threads: vi.fn(async (method: string, _path: string) => {
+      if (method === "GET") {
+        return { data: { status: "FINISHED" }, rateLimit: undefined };
+      }
+      return { data: { id: "container-1" }, rateLimit: undefined };
+    }),
+  } as unknown as MetaClient;
+}
+
+describe("threads_reply auto_publish", () => {
+  it("text-only reply: sends auto_publish_text=true and makes a single API call by default", async () => {
+    const server = makeMockServer();
+    const client = makePublishMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_reply")!;
+    await handler({ reply_to_id: "post-42", text: "Hi" });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]).toBe("POST");
+    expect(calls[0][1]).toBe("/threads-123/threads");
+    expect(calls[0][2]).toHaveProperty("auto_publish_text", true);
+    expect(calls[0][2]).toHaveProperty("reply_to_id", "post-42");
+    expect(calls[0][2]).toHaveProperty("media_type", "TEXT");
+  });
+
+  it("text-only reply with auto_publish=false: omits auto_publish_text and makes two calls", async () => {
+    const server = makeMockServer();
+    const client = makePublishMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_reply")!;
+    await handler({ reply_to_id: "post-42", text: "Hi", auto_publish: false });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][2]).not.toHaveProperty("auto_publish_text");
+    expect(calls[1][1]).toBe("/threads-123/threads_publish");
+    expect(calls[1][2]).toHaveProperty("creation_id", "container-1");
+  });
+
+  it("image reply: ignores auto_publish and always uses the two-step flow", async () => {
+    const server = makeMockServer();
+    const client = makePublishMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_reply")!;
+    await handler({
+      reply_to_id: "post-42",
+      text: "With image",
+      image_url: "https://example.com/photo.jpg",
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    // Image: create container + publish (no status poll for images in threads_reply)
+    expect(calls).toHaveLength(2);
+    expect(calls[0][2]).not.toHaveProperty("auto_publish_text");
+    expect(calls[0][2]).toHaveProperty("media_type", "IMAGE");
+    expect(calls[0][2]).toHaveProperty("image_url", "https://example.com/photo.jpg");
+    expect(calls[1][1]).toBe("/threads-123/threads_publish");
+  });
+
+  it("video reply: ignores auto_publish, polls container, then publishes", async () => {
+    const server = makeMockServer();
+    const client = makePublishMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_reply")!;
+    await handler({
+      reply_to_id: "post-42",
+      text: "With video",
+      video_url: "https://example.com/clip.mp4",
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    // Video: create container + GET status (FINISHED) + publish
+    expect(calls).toHaveLength(3);
+    expect(calls[0][0]).toBe("POST");
+    expect(calls[0][2]).not.toHaveProperty("auto_publish_text");
+    expect(calls[0][2]).toHaveProperty("media_type", "VIDEO");
+    expect(calls[1][0]).toBe("GET");
+    expect(calls[1][1]).toContain("container-1");
+    expect(calls[2][0]).toBe("POST");
+    expect(calls[2][1]).toBe("/threads-123/threads_publish");
+  });
+});

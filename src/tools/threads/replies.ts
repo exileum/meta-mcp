@@ -47,6 +47,10 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     async ({ reply_to_id, text, image_url, video_url, auto_publish }) => {
       try {
         const isTextOnly = !image_url && !video_url;
+        // Treat `undefined` as the default (true) so the behavior is stable even
+        // if a caller bypasses Zod's schema-level default. Only an explicit `false`
+        // forces the legacy two-step flow for text replies.
+        const useAutoPublish = isTextOnly && auto_publish !== false;
         let mediaType = "TEXT";
         if (image_url) mediaType = "IMAGE";
         if (video_url) mediaType = "VIDEO";
@@ -57,10 +61,10 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         };
         if (image_url) params.image_url = image_url;
         if (video_url) params.video_url = video_url;
-        if (isTextOnly && auto_publish) params.auto_publish_text = true;
+        if (useAutoPublish) params.auto_publish_text = true;
         const { data: first, rateLimit: firstRate } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof first.id !== "string") throw new Error("Container creation did not return a valid id");
-        if (isTextOnly && auto_publish) {
+        if (useAutoPublish) {
           return { content: [{ type: "text", text: JSON.stringify({ ...first, _rateLimit: firstRate }, null, 2) }] };
         }
         if (video_url) {

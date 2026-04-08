@@ -114,10 +114,14 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           params.text_attachment = JSON.stringify(obj);
         }
         applyShareToIgStory(params, share_to_ig_story);
-        if (auto_publish) params.auto_publish_text = true;
+        // Treat `undefined` as the default (true) so the behavior is stable even
+        // if a caller bypasses Zod's schema-level default (e.g., direct handler
+        // invocation in tests). Only an explicit `false` takes the legacy path.
+        const useAutoPublish = auto_publish !== false;
+        if (useAutoPublish) params.auto_publish_text = true;
         const { data: first, rateLimit: firstRate } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof first.id !== "string") throw new Error("Container creation did not return a valid id");
-        if (auto_publish) {
+        if (useAutoPublish) {
           return { content: [{ type: "text", text: JSON.stringify({ ...first, _rateLimit: firstRate }, null, 2) }] };
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
