@@ -36,15 +36,17 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
   // ─── threads_reply ───────────────────────────────────────────
   server.tool(
     "threads_reply",
-    "Reply to a Threads post or another reply.",
+    "Reply to a Threads post or another reply. Text-only replies publish in a single API call by default (auto_publish_text=true); media replies always use the two-step create-then-publish flow.",
     {
       reply_to_id: z.string().describe("Post ID to reply to"),
       text: z.string().max(500).describe("Reply text"),
       image_url: httpsUrl.optional().describe("Optional image HTTPS URL to attach"),
       video_url: httpsUrl.optional().describe("Optional video HTTPS URL to attach"),
+      auto_publish: z.boolean().optional().default(true).describe("When true (default) and the reply is text-only (no image_url/video_url), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Ignored for media replies. Set to false to force the legacy two-step flow for text replies."),
     },
-    async ({ reply_to_id, text, image_url, video_url }) => {
+    async ({ reply_to_id, text, image_url, video_url, auto_publish }) => {
       try {
+        const isTextOnly = !image_url && !video_url;
         let mediaType = "TEXT";
         if (image_url) mediaType = "IMAGE";
         if (video_url) mediaType = "VIDEO";
@@ -55,14 +57,17 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         };
         if (image_url) params.image_url = image_url;
         if (video_url) params.video_url = video_url;
-        const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
-        if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
-        const containerId = container.id;
+        if (isTextOnly && auto_publish) params.auto_publish_text = true;
+        const { data: first, rateLimit: firstRate } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
+        if (typeof first.id !== "string") throw new Error("Container creation did not return a valid id");
+        if (isTextOnly && auto_publish) {
+          return { content: [{ type: "text", text: JSON.stringify({ ...first, _rateLimit: firstRate }, null, 2) }] };
+        }
         if (video_url) {
-          await waitForThreadsContainer(client, containerId);
+          await waitForThreadsContainer(client, first.id);
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
-          creation_id: containerId,
+          creation_id: first.id,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
