@@ -65,7 +65,7 @@ describe("pollContainerStatus", () => {
 
   it("polls multiple times before FINISHED", async () => {
     const apiCall = makeApiCall(["IN_PROGRESS", "IN_PROGRESS", "FINISHED"], "status");
-    const promise = pollContainerStatus("c-1", { ...defaults, apiCall });
+    const promise = pollContainerStatus("c-1", { ...defaults, apiCall, interval: 2000 });
     await vi.advanceTimersByTimeAsync(5_000);
     await promise;
     expect(apiCall).toHaveBeenCalledTimes(3);

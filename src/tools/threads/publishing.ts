@@ -201,7 +201,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForThreadsContainer(client, containerId);
+        await waitForThreadsContainer(client, containerId, 120);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
@@ -242,7 +242,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           const { data: child } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
-          await waitForThreadsContainer(client, childId);
+          await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? 120 : 30);
           childIds.push(childId);
         }
         const carouselParams: Record<string, unknown> = {

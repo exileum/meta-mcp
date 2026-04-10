@@ -12,7 +12,7 @@ export interface PollContainerOptions {
 
 /** Poll container status until FINISHED or terminal status */
 export async function pollContainerStatus(containerId: string, options: PollContainerOptions): Promise<void> {
-  const { apiCall, statusField, label, maxWait = 30, interval = 2000 } = options;
+  const { apiCall, statusField, label, maxWait = 30, interval = 5000 } = options;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
   let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {

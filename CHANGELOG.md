@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Increased video container polling timeout from 30s to 120s** — `ig_publish_reel`, `ig_publish_story` (video), `threads_publish_video`, and video items inside `ig_publish_carousel` / `threads_publish_carousel` now wait up to 120 seconds for Meta to finish processing the video container, up from the previous 30-second default; photo operations remain at 30s; fixes timeouts on large video files (100 MB+) that need 40–90s of server-side transcoding
+- **Increased default polling interval from 2s to 5s** — `pollContainerStatus()` now checks container status every 5 seconds instead of every 2 seconds, reducing API call consumption by 60% during video processing (24 calls at 120s vs 60 previously); photo containers return FINISHED on the first poll so the longer interval has no practical impact on them
+
 ## [3.9.0] — 2026-04-09
 
 ### Changed
