@@ -55,7 +55,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
       try {
         const f = fields || "id,username,name,biography,followers_count,follows_count,media_count";
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
-          fields: `business_discovery.fields(${f}){username=${username}}`,
+          fields: `business_discovery.username(${username}){${f}}`,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
