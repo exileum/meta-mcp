@@ -73,12 +73,12 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   // ─── ig_publish_carousel ─────────────────────────────────────
   server.tool(
     "ig_publish_carousel",
-    "Publish a carousel (album) post with 2-10 images/videos. Each item needs an image_url or video_url.",
+    "Publish a carousel (album) post with 2-10 images/videos. Each item needs a `url` (JPEG image or MP4 video) and a `type` (IMAGE or VIDEO).",
     {
       items: z.array(z.discriminatedUnion("type", [
         z.object({
           type: z.literal("IMAGE"),
-          url: httpsUrl.describe("Public HTTPS URL of the image"),
+          url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
           alt_text: z.string().optional().describe("Alt text for accessibility (IMAGE items only)"),
         }),
         z.object({

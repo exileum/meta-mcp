@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { httpsUrl } from "../../schemas.js";
 import { registerIgPublishingTools } from "./publishing.js";
 
 /** Captures the tool handlers registered via server.tool() */
@@ -299,5 +301,54 @@ describe("ig_publish_carousel alt_text", () => {
       media_type: "VIDEO",
     });
     expect(calls[2][2]).not.toHaveProperty("alt_text");
+  });
+});
+
+// Mirror of the discriminated-union schema in `ig_publish_carousel` so the
+// validation contract is covered explicitly at the parse boundary.
+describe("ig_publish_carousel items schema", () => {
+  const itemsSchema = z.array(z.discriminatedUnion("type", [
+    z.object({
+      type: z.literal("IMAGE"),
+      url: httpsUrl,
+      alt_text: z.string().optional(),
+    }),
+    z.object({
+      type: z.literal("VIDEO"),
+      url: httpsUrl,
+    }),
+  ])).min(2).max(10);
+
+  it("preserves alt_text on IMAGE items after parse", () => {
+    const parsed = itemsSchema.parse([
+      { type: "IMAGE", url: "https://example.com/a.jpg", alt_text: "ok" },
+      { type: "IMAGE", url: "https://example.com/b.jpg" },
+    ]);
+    expect(parsed[0]).toMatchObject({ type: "IMAGE", alt_text: "ok" });
+    expect(parsed[1]).not.toHaveProperty("alt_text");
+  });
+
+  it("strips alt_text from VIDEO items after parse", () => {
+    const parsed = itemsSchema.parse([
+      { type: "VIDEO", url: "https://example.com/a.mp4", alt_text: "ignored" },
+      { type: "VIDEO", url: "https://example.com/b.mp4" },
+    ] as unknown as z.infer<typeof itemsSchema>);
+    expect(parsed[0]).toEqual({ type: "VIDEO", url: "https://example.com/a.mp4" });
+    expect(parsed[0]).not.toHaveProperty("alt_text");
+    expect(parsed[1]).not.toHaveProperty("alt_text");
+  });
+
+  it("rejects items missing the type discriminator", () => {
+    expect(() => itemsSchema.parse([
+      { url: "https://example.com/a.jpg" },
+      { type: "IMAGE", url: "https://example.com/b.jpg" },
+    ])).toThrow();
+  });
+
+  it("rejects items with an invalid type discriminator", () => {
+    expect(() => itemsSchema.parse([
+      { type: "AUDIO", url: "https://example.com/a.mp3" },
+      { type: "IMAGE", url: "https://example.com/b.jpg" },
+    ])).toThrow();
   });
 });
