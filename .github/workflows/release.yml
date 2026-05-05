@@ -30,6 +30,7 @@ jobs:
           else
             echo "released=true" >> "$GITHUB_OUTPUT"
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,6 +46,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install & build
         if: steps.version.outputs.released == 'true'
@@ -53,6 +56,20 @@ jobs:
       - name: Publish to npm
         if: steps.version.outputs.released == 'true'
         run: npm publish --provenance --access public
+
+      - name: Verify npm publish
+        if: steps.version.outputs.released == 'true'
+        run: |
+          for attempt in 1 2 3; do
+            sleep 15
+            if npm view "@exileum/meta-mcp@${{ steps.version.outputs.version }}" version; then
+              echo "Package verified on npm"
+              exit 0
+            fi
+            echo "Attempt $attempt: package not yet visible on npm, retrying..."
+          done
+          echo "::error::Package @exileum/meta-mcp@${{ steps.version.outputs.version }} did not appear on npm after 3 attempts"
+          exit 1
 
       - name: Setup Node for GitHub Packages
         if: steps.version.outputs.released == 'true'
