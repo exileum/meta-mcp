@@ -3,7 +3,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
-import { registerIgPublishingTools } from "./publishing.js";
+import { registerIgPublishingTools, collaboratorsSchema } from "./publishing.js";
 
 /** Captures the tool handlers registered via server.tool() */
 function captureTools(server: McpServer) {
@@ -390,5 +390,225 @@ describe("ig_publish_carousel items schema", () => {
       { type: "AUDIO", url: "https://example.com/a.mp3" },
       { type: "IMAGE", url: "https://example.com/b.jpg" },
     ])).toThrow();
+  });
+});
+
+describe("collaboratorsSchema validation", () => {
+  it("accepts undefined (parameter is optional)", () => {
+    expect(collaboratorsSchema.parse(undefined)).toBeUndefined();
+  });
+
+  it("accepts an array of 1 to 3 well-formed usernames", () => {
+    expect(collaboratorsSchema.parse(["alice"])).toEqual(["alice"]);
+    expect(collaboratorsSchema.parse(["alice", "bob"])).toEqual(["alice", "bob"]);
+    expect(collaboratorsSchema.parse(["alice", "bob", "carol"])).toEqual(["alice", "bob", "carol"]);
+  });
+
+  it("rejects arrays with more than 3 entries (Instagram API limit)", () => {
+    expect(() => collaboratorsSchema.parse(["a", "b", "c", "d"])).toThrow();
+  });
+
+  it("strips a single leading '@' from each entry", () => {
+    expect(collaboratorsSchema.parse(["@alice", "@bob"])).toEqual(["alice", "bob"]);
+  });
+
+  it("strips all consecutive leading '@' characters", () => {
+    expect(collaboratorsSchema.parse(["@@@alice"])).toEqual(["alice"]);
+  });
+
+  it("trims surrounding whitespace before stripping '@'", () => {
+    expect(collaboratorsSchema.parse(["  @alice  "])).toEqual(["alice"]);
+  });
+
+  it("rejects empty strings, whitespace-only, or '@'-only entries", () => {
+    expect(() => collaboratorsSchema.parse([""])).toThrow();
+    expect(() => collaboratorsSchema.parse(["   "])).toThrow();
+    expect(() => collaboratorsSchema.parse(["@"])).toThrow();
+    expect(() => collaboratorsSchema.parse(["@@@"])).toThrow();
+  });
+});
+
+describe("ig_publish_photo collaborators", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("forwards collaborators as a JSON-encoded array on the container POST", async () => {
+    const handler = server.tools.get("ig_publish_photo")!;
+    await handler({
+      image_url: "https://example.com/a.jpg",
+      collaborators: ["alice", "bob"],
+    });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("collaborators", JSON.stringify(["alice", "bob"]));
+  });
+
+  it("forwards already-parsed (normalized) collaborators unchanged", async () => {
+    const handler = server.tools.get("ig_publish_photo")!;
+    // Parse through the schema first (mirrors what the MCP server does in production):
+    // it strips '@' and trims whitespace before the handler ever sees the value.
+    const parsed = collaboratorsSchema.parse(["  @alice  ", "@@bob"]);
+    await handler({
+      image_url: "https://example.com/a.jpg",
+      collaborators: parsed,
+    });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("collaborators", JSON.stringify(["alice", "bob"]));
+  });
+
+  it("omits collaborators when the parameter is undefined", async () => {
+    const handler = server.tools.get("ig_publish_photo")!;
+    await handler({ image_url: "https://example.com/a.jpg" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("collaborators");
+  });
+
+  it("omits collaborators when the array is empty", async () => {
+    const handler = server.tools.get("ig_publish_photo")!;
+    await handler({
+      image_url: "https://example.com/a.jpg",
+      collaborators: [],
+    });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("collaborators");
+  });
+});
+
+describe("ig_publish_video collaborators", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("forwards collaborators on the container POST (deprecated tool, parity with ig_publish_reel)", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({
+      video_url: "https://example.com/v.mp4",
+      collaborators: ["alice"],
+    });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("collaborators", JSON.stringify(["alice"]));
+  });
+
+  it("omits collaborators when undefined", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/v.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("collaborators");
+  });
+});
+
+describe("ig_publish_reel collaborators", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("forwards collaborators on the container POST", async () => {
+    const handler = server.tools.get("ig_publish_reel")!;
+    await handler({
+      video_url: "https://example.com/r.mp4",
+      collaborators: ["alice", "bob", "carol"],
+    });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("collaborators", JSON.stringify(["alice", "bob", "carol"]));
+  });
+
+  it("omits collaborators when undefined", async () => {
+    const handler = server.tools.get("ig_publish_reel")!;
+    await handler({ video_url: "https://example.com/r.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("collaborators");
+  });
+});
+
+describe("ig_publish_carousel collaborators", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("forwards collaborators on the carousel parent POST, not on child POSTs", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg" },
+        { type: "IMAGE", url: "https://example.com/b.jpg" },
+      ],
+      collaborators: ["alice", "bob"],
+    });
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    // Child POSTs at indices 0 and 2 must NOT carry collaborators
+    expect(calls[0][2]).not.toHaveProperty("collaborators");
+    expect(calls[2][2]).not.toHaveProperty("collaborators");
+    // The carousel parent POST (index 4) MUST carry collaborators as JSON
+    expect(calls[4][2]).toMatchObject({
+      media_type: "CAROUSEL",
+      collaborators: JSON.stringify(["alice", "bob"]),
+    });
+  });
+
+  it("omits collaborators when the parameter is undefined", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg" },
+        { type: "IMAGE", url: "https://example.com/b.jpg" },
+      ],
+    });
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[4][2]).not.toHaveProperty("collaborators");
+  });
+});
+
+describe("ig_publish_story collaborators (not supported)", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("never forwards collaborators even if a caller bypasses validation", async () => {
+    const handler = server.tools.get("ig_publish_story")!;
+    // Stories do not accept collaborators per Meta API; if a caller bypasses
+    // the schema, the handler must not forward the field to the API.
+    await handler({
+      media_type: "IMAGE",
+      media_url: "https://example.com/s.jpg",
+      collaborators: ["alice"],
+    } as unknown as Parameters<typeof handler>[0]);
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("collaborators");
   });
 });
