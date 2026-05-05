@@ -81,6 +81,7 @@ describe("ig_get_media_insights default metric", () => {
     await handler({ media_id: "media_2", metric: "views,reach,likes,comments,shares,reposts,reels_skip_rate" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1]).toBe("/media_2/insights");
     expect(call[2]).toEqual({ metric: "views,reach,likes,comments,shares,reposts,reels_skip_rate" });
   });
 });
