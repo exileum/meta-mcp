@@ -776,6 +776,53 @@ describe("threads_publish_text text_attachment mutual exclusion", () => {
   });
 });
 
+// ─── gif_id / gif_provider co-dependency tests ──────────────────────
+
+describe("threads_publish_text gif_id/gif_provider co-dependency", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("rejects gif_id without gif_provider", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", gif_id: "abc123" }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("gif_id and gif_provider must be provided together");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects gif_provider without gif_id", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", gif_provider: "GIPHY" }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("gif_id and gif_provider must be provided together");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("accepts both gif_id and gif_provider together (sends gif_attachment)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", gif_id: "abc123", gif_provider: "GIPHY" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2].gif_attachment).toBe(JSON.stringify({ gif_id: "abc123", provider: "GIPHY" }));
+  });
+
+  it("excludes gif_attachment when neither is provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("gif_attachment");
+  });
+});
+
 // ─── text_attachment char→byte offset conversion ────────────────────
 
 describe("threads_publish_text text_attachment byte offset conversion", () => {
