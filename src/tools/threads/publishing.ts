@@ -41,7 +41,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
+    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. alt_text is only valid when paired with a GIF attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
@@ -51,11 +51,11 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       poll_options: pollOptionsSchema,
       gif_id: z.string().min(1).optional().describe("GIPHY GIF ID. Must be provided together with gif_provider — providing only one returns an error."),
       gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported. Must be provided together with gif_id — providing only one returns an error."),
-      alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
+      alt_text: z.string().max(1000).optional().describe("Alt text for the GIF attachment, for accessibility (max 1000 chars). Requires gif_id + gif_provider — alt_text on a text-only post without a GIF is rejected because there is no media to describe."),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
-      text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
+      text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options, link_attachment, or gif_id+gif_provider."),
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
       auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
@@ -68,6 +68,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         }
         if (text_attachment && link_attachment) {
           return { content: [{ type: "text", text: "text_attachment cannot be combined with link_attachment. Use text_attachment_link instead to include a link inside the text attachment." }], isError: true };
+        }
+        if (poll_options && link_attachment) {
+          return { content: [{ type: "text", text: "poll_options cannot be combined with link_attachment" }], isError: true };
         }
         if (text_attachment_link && !text_attachment) {
           return { content: [{ type: "text", text: "text_attachment_link requires text_attachment" }], isError: true };
@@ -93,6 +96,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         }
         if ((gif_id && !gif_provider) || (!gif_id && gif_provider)) {
           return { content: [{ type: "text", text: "gif_id and gif_provider must be provided together (both or neither). Per the Threads Posts API, gif_attachment requires both the GIF ID and provider." }], isError: true };
+        }
+        if (gif_id && (text_attachment || poll_options || link_attachment)) {
+          return { content: [{ type: "text", text: "GIF attachment cannot be combined with text_attachment, poll_options, or link_attachment" }], isError: true };
+        }
+        if (alt_text && !gif_id) {
+          return { content: [{ type: "text", text: "alt_text requires a GIF attachment (gif_id + gif_provider). Text-only posts have no media for alt_text to describe." }], isError: true };
         }
 
         const params: Record<string, unknown> = { media_type: "TEXT", text };

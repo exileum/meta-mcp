@@ -814,6 +814,15 @@ describe("threads_publish_text gif_id/gif_provider co-dependency", () => {
     expect(createCall[2].gif_attachment).toBe(JSON.stringify({ gif_id: "abc123", provider: "GIPHY" }));
   });
 
+  it("accepts gif_id + gif_provider + alt_text together (alt_text describes the GIF)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", gif_id: "abc123", gif_provider: "GIPHY", alt_text: "A dancing cat" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2].gif_attachment).toBe(JSON.stringify({ gif_id: "abc123", provider: "GIPHY" }));
+    expect(createCall[2]).toHaveProperty("alt_text", "A dancing cat");
+  });
+
   it("excludes gif_attachment when neither is provided", async () => {
     const handler = server.tools.get("threads_publish_text")!;
     await handler({ text: "Hello" });
@@ -828,6 +837,86 @@ describe("threads_publish_text gif_id/gif_provider co-dependency", () => {
   it("rejects empty gif_id at the schema level (.min(1))", () => {
     const gifIdSchema = z.string().min(1).optional();
     expect(() => gifIdSchema.parse("")).toThrow();
+  });
+});
+
+// ─── attachment mutual exclusion + alt_text dependency (#185) ───────
+
+describe("threads_publish_text attachment mutual exclusion", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("rejects gif + text_attachment", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      gif_id: "abc123",
+      gif_provider: "GIPHY",
+      text_attachment: "Long form content",
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("GIF attachment cannot be combined with");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects gif + poll_options", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      gif_id: "abc123",
+      gif_provider: "GIPHY",
+      poll_options: ["Yes", "No"],
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("GIF attachment cannot be combined with");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects gif + link_attachment", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      gif_id: "abc123",
+      gif_provider: "GIPHY",
+      link_attachment: "https://example.com",
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("GIF attachment cannot be combined with");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects poll_options + link_attachment", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      poll_options: ["Yes", "No"],
+      link_attachment: "https://example.com",
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("poll_options cannot be combined with link_attachment");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+
+  it("rejects alt_text without gif_id", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({
+      text: "Hello",
+      alt_text: "Describes nothing",
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("alt_text requires a GIF attachment");
+    expect(client.threads).not.toHaveBeenCalled();
   });
 });
 
@@ -973,12 +1062,11 @@ describe("threads_publish_text auto_publish", () => {
     expect(calls[1][2]).toHaveProperty("creation_id", "container-1");
   });
 
-  it("keeps auto_publish_text=true alongside advanced params (poll, link, topic_tag)", async () => {
+  it("keeps auto_publish_text=true alongside advanced params (poll, topic_tag)", async () => {
     const handler = server.tools.get("threads_publish_text")!;
     await handler({
       text: "Vote!",
       poll_options: ["Yes", "No"],
-      link_attachment: "https://example.com",
       topic_tag: "Polls",
     });
 
@@ -986,7 +1074,6 @@ describe("threads_publish_text auto_publish", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0][2]).toHaveProperty("auto_publish_text", true);
     expect(calls[0][2]).toHaveProperty("poll_attachment");
-    expect(calls[0][2]).toHaveProperty("link_attachment", "https://example.com");
     expect(calls[0][2]).toHaveProperty("topic_tag", "Polls");
   });
 
