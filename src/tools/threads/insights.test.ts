@@ -21,7 +21,7 @@ function makeMockClient(response: unknown = { data: [] }): MetaClient {
 }
 
 describe("threads_get_post_insights", () => {
-  it("defaults to all valid post-level metrics including shares", async () => {
+  it("includes shares in default post-level metrics", async () => {
     const client = makeMockClient();
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
