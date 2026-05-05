@@ -2,18 +2,20 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+const POST_INSIGHTS_DEFAULT_METRICS = "views,likes,replies,reposts,quotes,shares";
+
 export function registerThreadsInsightTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_post_insights ───────────────────────────────
   server.tool(
     "threads_get_post_insights",
-    "Get insights/analytics for a specific Threads post (views, likes, replies, reposts, quotes).",
+    `Get insights/analytics for a specific Threads post (${POST_INSIGHTS_DEFAULT_METRICS.replaceAll(",", ", ")}).`,
     {
       post_id: z.string().describe("Threads post ID"),
-      metric: z.string().optional().describe("Comma-separated metrics (default: views,likes,replies,reposts,quotes)"),
+      metric: z.string().optional().describe(`Comma-separated metrics (default: ${POST_INSIGHTS_DEFAULT_METRICS})`),
     },
     async ({ post_id, metric }) => {
       try {
-        const m = metric || "views,likes,replies,reposts,quotes";
+        const m = metric || POST_INSIGHTS_DEFAULT_METRICS;
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/insights`, { metric: m });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
