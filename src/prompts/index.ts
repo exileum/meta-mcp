@@ -16,7 +16,7 @@ export function registerPrompts(server: McpServer) {
               "",
               "Please follow these steps:",
               "1. Ask me what content I want to post (text, image URL, video URL)",
-              "2. Use ig_publish_photo or ig_publish_video to post on Instagram",
+              "2. Use ig_publish_photo or ig_publish_reel to post on Instagram",
               "3. Use threads_publish_text, threads_publish_image, or threads_publish_video to post on Threads",
               "4. Report back the permalink for each platform",
               "",
