@@ -11,11 +11,12 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
       media_id: z.string().describe("Media ID"),
       limit: z.number().optional().describe("Number of comments to return"),
       after: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count,replies{id,text,username,timestamp})"),
     },
-    async ({ media_id, limit, after }) => {
+    async ({ media_id, limit, after, fields }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}",
+          fields: fields || "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
@@ -33,12 +34,12 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     "Get details of a specific comment.",
     {
       comment_id: z.string().describe("Comment ID"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count,parent_id,media)"),
     },
-    async ({ comment_id }) => {
+    async ({ comment_id, fields }) => {
       try {
-        const { data, rateLimit } = await client.ig("GET", `/${comment_id}`, {
-          fields: "id,text,username,timestamp,like_count,parent_id,media",
-        });
+        const f = fields || "id,text,username,timestamp,like_count,parent_id,media";
+        const { data, rateLimit } = await client.ig("GET", `/${comment_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
@@ -72,11 +73,12 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
       comment_id: z.string().describe("Comment ID to get replies for"),
       limit: z.number().optional().describe("Number of replies to return"),
       after: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count)"),
     },
-    async ({ comment_id, limit, after }) => {
+    async ({ comment_id, limit, after, fields }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,text,username,timestamp,like_count",
+          fields: fields || "id,text,username,timestamp,like_count",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;

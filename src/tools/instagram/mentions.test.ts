@@ -80,4 +80,23 @@ describe("ig_get_tagged_media", () => {
   it("is still registered after the mentions rename", () => {
     expect(server.tools.has("ig_get_tagged_media")).toBe(true);
   });
+
+  it("uses hardcoded default fields when fields is omitted", async () => {
+    const handler = server.tools.get("ig_get_tagged_media")!;
+    await handler({});
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1]).toBe("/123/tags");
+    expect(call[2]).toEqual({
+      fields: "id,caption,media_type,media_url,permalink,timestamp,username",
+    });
+  });
+
+  it("passes through caller-provided fields verbatim", async () => {
+    const handler = server.tools.get("ig_get_tagged_media")!;
+    await handler({ fields: "id,caption,media_type" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toMatchObject({ fields: "id,caption,media_type" });
+  });
 });
