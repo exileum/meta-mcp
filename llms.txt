@@ -134,8 +134,8 @@ Only set variables for the platforms you use.
 - threads_get_user_insights — Account-level analytics (period: day/lifetime)
 
 ## Resources
-- instagram://profile — Instagram account profile data
-- threads://profile — Threads account profile data
+- meta-mcp://instagram/profile — Instagram account profile data
+- meta-mcp://threads/profile — Threads account profile data
 
 ## Prompts
 - content_publish — Cross-post content to Instagram and Threads
