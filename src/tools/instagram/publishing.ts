@@ -73,13 +73,19 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   // ─── ig_publish_carousel ─────────────────────────────────────
   server.tool(
     "ig_publish_carousel",
-    "Publish a carousel (album) post with 2-10 images/videos. Each item needs an image_url or video_url.",
+    "Publish a carousel (album) post with 2-10 images/videos. Each item needs a `url` (JPEG image or MP4 video) and a `type` (IMAGE or VIDEO).",
     {
-      items: z.array(z.object({
-        type: z.enum(["IMAGE", "VIDEO"]).describe("Media type"),
-        url: httpsUrl.describe("Public HTTPS URL of the media"),
-        alt_text: z.string().optional().describe("Alt text for this image item"),
-      })).min(2).max(10).describe("Array of media items"),
+      items: z.array(z.discriminatedUnion("type", [
+        z.object({
+          type: z.literal("IMAGE"),
+          url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
+          alt_text: z.string().optional().describe("Alt text for accessibility (IMAGE items only)"),
+        }),
+        z.object({
+          type: z.literal("VIDEO"),
+          url: httpsUrl.describe("Public HTTPS URL of the video"),
+        }),
+      ])).min(2).max(10).describe("Array of media items"),
       caption: z.string().optional().describe("Post caption"),
       location_id: z.string().optional().describe("Facebook Page location ID"),
     },
@@ -135,16 +141,14 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       cover_url: httpsUrl.optional().describe("Custom cover image HTTPS URL"),
       share_to_feed: z.boolean().optional().describe("Also share to feed (default true)"),
       thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
-      alt_text: z.string().optional().describe("Alt text for accessibility"),
     },
-    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, alt_text }) => {
+    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset }) => {
       try {
         const params: Record<string, unknown> = { video_url, media_type: "REELS" };
         if (caption) params.caption = caption;
         if (cover_url) params.cover_url = cover_url;
         if (share_to_feed !== undefined) params.share_to_feed = share_to_feed;
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
-        if (alt_text) params.alt_text = alt_text;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;

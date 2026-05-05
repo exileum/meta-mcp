@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **`threads_get_post_insights` missing `shares` metric in defaults** — added `shares` to the default metric list for `threads_get_post_insights` (now `views,likes,replies,reposts,quotes,shares`); per the [Threads Insights API docs](https://developers.facebook.com/docs/threads/insights/), `shares` is a valid post-level metric distinct from `reposts` (reposts = the repost action; shares = sharing the post to Instagram Stories, DMs, or external links). Sibling fix to #140 which previously corrected the same defaults string by removing the invalid `clicks` metric ([#115](https://github.com/exileum/meta-mcp/issues/115))
 
+### Fixed
+- **`ig_publish_reel` accepted unsupported `alt_text` parameter** — removed `alt_text` from the `ig_publish_reel` schema and handler; per the [Instagram Content Publishing docs](https://developers.facebook.com/docs/instagram-platform/content-publishing/), `alt_text` is only supported for image posts on `/{ig-user-id}/media` (Reels and Stories are explicitly not supported); previously the parameter was forwarded to Meta and either silently ignored or rejected with `(#100)`, giving users a false sense of accessibility compliance ([#119](https://github.com/exileum/meta-mcp/issues/119))
+- **`ig_publish_carousel` schema allowed `alt_text` on VIDEO items but silently stripped it** — converted carousel `items` to a Zod discriminated union so `alt_text` is only accepted on `IMAGE` items; previously the handler dropped `alt_text` for VIDEO children with no warning, masking the same Meta API limitation as Reels ([#119](https://github.com/exileum/meta-mcp/issues/119))
+
 ## [3.9.0] — 2026-04-09
 
 ### Changed
