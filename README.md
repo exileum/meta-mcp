@@ -106,7 +106,7 @@ npm run build
 | Tool | Description |
 |------|-------------|
 | `ig_publish_photo` | Publish a photo post (supports alt_text) |
-| `ig_publish_video` | Publish a video post |
+| `ig_publish_video` | **[DEPRECATED]** Use `ig_publish_reel` — publishes as a Reel (legacy VIDEO media_type retired by Meta Nov 9, 2023) |
 | `ig_publish_carousel` | Publish a carousel/album (2-10 items, supports alt_text per IMAGE item) |
 | `ig_publish_reel` | Publish a Reel |
 | `ig_publish_story` | Publish a Story (24hr) |

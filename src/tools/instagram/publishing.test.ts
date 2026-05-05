@@ -32,10 +32,13 @@ function makeStoryMockClient(): MetaClient & { ig: ReturnType<typeof vi.fn> } {
 /** Lightweight mock server for param-forwarding tests */
 function makeMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
+  const descriptions = new Map<string, string>();
   return {
     tools,
-    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
+    descriptions,
+    tool: vi.fn((name: string, desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
       tools.set(name, handler);
+      descriptions.set(name, desc);
     }),
   };
 }
@@ -138,6 +141,43 @@ describe("ig_publish_carousel", () => {
     // Verify media_publish is the last call (call index 6)
     expect(calls[6][0]).toBe("POST");
     expect(calls[6][1]).toBe("/123/media_publish");
+  });
+});
+
+describe("ig_publish_video media_type", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("sends media_type=REELS, not VIDEO (Meta deprecated VIDEO on Nov 9, 2023)", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toMatchObject({
+      video_url: "https://example.com/video.mp4",
+      media_type: "REELS",
+    });
+    expect(createCall[2].media_type).not.toBe("VIDEO");
+  });
+
+  it("sets share_to_feed=true to preserve legacy feed placement", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toMatchObject({ share_to_feed: true });
+  });
+
+  it("description flags the tool as DEPRECATED and points to ig_publish_reel", () => {
+    const description = server.descriptions.get("ig_publish_video")!;
+    expect(description).toContain("DEPRECATED");
+    expect(description).toContain("ig_publish_reel");
   });
 });
 

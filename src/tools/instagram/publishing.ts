@@ -43,7 +43,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   // ─── ig_publish_video ────────────────────────────────────────
   server.tool(
     "ig_publish_video",
-    "Publish a video to Instagram feed. Waits for video processing before publishing.",
+    "[DEPRECATED] Use ig_publish_reel instead. Publishes via media_type=REELS under the hood; the legacy VIDEO media_type was deprecated by Meta on Nov 9, 2023. Kept for backward compatibility — new integrations should use ig_publish_reel which exposes Reels-specific options (cover_url, share_to_feed, alt_text).",
     {
       video_url: httpsUrl.describe("Public HTTPS URL of the video"),
       caption: z.string().optional().describe("Post caption"),
@@ -52,14 +52,16 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ video_url, caption, thumb_offset, location_id }) => {
       try {
-        const params: Record<string, unknown> = { video_url, media_type: "VIDEO" };
+        // share_to_feed: true preserves the legacy feed placement of the deprecated
+        // VIDEO media_type — without it, REELS containers default to the Reels tab only.
+        const params: Record<string, unknown> = { video_url, media_type: "REELS", share_to_feed: true };
         if (caption) params.caption = caption;
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (location_id) params.location_id = location_id;
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId);
+        await waitForIgContainer(client, containerId, 120);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
