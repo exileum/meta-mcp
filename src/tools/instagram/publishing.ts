@@ -52,7 +52,9 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ video_url, caption, thumb_offset, location_id }) => {
       try {
-        const params: Record<string, unknown> = { video_url, media_type: "REELS" };
+        // share_to_feed: true preserves the legacy feed placement of the deprecated
+        // VIDEO media_type — without it, REELS containers default to the Reels tab only.
+        const params: Record<string, unknown> = { video_url, media_type: "REELS", share_to_feed: true };
         if (caption) params.caption = caption;
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (location_id) params.location_id = location_id;

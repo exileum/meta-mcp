@@ -166,6 +166,14 @@ describe("ig_publish_video media_type", () => {
     expect(createCall[2].media_type).not.toBe("VIDEO");
   });
 
+  it("sets share_to_feed=true to preserve legacy feed placement", async () => {
+    const handler = server.tools.get("ig_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toMatchObject({ share_to_feed: true });
+  });
+
   it("description flags the tool as DEPRECATED and points to ig_publish_reel", () => {
     const description = server.descriptions.get("ig_publish_video")!;
     expect(description).toContain("DEPRECATED");
