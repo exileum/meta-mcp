@@ -4,22 +4,36 @@ import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "../../utils/container.js";
 
+// Fields shared by both /{post}/replies and /{post}/conversation defaults.
+const REPLIES_BASE_FIELDS = "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,root_post,replied_to,is_reply,is_quote_post";
+
+// is_verified / profile_picture_url are documented as "Only available on direct
+// replies." Populated for /{post}/replies (top_level), but undefined for nested
+// entries returned by /{post}/conversation (full_tree) — keep them in the
+// top_level default and drop from full_tree to avoid misleading sparse payloads.
+export const REPLIES_TOP_LEVEL_DEFAULT_FIELDS = `${REPLIES_BASE_FIELDS},is_verified,profile_picture_url`;
+export const REPLIES_FULL_TREE_DEFAULT_FIELDS = REPLIES_BASE_FIELDS;
+
 export function registerThreadsReplyTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_replies ─────────────────────────────────────
   server.tool(
     "threads_get_replies",
-    "Get replies for a specific Threads post. By default returns only top-level replies (mode='top_level', endpoint /{post}/replies). Set mode='full_tree' to get the entire conversation flattened — every reply at every nesting level (endpoint /{post}/conversation). Both modes share the same response shape; full_tree additionally populates root_post, replied_to, is_reply so the caller can reconstruct the tree.",
+    "Get replies for a specific Threads post. By default returns only top-level replies (mode='top_level', endpoint /{post}/replies). Set mode='full_tree' to get the entire conversation flattened — every reply at every nesting level (endpoint /{post}/conversation). Both modes share the same response shape; full_tree additionally populates root_post, replied_to, is_reply so the caller can reconstruct the tree. The default fields differ by mode: top_level requests is_verified and profile_picture_url (always populated for direct replies); full_tree drops them since they are 'Only available on direct replies' per the Threads Replies/Conversations docs and would be undefined for every nested entry. Pass an explicit fields override to re-request them in full_tree if needed.",
     {
       post_id: z.string().describe("Threads post ID to get replies for"),
       mode: z.enum(["top_level", "full_tree"]).optional().describe("'top_level' (default) returns only direct replies; 'full_tree' returns the full conversation tree flattened"),
       reverse: z.boolean().optional().describe("Reverse chronological order"),
       limit: z.number().optional().describe("Number of replies"),
       after: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields override. Default depends on mode: top_level adds is_verified,profile_picture_url, full_tree omits them because they are 'Only available on direct replies' per the Threads Replies/Conversations docs."),
     },
-    async ({ post_id, mode, reverse, limit, after }) => {
+    async ({ post_id, mode, reverse, limit, after, fields }) => {
       try {
+        const defaultFields = mode === "full_tree"
+          ? REPLIES_FULL_TREE_DEFAULT_FIELDS
+          : REPLIES_TOP_LEVEL_DEFAULT_FIELDS;
         const params: Record<string, unknown> = {
-          fields: "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,is_verified,profile_picture_url,root_post,replied_to,is_reply,is_quote_post",
+          fields: fields || defaultFields,
         };
         if (reverse !== undefined) params.reverse = reverse;
         if (limit !== undefined) params.limit = limit;

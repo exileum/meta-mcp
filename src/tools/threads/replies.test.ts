@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { registerThreadsReplyTools } from "./replies.js";
+import {
+  registerThreadsReplyTools,
+  REPLIES_TOP_LEVEL_DEFAULT_FIELDS,
+  REPLIES_FULL_TREE_DEFAULT_FIELDS,
+} from "./replies.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 function makeMockServer() {
@@ -102,6 +106,64 @@ describe("threads_get_replies mode", () => {
     expect(call[2]).not.toHaveProperty("reverse");
     expect(call[2]).not.toHaveProperty("limit");
     expect(call[2]).not.toHaveProperty("after");
+  });
+
+  it("default mode (top_level) includes is_verified and profile_picture_url in default fields", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_replies")!;
+    await handler({ post_id: "post-42" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const fields = call[2].fields as string;
+    expect(fields).toBe(REPLIES_TOP_LEVEL_DEFAULT_FIELDS);
+    expect(fields).toContain("is_verified");
+    expect(fields).toContain("profile_picture_url");
+  });
+
+  it("explicit mode='top_level' includes is_verified and profile_picture_url in default fields", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_replies")!;
+    await handler({ post_id: "post-42", mode: "top_level" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const fields = call[2].fields as string;
+    expect(fields).toBe(REPLIES_TOP_LEVEL_DEFAULT_FIELDS);
+    expect(fields).toContain("is_verified");
+    expect(fields).toContain("profile_picture_url");
+  });
+
+  it("mode='full_tree' omits is_verified and profile_picture_url from default fields", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_replies")!;
+    await handler({ post_id: "post-42", mode: "full_tree" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const fields = call[2].fields as string;
+    expect(fields).toBe(REPLIES_FULL_TREE_DEFAULT_FIELDS);
+    expect(fields).not.toContain("is_verified");
+    expect(fields).not.toContain("profile_picture_url");
+  });
+
+  it.each(["top_level", "full_tree"] as const)("explicit fields override replaces the default in mode='%s'", async (mode) => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_replies")!;
+    const customFields = "id,text,is_verified,profile_picture_url";
+    await handler({ post_id: "post-42", mode, fields: customFields });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2].fields).toBe(customFields);
   });
 });
 
