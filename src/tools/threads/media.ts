@@ -21,6 +21,15 @@ const THREADS_MEDIA_FIELDS = [
   "alt_text",
 ].join(",");
 
+export const authorUsernameSchema = z
+  .string()
+  .transform((v) => (v.startsWith("@") ? v.slice(1) : v))
+  .refine((v) => v.length > 0, { message: "Username cannot be empty or just '@'" })
+  .optional()
+  .describe(
+    "Filter results to posts by exact username (server-side filter via Threads /keyword_search; per Threads API the username must be an exact match without '@', and a leading '@' is auto-stripped if provided)"
+  );
+
 export function registerThreadsMediaTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_posts ───────────────────────────────────────
   server.tool(
@@ -79,7 +88,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
       search_type: z.enum(["TOP", "RECENT"]).optional().describe("Result ordering: TOP (default) or RECENT"),
       search_mode: z.enum(["KEYWORD", "TAG"]).optional().describe("Search by KEYWORD (default) or TAG"),
       media_type: z.enum(["TEXT", "IMAGE", "VIDEO"]).optional().describe("Filter results by media type"),
-      author_username: z.string().optional().describe("Filter results by author username"),
+      author_username: authorUsernameSchema,
       since: z.string().optional().describe("Start date (Unix timestamp)"),
       until: z.string().optional().describe("End date (Unix timestamp)"),
       limit: z.number().min(1).max(100).optional().describe("Number of results (max 100, default 25)"),
