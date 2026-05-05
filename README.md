@@ -105,10 +105,10 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `ig_publish_photo` | Publish a photo post (supports alt_text) |
-| `ig_publish_video` | **[DEPRECATED]** Use `ig_publish_reel` — publishes as a Reel (legacy VIDEO media_type retired by Meta Nov 9, 2023) |
-| `ig_publish_carousel` | Publish a carousel/album (2-10 items, supports alt_text per IMAGE item) |
-| `ig_publish_reel` | Publish a Reel |
+| `ig_publish_photo` | Publish a photo post (supports alt_text, collaborators) |
+| `ig_publish_video` | **[DEPRECATED]** Use `ig_publish_reel` — publishes as a Reel (legacy VIDEO media_type retired by Meta Nov 9, 2023; supports collaborators) |
+| `ig_publish_carousel` | Publish a carousel/album (2-10 items, supports alt_text per IMAGE item, collaborators) |
+| `ig_publish_reel` | Publish a Reel (supports collaborators) |
 | `ig_publish_story` | Publish a Story (24hr) |
 | `ig_get_container_status` | Check media container processing status |
 
@@ -157,7 +157,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `ig_get_mentioned_comments` | Get comments mentioning you |
+| `ig_get_mentioned_comment` | Get details of a specific comment mentioning you (by comment_id from a mention webhook) |
 | `ig_get_tagged_media` | Get media you're tagged in |
 
 ### Instagram — Messaging (4)

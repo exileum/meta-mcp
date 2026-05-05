@@ -4,6 +4,26 @@ import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForIgContainer } from "../../utils/container.js";
 
+const collaboratorUsername = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/^@+/, ""))
+  .refine((v) => v.length > 0, {
+    message: "Collaborator username cannot be empty, only whitespace, or only '@' characters",
+  });
+
+export const collaboratorsSchema = z
+  .array(collaboratorUsername)
+  .min(1, "Collaborators array must have at least 1 entry when provided")
+  .max(3, "Maximum 3 collaborators per post (Instagram API limit)")
+  .refine((arr) => new Set(arr).size === arr.length, {
+    message: "Collaborator usernames must be unique",
+  })
+  .optional()
+  .describe(
+    "Optional. Up to 3 unique Instagram usernames to invite as collaborators. Per Instagram Graph API: supported for Feed image, Reels, and Carousels — not supported for Stories. Leading '@' characters and surrounding whitespace are auto-stripped before the uniqueness check."
+  );
+
 export function registerIgPublishingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_publish_photo ────────────────────────────────────────
   server.tool(
@@ -15,14 +35,16 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       location_id: z.string().optional().describe("Facebook Page location ID"),
       user_tags: z.string().optional().describe("JSON array of user tags: [{username, x, y}]"),
       alt_text: z.string().optional().describe("Alt text for accessibility"),
+      collaborators: collaboratorsSchema,
     },
-    async ({ image_url, caption, location_id, user_tags, alt_text }) => {
+    async ({ image_url, caption, location_id, user_tags, alt_text, collaborators }) => {
       try {
         const params: Record<string, unknown> = { image_url };
         if (caption) params.caption = caption;
         if (location_id) params.location_id = location_id;
         if (user_tags) params.user_tags = user_tags;
         if (alt_text) params.alt_text = alt_text;
+        if (collaborators?.length) params.collaborators = JSON.stringify(collaborators);
         // Step 1: Create container
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
@@ -49,8 +71,9 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       caption: z.string().optional().describe("Post caption"),
       thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
       location_id: z.string().optional().describe("Facebook Page location ID"),
+      collaborators: collaboratorsSchema,
     },
-    async ({ video_url, caption, thumb_offset, location_id }) => {
+    async ({ video_url, caption, thumb_offset, location_id, collaborators }) => {
       try {
         // share_to_feed: true preserves the legacy feed placement of the deprecated
         // VIDEO media_type — without it, REELS containers default to the Reels tab only.
@@ -58,6 +81,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (caption) params.caption = caption;
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
         if (location_id) params.location_id = location_id;
+        if (collaborators?.length) params.collaborators = JSON.stringify(collaborators);
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -90,8 +114,9 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       ])).min(2).max(10).describe("Array of media items"),
       caption: z.string().optional().describe("Post caption"),
       location_id: z.string().optional().describe("Facebook Page location ID"),
+      collaborators: collaboratorsSchema,
     },
-    async ({ items, caption, location_id }) => {
+    async ({ items, caption, location_id, collaborators }) => {
       try {
         // Step 1: Create child containers
         const childIds: string[] = [];
@@ -117,6 +142,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         };
         if (caption) carouselParams.caption = caption;
         if (location_id) carouselParams.location_id = location_id;
+        if (collaborators?.length) carouselParams.collaborators = JSON.stringify(collaborators);
         const { data: carousel } = await client.ig("POST", `/${client.igUserId}/media`, carouselParams);
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
@@ -143,14 +169,16 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       cover_url: httpsUrl.optional().describe("Custom cover image HTTPS URL"),
       share_to_feed: z.boolean().optional().describe("Also share to feed (default true)"),
       thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
+      collaborators: collaboratorsSchema,
     },
-    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset }) => {
+    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, collaborators }) => {
       try {
         const params: Record<string, unknown> = { video_url, media_type: "REELS" };
         if (caption) params.caption = caption;
         if (cover_url) params.cover_url = cover_url;
         if (share_to_feed !== undefined) params.share_to_feed = share_to_feed;
         if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
+        if (collaborators?.length) params.collaborators = JSON.stringify(collaborators);
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
