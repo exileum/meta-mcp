@@ -11,12 +11,13 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       folder: z.enum(["inbox", "spam"]).optional().describe("Folder to retrieve (default: inbox)"),
       limit: z.number().optional().describe("Number of conversations"),
       after: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,updated_time,participants,messages{id,message,from,created_time})"),
     },
-    async ({ folder, limit, after }) => {
+    async ({ folder, limit, after, fields }) => {
       try {
         const params: Record<string, unknown> = {
           platform: "instagram",
-          fields: "id,updated_time,participants,messages{id,message,from,created_time}",
+          fields: fields || "id,updated_time,participants,messages{id,message,from,created_time}",
         };
         if (folder) params.folder = folder;
         if (limit !== undefined) params.limit = limit;
@@ -37,11 +38,12 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       conversation_id: z.string().describe("Conversation ID"),
       limit: z.number().optional().describe("Number of messages"),
       after: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
     },
-    async ({ conversation_id, limit, after }) => {
+    async ({ conversation_id, limit, after, fields }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,message,from,created_time,attachments",
+          fields: fields || "id,message,from,created_time,attachments",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
@@ -81,12 +83,12 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     "Get details of a specific DM message.",
     {
       message_id: z.string().describe("Message ID"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
     },
-    async ({ message_id }) => {
+    async ({ message_id, fields }) => {
       try {
-        const { data, rateLimit } = await client.ig("GET", `/${message_id}`, {
-          fields: "id,message,from,created_time,attachments",
-        });
+        const f = fields || "id,message,from,created_time,attachments";
+        const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get message failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };

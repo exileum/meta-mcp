@@ -1,5 +1,4 @@
 import { MetaConfig } from "../config.js";
-import { RateLimit } from "../types.js";
 
 const IG_BASE = "https://graph.instagram.com/v25.0";
 const FB_BASE = "https://graph.facebook.com/v25.0";
@@ -8,6 +7,12 @@ const THREADS_BASE = "https://graph.threads.net/v1.0";
 // Unversioned bases for OAuth token endpoints
 const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
+
+export interface RateLimit {
+  callCount?: number;
+  totalCpuTime?: number;
+  totalTime?: number;
+}
 
 export interface ClientResponse {
   data: Record<string, unknown>;
