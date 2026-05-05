@@ -173,10 +173,10 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_publish_text` | Publish a text post in a single API call (`auto_publish_text=true`, default; set `auto_publish=false` for the legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories, text attachments up to 10K chars with styling |
-| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories) |
-| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories) |
-| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories) |
+| `threads_publish_text` | Publish a text post in a single API call (`auto_publish_text=true`, default; set `auto_publish=false` for the legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, text attachments up to 10K chars with styling |
+| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`) |
+| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`) |
+| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories, geo-gating via `allowlisted_country_codes` on the parent container) |
 | `threads_delete_post` | Delete a post (max 100/day) |
 | `threads_get_container_status` | Check container processing status (unpublished containers only) |
 | `threads_get_publishing_limit` | Check remaining publishing quota (250 posts/day) |
@@ -209,7 +209,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_profile` | Get Threads profile info (includes is_verified) |
+| `threads_get_profile` | Get Threads profile info (includes `is_verified` and `is_eligible_for_geo_gating`) |
 | `threads_get_user_threads` | List user's threads |
 
 ### Threads — Insights (2)
