@@ -18,6 +18,10 @@ export const textAttachmentStylingSchema = z.array(z.object({
   styles: z.array(textStylingEnum).min(1).describe("Styles to apply (bold, italic, highlight, underline, strikethrough)"),
 })).optional().describe("Text formatting for the text attachment. Ranges must not overlap.");
 
+export const allowlistedCountryCodesSchema = z.array(
+  z.string().regex(/^[A-Za-z]{2}$/, "Must be an ISO 3166-1 alpha-2 country code (2 letters)")
+).min(1).optional().describe("ISO 3166-1 alpha-2 country codes (e.g., ['US','CA','GB']) restricting post visibility to those countries (geo-gating). Requires the account to be eligible — check `is_eligible_for_geo_gating` via `threads_get_profile`. The creator can always see their own posts regardless. Codes are normalized to uppercase and sent comma-joined (e.g., 'US,CA') as required by the API.");
+
 const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
 
 function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?: "light" | "dark"): void {
@@ -27,11 +31,17 @@ function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?
   }
 }
 
+function applyAllowlistedCountryCodes(params: Record<string, unknown>, codes?: string[]): void {
+  if (codes?.length) {
+    params.allowlisted_country_codes = codes.map(c => c.toUpperCase()).join(",");
+  }
+}
+
 export function registerThreadsPublishingTools(server: McpServer, client: MetaClient): void {
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
+    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
@@ -44,12 +54,13 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
+      allowlisted_country_codes: allowlistedCountryCodesSchema,
       text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
       auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       try {
         // Validate mutual exclusions
         if (text_attachment && poll_options) {
@@ -117,6 +128,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           params.text_attachment = JSON.stringify(obj);
         }
         applyShareToIgStory(params, share_to_ig_story);
+        applyAllowlistedCountryCodes(params, allowlisted_country_codes);
         // Treat `undefined` as the default (true) so the behavior is stable even
         // if a caller bypasses Zod's schema-level default (e.g., direct handler
         // invocation in tests). Only an explicit `false` takes the legacy path.
@@ -142,7 +154,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_image ───────────────────────────────────
   server.tool(
     "threads_publish_image",
-    "Publish an image post on Threads. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories.",
+    "Publish an image post on Threads. Supports topic tag, quote post, alt text, spoiler flag, cross-share to Instagram Stories, and geo-gating via allowlisted_country_codes.",
     {
       image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
       text: z.string().max(500).optional().describe("Caption text"),
@@ -152,8 +164,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
+      allowlisted_country_codes: allowlistedCountryCodesSchema,
     },
-    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story }) => {
+    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes }) => {
       try {
         const params: Record<string, unknown> = { media_type: "IMAGE", image_url };
         if (text) params.text = text;
@@ -163,6 +176,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
+        applyAllowlistedCountryCodes(params, allowlisted_country_codes);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -180,7 +194,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_video ───────────────────────────────────
   server.tool(
     "threads_publish_video",
-    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, and cross-share to Instagram Stories. Note: cross-share to IG Stories may silently fail for video posts (the Threads post still publishes).",
+    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, cross-share to Instagram Stories, and geo-gating via allowlisted_country_codes. Note: cross-share to IG Stories may silently fail for video posts (the Threads post still publishes).",
     {
       video_url: httpsUrl.describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
@@ -190,8 +204,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
+      allowlisted_country_codes: allowlistedCountryCodesSchema,
     },
-    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story }) => {
+    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes }) => {
       try {
         const params: Record<string, unknown> = { media_type: "VIDEO", video_url };
         if (text) params.text = text;
@@ -201,6 +216,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
+        applyAllowlistedCountryCodes(params, allowlisted_country_codes);
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -218,7 +234,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_carousel ────────────────────────────────
   server.tool(
     "threads_publish_carousel",
-    "Publish a carousel post on Threads with 2-20 images/videos. Supports cross-share to Instagram Stories.",
+    "Publish a carousel post on Threads with 2-20 images/videos. Supports cross-share to Instagram Stories and geo-gating via allowlisted_country_codes (parent container only).",
     {
       items: z.array(z.object({
         type: z.enum(["IMAGE", "VIDEO"]).describe("Media type"),
@@ -230,8 +246,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       share_to_ig_story: shareToIgStorySchema,
+      allowlisted_country_codes: allowlistedCountryCodesSchema,
     },
-    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story }) => {
+    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes }) => {
       try {
         const childIds: string[] = [];
         for (const item of items) {
@@ -257,6 +274,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (topic_tag) carouselParams.topic_tag = topic_tag;
         if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
         applyShareToIgStory(carouselParams, share_to_ig_story);
+        applyAllowlistedCountryCodes(carouselParams, allowlisted_country_codes);
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;

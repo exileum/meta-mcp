@@ -6,12 +6,12 @@ export function registerThreadsProfileTools(server: McpServer, client: MetaClien
   // ─── threads_get_profile ─────────────────────────────────────
   server.tool(
     "threads_get_profile",
-    "Get Threads user profile information including verification status.",
+    "Get Threads user profile information including verification status and geo-gating eligibility (is_eligible_for_geo_gating).",
     {},
     async () => {
       try {
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}`, {
-          fields: "id,username,name,threads_profile_picture_url,threads_biography,is_verified",
+          fields: "id,username,name,threads_profile_picture_url,threads_biography,is_verified,is_eligible_for_geo_gating",
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {

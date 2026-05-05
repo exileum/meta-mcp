@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
-import { registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema, textAttachmentStylingSchema } from "./publishing.js";
+import { registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema, textAttachmentStylingSchema, allowlistedCountryCodesSchema } from "./publishing.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
@@ -994,6 +994,208 @@ describe("threads_publish_text auto_publish", () => {
     const handler = server.tools.get("threads_publish_text")!;
     const result = await handler({ text: "Hello" }) as { content: Array<{ text: string }> };
     expect(result.content[0].text).toContain("container-1");
+  });
+});
+
+// ─── allowlistedCountryCodesSchema validation ──────────────────────
+
+describe("allowlistedCountryCodesSchema validation", () => {
+  const schema = allowlistedCountryCodesSchema;
+
+  it("accepts a single valid uppercase code", () => {
+    expect(schema.parse(["US"])).toEqual(["US"]);
+  });
+
+  it("accepts multiple valid codes", () => {
+    expect(schema.parse(["US", "CA", "GB"])).toEqual(["US", "CA", "GB"]);
+  });
+
+  it("accepts lowercase codes (uppercased at send time, not at validation time)", () => {
+    expect(schema.parse(["us", "ca"])).toEqual(["us", "ca"]);
+  });
+
+  it("accepts mixed-case codes", () => {
+    expect(schema.parse(["uS", "Ca"])).toEqual(["uS", "Ca"]);
+  });
+
+  it("accepts undefined (optional)", () => {
+    expect(schema.parse(undefined)).toBeUndefined();
+  });
+
+  it("rejects 1-letter codes", () => {
+    expect(() => schema.parse(["U"])).toThrow();
+  });
+
+  it("rejects 3-letter codes (alpha-3 not supported)", () => {
+    expect(() => schema.parse(["USA"])).toThrow();
+  });
+
+  it("rejects empty string", () => {
+    expect(() => schema.parse([""])).toThrow();
+  });
+
+  it("rejects digits", () => {
+    expect(() => schema.parse(["12"])).toThrow();
+  });
+
+  it("rejects empty array (use undefined to omit)", () => {
+    expect(() => schema.parse([])).toThrow();
+  });
+});
+
+// ─── allowlisted_country_codes parameter forwarding tests ──────────
+
+describe("threads_publish_text allowlisted_country_codes", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("forwards codes as a comma-joined uppercased string (format-pinning test)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", allowlisted_country_codes: ["US", "CA"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    // Pins the format to "US,CA" — guards against future refactors using JSON.stringify
+    expect(createCall[2]).toHaveProperty("allowlisted_country_codes", "US,CA");
+  });
+
+  it("uppercases lowercase codes before sending", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", allowlisted_country_codes: ["us", "ca"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("allowlisted_country_codes", "US,CA");
+  });
+
+  it("excludes allowlisted_country_codes when not provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("allowlisted_country_codes");
+  });
+
+  it("works alongside auto_publish_text=true (single-call mode)", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", allowlisted_country_codes: ["GB"] });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][2]).toHaveProperty("auto_publish_text", true);
+    expect(calls[0][2]).toHaveProperty("allowlisted_country_codes", "GB");
+  });
+});
+
+describe("threads_publish_image allowlisted_country_codes", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("forwards codes as a comma-joined uppercased string", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg", allowlisted_country_codes: ["US", "CA"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("allowlisted_country_codes", "US,CA");
+  });
+
+  it("excludes allowlisted_country_codes when not provided", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("allowlisted_country_codes");
+  });
+});
+
+describe("threads_publish_video allowlisted_country_codes", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("forwards codes as a comma-joined uppercased string", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", allowlisted_country_codes: ["us", "GB"] });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).toHaveProperty("allowlisted_country_codes", "US,GB");
+  });
+
+  it("excludes allowlisted_country_codes when not provided", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("allowlisted_country_codes");
+  });
+});
+
+describe("threads_publish_carousel allowlisted_country_codes", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  const twoItems = [
+    { type: "IMAGE", url: "https://example.com/1.jpg" },
+    { type: "IMAGE", url: "https://example.com/2.jpg" },
+  ];
+
+  it("forwards codes on the carousel parent container as a comma-joined uppercased string", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems, allowlisted_country_codes: ["US", "CA"] });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).toHaveProperty("allowlisted_country_codes", "US,CA");
+  });
+
+  it("excludes allowlisted_country_codes from carousel container when not provided", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).not.toHaveProperty("allowlisted_country_codes");
+  });
+
+  it("does not add allowlisted_country_codes to child containers (parent only)", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({ items: twoItems, allowlisted_country_codes: ["US", "CA"] });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const childCalls = calls.filter(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.is_carousel_item === true
+    );
+    expect(childCalls).toHaveLength(2);
+    for (const call of childCalls) {
+      expect(call[2]).not.toHaveProperty("allowlisted_country_codes");
+    }
   });
 });
 

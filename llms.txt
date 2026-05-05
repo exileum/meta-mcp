@@ -102,10 +102,10 @@ Only set variables for the platforms you use.
 - ig_get_message — Get message details
 
 ### Threads — Publishing (8)
-- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, text attachments up to 10K chars with styling
-- threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories)
-- threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories)
-- threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories)
+- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, text attachments up to 10K chars with styling
+- threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes)
+- threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes)
+- threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories, geo-gating via allowlisted_country_codes on the parent container)
 - threads_delete_post — Delete a post (max 100/day)
 - threads_get_container_status — Check container processing status (unpublished containers only)
 - threads_get_publishing_limit — Check remaining quota (250 posts/day)
@@ -126,7 +126,7 @@ Only set variables for the platforms you use.
 - threads_get_mentions — Posts where the user was @mentioned (requires threads_manage_mentions)
 
 ### Threads — Profile (2)
-- threads_get_profile — Get Threads profile info
+- threads_get_profile — Get Threads profile info (includes is_verified and is_eligible_for_geo_gating)
 - threads_get_user_threads — List user's threads
 
 ### Threads — Insights (2)
