@@ -68,7 +68,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   server.tool(
     "ig_get_media_insights",
     "Get insights/analytics for a specific media post. Default metrics 'views,reach' are safe for every media type. Metric availability differs by media type — request more selectively to avoid (#100) errors:\n" +
-      "- IMAGE / VIDEO / CAROUSEL: views, reach, saved, total_interactions, likes, comments (note: 'shares' may fail with (#100) on IMAGE per issue #120 — test before relying on it)\n" +
+      "- IMAGE / VIDEO / CAROUSEL: views, reach, saved, total_interactions, likes, comments (note: 'shares' may return (#100) on IMAGE — test before relying on it)\n" +
       "- REEL: views, reach, saved, total_interactions, likes, comments, shares, reposts, reels_skip_rate\n" +
       "- STORY: views, reach, total_interactions, navigation, replies, profile_activity, profile_visits, follows\n" +
       "Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. See https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/ for the authoritative per-type matrix.",
