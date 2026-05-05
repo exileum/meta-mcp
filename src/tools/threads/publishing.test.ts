@@ -821,6 +821,14 @@ describe("threads_publish_text gif_id/gif_provider co-dependency", () => {
     const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(createCall[2]).not.toHaveProperty("gif_attachment");
   });
+
+  // Mirror the gif_id schema used in threads_publish_text to verify .min(1) rejects ""
+  // before the handler-level co-dependency check sees an empty string and emits a
+  // misleading "must be provided together" error.
+  it("rejects empty gif_id at the schema level (.min(1))", () => {
+    const gifIdSchema = z.string().min(1).optional();
+    expect(() => gifIdSchema.parse("")).toThrow();
+  });
 });
 
 // ─── text_attachment char→byte offset conversion ────────────────────

@@ -39,7 +39,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       poll_options: pollOptionsSchema,
-      gif_id: z.string().optional().describe("GIPHY GIF ID. Must be provided together with gif_provider — providing only one returns an error."),
+      gif_id: z.string().min(1).optional().describe("GIPHY GIF ID. Must be provided together with gif_provider — providing only one returns an error."),
       gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported. Must be provided together with gif_id — providing only one returns an error."),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
