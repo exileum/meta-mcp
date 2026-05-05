@@ -208,3 +208,96 @@ describe("ig_publish_reel thumb_offset", () => {
     expect(createCall[2]).toHaveProperty("thumb_offset", 5000);
   });
 });
+
+describe("ig_publish_reel alt_text", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("does not forward alt_text to Meta even if passed (Reels do not support alt_text)", async () => {
+    const handler = server.tools.get("ig_publish_reel")!;
+    // Cast through unknown: the schema no longer declares alt_text, but we still
+    // verify the handler ignores the field if a caller bypasses validation.
+    await handler({
+      video_url: "https://example.com/reel.mp4",
+      alt_text: "should be ignored",
+    } as unknown as Parameters<typeof handler>[0]);
+
+    const createCall = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("alt_text");
+  });
+});
+
+describe("ig_publish_carousel alt_text", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerIgPublishingTools(server as never, client);
+  });
+
+  it("forwards alt_text for IMAGE items", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg", alt_text: "First photo" },
+        { type: "IMAGE", url: "https://example.com/b.jpg", alt_text: "Second photo" },
+      ],
+    });
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    // Child container POSTs are at index 0 and 2 (poll calls at 1 and 3).
+    expect(calls[0][2]).toMatchObject({
+      image_url: "https://example.com/a.jpg",
+      alt_text: "First photo",
+    });
+    expect(calls[2][2]).toMatchObject({
+      image_url: "https://example.com/b.jpg",
+      alt_text: "Second photo",
+    });
+  });
+
+  it("never forwards alt_text for VIDEO items", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    // Even if a caller bypasses the discriminated-union schema, the handler
+    // must not forward alt_text for VIDEO items (Meta does not support it).
+    await handler({
+      items: [
+        { type: "VIDEO", url: "https://example.com/a.mp4", alt_text: "ignored" },
+        { type: "VIDEO", url: "https://example.com/b.mp4", alt_text: "ignored" },
+      ],
+    } as unknown as Parameters<typeof handler>[0]);
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][2]).not.toHaveProperty("alt_text");
+    expect(calls[2][2]).not.toHaveProperty("alt_text");
+  });
+
+  it("forwards alt_text only for IMAGE in mixed carousel", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg", alt_text: "Photo alt" },
+        { type: "VIDEO", url: "https://example.com/b.mp4" },
+      ],
+    });
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][2]).toMatchObject({
+      image_url: "https://example.com/a.jpg",
+      alt_text: "Photo alt",
+    });
+    expect(calls[2][2]).toMatchObject({
+      video_url: "https://example.com/b.mp4",
+      media_type: "VIDEO",
+    });
+    expect(calls[2][2]).not.toHaveProperty("alt_text");
+  });
+});

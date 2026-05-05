@@ -25,7 +25,7 @@ export function registerPrompts(server: McpServer) {
               "- Threads posts are limited to 500 characters",
               "- Both platforms require publicly accessible HTTPS URLs for media",
               "- Video uploads may take time to process",
-              "- You can add alt_text for accessibility on both platforms",
+              "- You can add alt_text for accessibility on Instagram photo posts and Threads media; Reels, Stories, and IG videos do not support it",
               "- On Threads, you can add a topic_tag, poll, or GIF attachment",
               "- On Threads, you can set reply_control (everyone, accounts_you_follow, mentioned_only, parent_post_author_only, followers_only)",
             ].join("\n"),

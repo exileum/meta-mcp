@@ -107,8 +107,8 @@ npm run build
 |------|-------------|
 | `ig_publish_photo` | Publish a photo post (supports alt_text) |
 | `ig_publish_video` | Publish a video post |
-| `ig_publish_carousel` | Publish a carousel/album (2-10 items, supports alt_text per item) |
-| `ig_publish_reel` | Publish a Reel (supports alt_text) |
+| `ig_publish_carousel` | Publish a carousel/album (2-10 items, supports alt_text per IMAGE item) |
+| `ig_publish_reel` | Publish a Reel |
 | `ig_publish_story` | Publish a Story (24hr) |
 | `ig_get_container_status` | Check media container processing status |
 

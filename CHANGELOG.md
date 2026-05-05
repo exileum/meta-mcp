@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Increased video container polling timeout from 30s to 120s** — `ig_publish_reel`, `ig_publish_story` (video), `threads_publish_video`, and video items inside `ig_publish_carousel` / `threads_publish_carousel` now wait up to 120 seconds for Meta to finish processing the video container, up from the previous 30-second default; photo operations remain at 30s; fixes timeouts on large video files (100 MB+) that need 40–90s of server-side transcoding
 - **Increased default polling interval from 2s to 5s** — `pollContainerStatus()` now checks container status every 5 seconds instead of every 2 seconds, reducing API call consumption by 60% during video processing (24 calls at 120s vs 60 previously); photo containers return FINISHED on the first poll so the longer interval has no practical impact on them
 
+### Fixed
+- **`ig_publish_reel` accepted unsupported `alt_text` parameter** — removed `alt_text` from the `ig_publish_reel` schema and handler; per the [Instagram Content Publishing docs](https://developers.facebook.com/docs/instagram-platform/content-publishing/), `alt_text` is only supported for image posts on `/{ig-user-id}/media` (Reels and Stories are explicitly not supported); previously the parameter was forwarded to Meta and either silently ignored or rejected with `(#100)`, giving users a false sense of accessibility compliance ([#119](https://github.com/exileum/meta-mcp/issues/119))
+- **`ig_publish_carousel` schema allowed `alt_text` on VIDEO items but silently stripped it** — converted carousel `items` to a Zod discriminated union so `alt_text` is only accepted on `IMAGE` items; previously the handler dropped `alt_text` for VIDEO children with no warning, masking the same Meta API limitation as Reels ([#119](https://github.com/exileum/meta-mcp/issues/119))
+
 ## [3.9.0] — 2026-04-09
 
 ### Changed
