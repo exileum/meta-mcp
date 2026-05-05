@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { registerThreadsMediaTools } from "./media.js";
+import { registerThreadsMediaTools, authorUsernameSchema } from "./media.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 function makeMockServer() {
@@ -148,5 +148,64 @@ describe("threads_search_posts", () => {
       q: "minimal",
       fields: "id,text,username,permalink,timestamp,media_type,media_url,topic_tag",
     });
+  });
+
+  it("forwards parsed author_username to the API unchanged", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsMediaTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_posts")!;
+    const parsed = authorUsernameSchema.parse("@testuser");
+    await handler({ q: "test", author_username: parsed });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2].author_username).toBe("testuser");
+  });
+});
+
+describe("authorUsernameSchema validation", () => {
+  const schema = authorUsernameSchema.unwrap();
+
+  it("passes plain username through unchanged", () => {
+    expect(schema.parse("testuser")).toBe("testuser");
+  });
+
+  it("strips a single leading '@'", () => {
+    expect(schema.parse("@testuser")).toBe("testuser");
+  });
+
+  it("strips all consecutive leading '@' characters", () => {
+    expect(schema.parse("@@testuser")).toBe("testuser");
+    expect(schema.parse("@@@@testuser")).toBe("testuser");
+  });
+
+  it("preserves '@' that is not at the start", () => {
+    expect(schema.parse("user@name")).toBe("user@name");
+  });
+
+  it("trims surrounding whitespace before stripping '@'", () => {
+    expect(schema.parse("  testuser  ")).toBe("testuser");
+    expect(schema.parse("  @testuser  ")).toBe("testuser");
+  });
+
+  it("rejects an empty string", () => {
+    expect(() => schema.parse("")).toThrow();
+  });
+
+  it("rejects a whitespace-only string", () => {
+    expect(() => schema.parse("   ")).toThrow();
+  });
+
+  it("rejects a single '@' (empty after strip)", () => {
+    expect(() => schema.parse("@")).toThrow();
+  });
+
+  it("rejects multiple '@' only (empty after strip)", () => {
+    expect(() => schema.parse("@@@@")).toThrow();
+  });
+
+  it("returns undefined when the optional schema receives undefined", () => {
+    expect(authorUsernameSchema.parse(undefined)).toBeUndefined();
   });
 });
