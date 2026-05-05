@@ -19,6 +19,6 @@ COPY --chown=app:app dist/ ./dist/
 USER app
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD pidof node || exit 1
+  CMD pidof node
 
 ENTRYPOINT ["node", "dist/index.js"]
