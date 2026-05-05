@@ -4,10 +4,13 @@ import { MetaClient } from "../../services/meta-client.js";
 
 function makeMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
+  const descriptions = new Map<string, string>();
   return {
     tools,
-    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
+    descriptions,
+    tool: vi.fn((name: string, desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
       tools.set(name, handler);
+      descriptions.set(name, desc);
     }),
   };
 }
@@ -16,13 +19,13 @@ function makeMockClient(): MetaClient {
   return {
     igUserId: "123",
     ig: vi.fn(async () => ({
-      data: { data: [] },
+      data: { id: "comment_42", text: "@you nice post", timestamp: "2026-04-04T01:00:00+0000" },
       rateLimit: undefined,
     })),
   } as unknown as MetaClient;
 }
 
-describe("ig_get_mentioned_comments fields override", () => {
+describe("ig_get_mentioned_comment", () => {
   let server: ReturnType<typeof makeMockServer>;
   let client: ReturnType<typeof makeMockClient>;
 
@@ -32,31 +35,39 @@ describe("ig_get_mentioned_comments fields override", () => {
     registerIgMentionTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_mentioned_comments")!;
-    await handler({ comment_id: "c_1" });
+  it("registers under the singular name (matches the API endpoint)", () => {
+    expect(server.tools.has("ig_get_mentioned_comment")).toBe(true);
+    expect(server.tools.has("ig_get_mentioned_comments")).toBe(false);
+  });
+
+  it("description clarifies it returns a single comment", () => {
+    const desc = server.descriptions.get("ig_get_mentioned_comment")!;
+    expect(desc).toMatch(/single comment|specific comment/i);
+  });
+
+  it("calls the singular /mentioned_comment endpoint with comment_id and default fields", async () => {
+    const handler = server.tools.get("ig_get_mentioned_comment")!;
+    await handler({ comment_id: "comment_42" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toBe("GET");
     expect(call[1]).toBe("/123/mentioned_comment");
     expect(call[2]).toEqual({
-      comment_id: "c_1",
+      comment_id: "comment_42",
       fields: "id,text,timestamp,username,media{id,media_url,media_type}",
     });
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_mentioned_comments")!;
-    await handler({ comment_id: "c_2", fields: "id,text,timestamp" });
+    const handler = server.tools.get("ig_get_mentioned_comment")!;
+    await handler({ comment_id: "comment_99", fields: "id,text" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(call[2]).toEqual({
-      comment_id: "c_2",
-      fields: "id,text,timestamp",
-    });
+    expect(call[2]).toEqual({ comment_id: "comment_99", fields: "id,text" });
   });
 });
 
-describe("ig_get_tagged_media fields override", () => {
+describe("ig_get_tagged_media", () => {
   let server: ReturnType<typeof makeMockServer>;
   let client: ReturnType<typeof makeMockClient>;
 
@@ -64,6 +75,10 @@ describe("ig_get_tagged_media fields override", () => {
     server = makeMockServer();
     client = makeMockClient();
     registerIgMentionTools(server as never, client);
+  });
+
+  it("is still registered after the mentions rename", () => {
+    expect(server.tools.has("ig_get_tagged_media")).toBe(true);
   });
 
   it("uses hardcoded default fields when fields is omitted", async () => {
