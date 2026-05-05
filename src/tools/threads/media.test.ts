@@ -150,7 +150,7 @@ describe("threads_search_posts", () => {
     });
   });
 
-  it("auto-strips leading '@' from author_username before sending to API", async () => {
+  it("forwards parsed author_username to the API unchanged", async () => {
     const server = makeMockServer();
     const client = makeMockClient();
     registerThreadsMediaTools(server as never, client);
@@ -175,20 +175,34 @@ describe("authorUsernameSchema validation", () => {
     expect(schema.parse("@testuser")).toBe("testuser");
   });
 
-  it("strips only the first '@' when multiple are present", () => {
-    expect(schema.parse("@@testuser")).toBe("@testuser");
+  it("strips all consecutive leading '@' characters", () => {
+    expect(schema.parse("@@testuser")).toBe("testuser");
+    expect(schema.parse("@@@@testuser")).toBe("testuser");
   });
 
   it("preserves '@' that is not at the start", () => {
     expect(schema.parse("user@name")).toBe("user@name");
   });
 
+  it("trims surrounding whitespace before stripping '@'", () => {
+    expect(schema.parse("  testuser  ")).toBe("testuser");
+    expect(schema.parse("  @testuser  ")).toBe("testuser");
+  });
+
   it("rejects an empty string", () => {
     expect(() => schema.parse("")).toThrow();
   });
 
+  it("rejects a whitespace-only string", () => {
+    expect(() => schema.parse("   ")).toThrow();
+  });
+
   it("rejects a single '@' (empty after strip)", () => {
     expect(() => schema.parse("@")).toThrow();
+  });
+
+  it("rejects multiple '@' only (empty after strip)", () => {
+    expect(() => schema.parse("@@@@")).toThrow();
   });
 
   it("returns undefined when the optional schema receives undefined", () => {

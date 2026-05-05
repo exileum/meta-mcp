@@ -23,11 +23,12 @@ const THREADS_MEDIA_FIELDS = [
 
 export const authorUsernameSchema = z
   .string()
-  .transform((v) => (v.startsWith("@") ? v.slice(1) : v))
-  .refine((v) => v.length > 0, { message: "Username cannot be empty or just '@'" })
+  .trim()
+  .transform((v) => v.replace(/^@+/, ""))
+  .refine((v) => v.length > 0, { message: "Username cannot be empty, only whitespace, or only '@' characters" })
   .optional()
   .describe(
-    "Filter results to posts by exact username (server-side filter via Threads /keyword_search; per Threads API the username must be an exact match without '@', and a leading '@' is auto-stripped if provided)"
+    "Filter results to posts by exact username (server-side filter via Threads /keyword_search; per Threads API the username must be an exact match without '@'; leading '@' characters and surrounding whitespace are auto-stripped if provided)"
   );
 
 export function registerThreadsMediaTools(server: McpServer, client: MetaClient): void {
