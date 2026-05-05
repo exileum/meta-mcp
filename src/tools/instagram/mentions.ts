@@ -9,7 +9,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     "Get comments where the account was @mentioned. Returns the media and comment details.",
     {
       comment_id: z.string().describe("Comment ID from a mention notification"),
-      fields: z.string().optional().describe("Fields to return (default: id,text,timestamp,username,media)"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,text,timestamp,username,media{id,media_url,media_type})"),
     },
     async ({ comment_id, fields }) => {
       try {
@@ -32,11 +32,12 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     {
       limit: z.number().optional().describe("Number of results"),
       after: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,caption,media_type,media_url,permalink,timestamp,username)"),
     },
-    async ({ limit, after }) => {
+    async ({ limit, after, fields }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: "id,caption,media_type,media_url,permalink,timestamp,username",
+          fields: fields || "id,caption,media_type,media_url,permalink,timestamp,username",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
