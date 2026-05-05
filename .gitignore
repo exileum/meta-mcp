@@ -294,3 +294,5 @@ dist/
 .vscode/
 .env.*
 !.env.example
+
+.claude/worktrees
