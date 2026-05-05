@@ -3,12 +3,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 export function registerIgMentionTools(server: McpServer, client: MetaClient): void {
-  // ─── ig_get_mentioned_comments ───────────────────────────────
+  // ─── ig_get_mentioned_comment ────────────────────────────────
   server.tool(
-    "ig_get_mentioned_comments",
-    "Get comments where the account was @mentioned. Returns the media and comment details.",
+    "ig_get_mentioned_comment",
+    "Get details of a specific comment where the account was @mentioned. Requires the comment_id from a mention webhook notification. Returns a single comment with its associated media.",
     {
-      comment_id: z.string().describe("Comment ID from a mention notification"),
+      comment_id: z.string().describe("Comment ID from a mention webhook notification"),
       fields: z.string().optional().describe("Fields to return (default: id,text,timestamp,username,media)"),
     },
     async ({ comment_id, fields }) => {
@@ -20,7 +20,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get mentioned comments failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return { content: [{ type: "text", text: `Get mentioned comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
     }
   );

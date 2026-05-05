@@ -157,7 +157,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `ig_get_mentioned_comments` | Get comments mentioning you |
+| `ig_get_mentioned_comment` | Get details of a specific comment mentioning you (by comment_id from a mention webhook) |
 | `ig_get_tagged_media` | Get media you're tagged in |
 
 ### Instagram — Messaging (4)
