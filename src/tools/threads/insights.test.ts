@@ -21,7 +21,7 @@ function makeMockClient(response: unknown = { data: [] }): MetaClient {
 }
 
 describe("threads_get_post_insights", () => {
-  it("defaults to valid post-level metrics (no clicks)", async () => {
+  it("defaults to all valid post-level metrics including shares", async () => {
     const client = makeMockClient();
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
@@ -30,7 +30,7 @@ describe("threads_get_post_insights", () => {
     await handler({ post_id: "post-456" } as Record<string, unknown>);
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
-      metric: "views,likes,replies,reposts,quotes",
+      metric: "views,likes,replies,reposts,quotes,shares",
     });
   });
 

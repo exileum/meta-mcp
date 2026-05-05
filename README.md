@@ -216,7 +216,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_post_insights` | Get post analytics (views, likes, replies, reposts, quotes) |
+| `threads_get_post_insights` | Get post analytics (views, likes, replies, reposts, quotes, shares) |
 | `threads_get_user_insights` | Get account-level analytics (period: day/lifetime; `since`/`until` required for `day`) |
 
 ## Resources

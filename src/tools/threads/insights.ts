@@ -6,14 +6,14 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
   // ─── threads_get_post_insights ───────────────────────────────
   server.tool(
     "threads_get_post_insights",
-    "Get insights/analytics for a specific Threads post (views, likes, replies, reposts, quotes).",
+    "Get insights/analytics for a specific Threads post (views, likes, replies, reposts, quotes, shares).",
     {
       post_id: z.string().describe("Threads post ID"),
-      metric: z.string().optional().describe("Comma-separated metrics (default: views,likes,replies,reposts,quotes)"),
+      metric: z.string().optional().describe("Comma-separated metrics (default: views,likes,replies,reposts,quotes,shares)"),
     },
     async ({ post_id, metric }) => {
       try {
-        const m = metric || "views,likes,replies,reposts,quotes";
+        const m = metric || "views,likes,replies,reposts,quotes,shares";
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/insights`, { metric: m });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
