@@ -9,7 +9,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     "Get comments where the account was @mentioned. Returns the media and comment details.",
     {
       comment_id: z.string().describe("Comment ID from a mention notification"),
-      fields: z.string().optional().describe("Fields to return (default: id,text,timestamp,username,media)"),
+      fields: z.string().optional().describe("Comma-separated fields (default: id,text,timestamp,username,media{id,media_url,media_type})"),
     },
     async ({ comment_id, fields }) => {
       try {

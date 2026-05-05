@@ -22,6 +22,40 @@ function makeMockClient(): MetaClient {
   } as unknown as MetaClient;
 }
 
+describe("ig_get_mentioned_comments fields override", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgMentionTools(server as never, client);
+  });
+
+  it("uses hardcoded default fields when fields is omitted", async () => {
+    const handler = server.tools.get("ig_get_mentioned_comments")!;
+    await handler({ comment_id: "c_1" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1]).toBe("/123/mentioned_comment");
+    expect(call[2]).toEqual({
+      comment_id: "c_1",
+      fields: "id,text,timestamp,username,media{id,media_url,media_type}",
+    });
+  });
+
+  it("passes through caller-provided fields verbatim", async () => {
+    const handler = server.tools.get("ig_get_mentioned_comments")!;
+    await handler({ comment_id: "c_2", fields: "id,text,timestamp" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toEqual({
+      comment_id: "c_2",
+      fields: "id,text,timestamp",
+    });
+  });
+});
+
 describe("ig_get_tagged_media fields override", () => {
   let server: ReturnType<typeof makeMockServer>;
   let client: ReturnType<typeof makeMockClient>;
