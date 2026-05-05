@@ -14,10 +14,14 @@ const collaboratorUsername = z
 
 export const collaboratorsSchema = z
   .array(collaboratorUsername)
+  .min(1, "Collaborators array must have at least 1 entry when provided")
   .max(3, "Maximum 3 collaborators per post (Instagram API limit)")
+  .refine((arr) => new Set(arr).size === arr.length, {
+    message: "Collaborator usernames must be unique",
+  })
   .optional()
   .describe(
-    "Optional. Up to 3 Instagram usernames to invite as collaborators. Per Instagram Graph API: supported for Feed image, Reels, and Carousels — not supported for Stories. Leading '@' characters and surrounding whitespace are auto-stripped."
+    "Optional. Up to 3 unique Instagram usernames to invite as collaborators. Per Instagram Graph API: supported for Feed image, Reels, and Carousels — not supported for Stories. Leading '@' characters and surrounding whitespace are auto-stripped before the uniqueness check."
   );
 
 export function registerIgPublishingTools(server: McpServer, client: MetaClient): void {

@@ -408,6 +408,17 @@ describe("collaboratorsSchema validation", () => {
     expect(() => collaboratorsSchema.parse(["a", "b", "c", "d"])).toThrow();
   });
 
+  it("rejects an explicitly empty array (use undefined to omit instead)", () => {
+    expect(() => collaboratorsSchema.parse([])).toThrow();
+  });
+
+  it("rejects arrays with duplicate usernames after normalization", () => {
+    expect(() => collaboratorsSchema.parse(["alice", "alice"])).toThrow();
+    // Duplicates only after '@'-stripping should also be rejected
+    expect(() => collaboratorsSchema.parse(["@alice", "alice"])).toThrow();
+    expect(() => collaboratorsSchema.parse(["  alice  ", "@@alice"])).toThrow();
+  });
+
   it("strips a single leading '@' from each entry", () => {
     expect(collaboratorsSchema.parse(["@alice", "@bob"])).toEqual(["alice", "bob"]);
   });
@@ -471,7 +482,9 @@ describe("ig_publish_photo collaborators", () => {
     expect(createCall[2]).not.toHaveProperty("collaborators");
   });
 
-  it("omits collaborators when the array is empty", async () => {
+  it("omits collaborators when an empty array bypasses the schema (defense in depth)", async () => {
+    // The schema now rejects [] at parse time, but the handler must also stay safe
+    // if a caller passes [] directly (e.g. tests, programmatic invocation).
     const handler = server.tools.get("ig_publish_photo")!;
     await handler({
       image_url: "https://example.com/a.jpg",
