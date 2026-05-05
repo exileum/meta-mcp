@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ig_publish_reel` accepted unsupported `alt_text` parameter** — removed `alt_text` from the `ig_publish_reel` schema and handler; per the [Instagram Content Publishing docs](https://developers.facebook.com/docs/instagram-platform/content-publishing/), `alt_text` is only supported for image posts on `/{ig-user-id}/media` (Reels and Stories are explicitly not supported); previously the parameter was forwarded to Meta and either silently ignored or rejected with `(#100)`, giving users a false sense of accessibility compliance ([#119](https://github.com/exileum/meta-mcp/issues/119))
 - **`ig_publish_carousel` schema allowed `alt_text` on VIDEO items but silently stripped it** — converted carousel `items` to a Zod discriminated union so `alt_text` is only accepted on `IMAGE` items; previously the handler dropped `alt_text` for VIDEO children with no warning, masking the same Meta API limitation as Reels ([#119](https://github.com/exileum/meta-mcp/issues/119))
 
+### Fixed
+- **`ig_get_media_insights` default metrics fail on non-Reel media types** — changed the default `metric` from `views,reach,saved,shares` to `views,reach`, the only set documented and confirmed safe for IMAGE, VIDEO, REEL, CAROUSEL, and STORY; previously the default could trigger `(#100) The metric ... is not supported for this media type` (e.g. `shares` on IMAGE, `saved` on STORY) per the [Instagram Media Insights API](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/); the tool description now lists the valid metrics per media type so callers can opt into richer insights explicitly ([#120](https://github.com/exileum/meta-mcp/issues/120))
+
 ## [3.9.0] — 2026-04-09
 
 ### Changed

@@ -119,7 +119,7 @@ npm run build
 | `ig_get_media_list` | List published media |
 | `ig_get_media` | Get media details |
 | `ig_delete_media` | Delete a media post (requires Facebook Login) |
-| `ig_get_media_insights` | Get media analytics (views, reach, saved, shares) |
+| `ig_get_media_insights` | Get media analytics (default views, reach — override `metric` per media type) |
 | `ig_toggle_comments` | Enable/disable comments on a post |
 
 ### Instagram — Comments (7)

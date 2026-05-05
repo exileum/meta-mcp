@@ -67,14 +67,18 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   // ─── ig_get_media_insights ───────────────────────────────────
   server.tool(
     "ig_get_media_insights",
-    "Get insights/analytics for a specific media post. Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. Available metrics: views, reach, saved, shares, likes, comments, reposts, reels_skip_rate.",
+    "Get insights/analytics for a specific media post. Default metrics 'views,reach' are safe for every media type. Metric availability differs by media type — request more selectively to avoid (#100) errors:\n" +
+      "- IMAGE / VIDEO / CAROUSEL: views, reach, saved, total_interactions, likes, comments (note: 'shares' may return (#100) on IMAGE — test before relying on it)\n" +
+      "- REEL: views, reach, saved, total_interactions, likes, comments, shares, reposts, reels_skip_rate\n" +
+      "- STORY: views, reach, total_interactions, navigation, replies, profile_activity, profile_visits, follows\n" +
+      "Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. See https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/ for the authoritative per-type matrix.",
     {
       media_id: z.string().describe("Media ID"),
-      metric: z.string().optional().describe("Comma-separated metrics (default: views,reach,saved,shares). For REEL add: likes,comments,reposts,reels_skip_rate"),
+      metric: z.string().optional().describe("Comma-separated metrics. Default 'views,reach' is universally supported; override per media type per the tool description."),
     },
     async ({ media_id, metric }) => {
       try {
-        const m = metric || "views,reach,saved,shares";
+        const m = metric || "views,reach";
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/insights`, { metric: m });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
