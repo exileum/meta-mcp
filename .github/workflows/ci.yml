@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  typecheck:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -17,29 +17,36 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+  typecheck:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/restore-deps
       - run: tsc --noEmit
 
   test:
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/restore-deps
       - run: npm test
 
   audit:
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/restore-deps
       - run: npm audit --audit-level=high
 
   version-sync:
@@ -64,9 +71,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/restore-deps
       - run: npm run build
