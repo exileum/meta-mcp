@@ -59,16 +59,20 @@ jobs:
 
       - name: Verify npm publish
         if: steps.version.outputs.released == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           for attempt in 1 2 3; do
             sleep 15
-            if npm view "@exileum/meta-mcp@${{ steps.version.outputs.version }}" version; then
+            if npm view "@exileum/meta-mcp@${VERSION}" version --registry https://registry.npmjs.org; then
               echo "Package verified on npm"
               exit 0
             fi
-            echo "Attempt $attempt: package not yet visible on npm, retrying..."
+            if [ "$attempt" -lt 3 ]; then
+              echo "Attempt $attempt: package not yet visible on npm, retrying..."
+            fi
           done
-          echo "::error::Package @exileum/meta-mcp@${{ steps.version.outputs.version }} did not appear on npm after 3 attempts"
+          echo "::error::Package @exileum/meta-mcp@${VERSION} did not appear on npm after 3 attempts"
           exit 1
 
       - name: Setup Node for GitHub Packages
