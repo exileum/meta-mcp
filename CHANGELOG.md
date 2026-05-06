@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] — 2026-05-07
+
 ### Added
 - **README "Troubleshooting" section** — added a new top-level section between Setup Guide and API Stability that maps each `error_type` (`auth` / `rate_limit` / `validation` / `server` / `network` / `internal`) to the underlying Meta API codes (`AUTH_CODES = 10/102/190`, `RATE_LIMIT_CODES = 4/17/32/341/613` plus business-use-case `80001-80008`, `VALIDATION_CODES = 100/200/803`, `SERVER_CODES = 1/2`) and the corresponding fix: `meta_debug_token` / `meta_refresh_token` / `meta_exchange_token` for expired or under-scoped tokens, the `instagram_business_*` / `threads_*` scope list per feature, the Personal → Business/Creator IG account switch, the `_rateLimit.callCount` field plus `threads_get_publishing_limit` for quota visibility, and the most common validation pitfalls (numeric user ID required, `(#100) Messaging is not supported` requires `instagram_business_manage_messages`, `ig_publish_video` deprecated → `ig_publish_reel`, mutually exclusive Threads attachments). Also added a one-line pointer from `llms.txt`'s `## Error Responses` section to the README so AI agents can self-debug, and bumped the Threads OAuth authorization URL example in Step 3 to include `threads_keyword_search` (used by `threads_search_posts`), which had been omitted from the scope list ([#93](https://github.com/exileum/meta-mcp/issues/93))
 
