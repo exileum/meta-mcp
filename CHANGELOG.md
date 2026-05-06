@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`threads_publish_text` `alt_text` is now actually rejected at the schema level** — the v5.0.0 entry for [#185](https://github.com/exileum/meta-mcp/issues/185) claimed callers passing `alt_text` to `threads_publish_text` would now get a Zod schema error, but in practice the field was just omitted from the registered raw shape and `z.object()` defaults to `.strip()` — so the parameter was silently dropped and the post was published without it (live verification confirmed the post was created successfully when `alt_text` was passed). Restored the field as `z.never("…").optional()` so undefined still passes through but any defined value triggers a descriptive Zod issue pointing the caller at `threads_publish_image` / `threads_publish_video` / `threads_publish_carousel` instead. The handler-level mutual-exclusion checks added in [#185](https://github.com/exileum/meta-mcp/issues/185) are unchanged
+
 ### Security
 - **Patched transitive `ip-address` XSS ([GHSA-v2v4-37r5-5v8g](https://github.com/advisories/GHSA-v2v4-37r5-5v8g) / CVE-2026-42338, moderate)** — added an `overrides` entry pinning `ip-address` to `^10.1.1` so the transitive resolution under `@modelcontextprotocol/sdk@1.29.0 → express-rate-limit@8.3.2` (which still pins the vulnerable `10.1.0`, as does the latest `express-rate-limit@8.5.0`) is replaced with the patched `10.2.0`; the advisory only affects consumers that pass untrusted input through `Address6.group()`/`link()`/`spanAll()` or render `AddressError.parseMessage` as HTML, none of which meta-mcp does — but the override clears the Dependabot alert and protects downstream consumers that vendor the lockfile ([Dependabot #21](https://github.com/exileum/meta-mcp/security/dependabot/21))
 
