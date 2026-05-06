@@ -110,16 +110,18 @@ describe("MetaClient JSON body mode", () => {
     );
   });
 
-  it("sends Content-Type application/json with JSON body when json option is true", async () => {
+  it("sends Content-Type application/json with JSON body when jsonBody option is set", async () => {
     const client = new MetaClient(mockConfig());
-    await client.ig("POST", "/ig-user-id/messages", {
-      recipient: { id: "123" },
-      message: { text: "Hello" },
-      messaging_type: "RESPONSE",
-    }, { json: true });
+    await client.ig("POST", "/ig-user-id/messages", undefined, {
+      jsonBody: {
+        recipient: { id: "123" },
+        message: { text: "Hello" },
+        messaging_type: "RESPONSE",
+      },
+    });
 
     expect(fetchSpy).toHaveBeenCalledOnce();
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [_url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
 
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
     const body = JSON.parse(init.body as string);
@@ -130,12 +132,14 @@ describe("MetaClient JSON body mode", () => {
     });
   });
 
-  it("puts access_token in query string (not body) when using JSON mode", async () => {
+  it("puts access_token in query string (not body) when using jsonBody", async () => {
     const client = new MetaClient(mockConfig());
-    await client.ig("POST", "/ig-user-id/messages", {
-      recipient: { id: "123" },
-      message: { text: "Hi" },
-    }, { json: true });
+    await client.ig("POST", "/ig-user-id/messages", undefined, {
+      jsonBody: {
+        recipient: { id: "123" },
+        message: { text: "Hi" },
+      },
+    });
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const parsed = new URL(url);
@@ -175,6 +179,62 @@ describe("MetaClient JSON body mode", () => {
     expect(body.get("media_type")).toBe("TEXT");
     expect(body.get("text")).toBe("Hello");
     expect(body.get("access_token")).toBe("threads-token");
+  });
+});
+
+// Regression guard for #81 — `String(v)` silently mangles arrays/objects in
+// form-encoded params (e.g., `String([1,2,3])` → "1,2,3", `String({a:1})` →
+// "[object Object]"). The form-encoded path must reject non-primitives at
+// runtime so callers can't accidentally ship corrupted requests.
+describe("form-encoded params reject non-primitive values (#81)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ ok: true }));
+  });
+
+  it("throws when an array is passed as a form parameter", async () => {
+    const client = new MetaClient(mockConfig());
+    await expect(
+      client.ig("POST", "/x", { children: [1, 2, 3] as unknown as string })
+    ).rejects.toThrow(/form parameter "children" has unsupported type "array"/);
+  });
+
+  it("throws when a plain object is passed as a form parameter", async () => {
+    const client = new MetaClient(mockConfig());
+    await expect(
+      client.ig("POST", "/x", { user_tags: { username: "foo", x: 0.5 } as unknown as string })
+    ).rejects.toThrow(/Form-encoded params must be string \| number \| boolean/);
+  });
+
+  it("throws on GET requests too (query-string path)", async () => {
+    const client = new MetaClient(mockConfig());
+    await expect(
+      client.threads("GET", "/x", { foo: { nested: true } as unknown as string })
+    ).rejects.toThrow(/form parameter "foo"/);
+  });
+
+  it("accepts string, number, and boolean primitives", async () => {
+    const client = new MetaClient(mockConfig());
+    await expect(
+      client.threads("POST", "/x", { s: "hi", n: 42, b: true })
+    ).resolves.toBeDefined();
+  });
+
+  it("skips undefined, null, and empty string values (existing filter)", async () => {
+    const client = new MetaClient(mockConfig());
+    await client.threads("POST", "/x", {
+      kept: "v",
+      gone1: undefined,
+      gone2: null,
+      gone3: "",
+    });
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = new URLSearchParams(init.body as string);
+    expect(body.get("kept")).toBe("v");
+    expect(body.has("gone1")).toBe(false);
+    expect(body.has("gone2")).toBe(false);
+    expect(body.has("gone3")).toBe(false);
   });
 });
 

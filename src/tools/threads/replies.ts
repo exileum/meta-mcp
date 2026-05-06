@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
@@ -32,7 +32,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const defaultFields = mode === "full_tree"
           ? REPLIES_FULL_TREE_DEFAULT_FIELDS
           : REPLIES_TOP_LEVEL_DEFAULT_FIELDS;
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           fields: fields || defaultFields,
         };
         if (reverse !== undefined) params.reverse = reverse;
@@ -68,7 +68,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         // if a caller bypasses Zod's schema-level default. Only an explicit `false`
         // forces the legacy two-step flow for text replies.
         const useAutoPublish = isTextOnly && auto_publish !== false;
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           media_type: mediaType,
           text,
           reply_to_id,

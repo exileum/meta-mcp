@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
@@ -25,14 +25,14 @@ export const allowlistedCountryCodesSchema = z.array(
 
 const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
 
-function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?: "light" | "dark"): void {
+function applyShareToIgStory(params: FormParams, share_to_ig_story?: "light" | "dark"): void {
   if (share_to_ig_story) {
     params.crossreshare_to_ig = true;
     if (share_to_ig_story === "dark") params.crossreshare_to_ig_dark_mode = true;
   }
 }
 
-function applyAllowlistedCountryCodes(params: Record<string, unknown>, codes?: string[]): void {
+function applyAllowlistedCountryCodes(params: FormParams, codes?: string[]): void {
   if (codes?.length) {
     params.allowlisted_country_codes = codes.map(c => c.toUpperCase()).join(",");
   }
@@ -101,7 +101,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           return validationError("GIF attachment cannot be combined with text_attachment, poll_options, or link_attachment");
         }
 
-        const params: Record<string, unknown> = { media_type: "TEXT", text };
+        const params: FormParams = { media_type: "TEXT", text };
         if (reply_control) params.reply_control = reply_control;
         if (link_attachment) params.link_attachment = link_attachment;
         if (topic_tag) params.topic_tag = topic_tag;
@@ -173,7 +173,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     },
     async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes }) => {
       try {
-        const params: Record<string, unknown> = { media_type: "IMAGE", image_url };
+        const params: FormParams = { media_type: "IMAGE", image_url };
         if (text) params.text = text;
         if (reply_control) params.reply_control = reply_control;
         if (topic_tag) params.topic_tag = topic_tag;
@@ -213,7 +213,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     },
     async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes }) => {
       try {
-        const params: Record<string, unknown> = { media_type: "VIDEO", video_url };
+        const params: FormParams = { media_type: "VIDEO", video_url };
         if (text) params.text = text;
         if (reply_control) params.reply_control = reply_control;
         if (topic_tag) params.topic_tag = topic_tag;
@@ -257,7 +257,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       try {
         const childIds: string[] = [];
         for (const item of items) {
-          const params: Record<string, unknown> = { media_type: item.type, is_carousel_item: true };
+          const params: FormParams = { media_type: item.type, is_carousel_item: true };
           if (item.type === "IMAGE") {
             params.image_url = item.url;
           } else {
@@ -270,7 +270,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? 120 : 30);
           childIds.push(childId);
         }
-        const carouselParams: Record<string, unknown> = {
+        const carouselParams: FormParams = {
           media_type: "CAROUSEL",
           children: childIds.join(","),
         };

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
@@ -55,7 +55,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     },
     async ({ hashtag_id, limit, after, before }) => {
       try {
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           user_id: client.igUserId,
           fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
         };
@@ -82,7 +82,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     },
     async ({ hashtag_id, limit, after, before }) => {
       try {
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           user_id: client.igUserId,
           fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
         };
