@@ -29,7 +29,7 @@ export const replyControlSchema = z.enum([
   "mentioned_only",
   "parent_post_author_only",
   "followers_only",
-]).optional().describe("Who can reply to this post. One of: 'everyone' (default — anyone can reply), 'accounts_you_follow' (only profiles the author follows), 'mentioned_only' (only profiles @-mentioned in the post), 'parent_post_author_only' (only the author of the quoted/parent post), or 'followers_only' (only the author's followers). See https://developers.facebook.com/docs/threads/reply-management/ for the authoritative list.");
+]).optional().describe("Who can reply to this post. One of: 'everyone' (default — anyone can reply), 'accounts_you_follow' (only profiles the author follows), 'mentioned_only' (only profiles @-mentioned in the post), 'parent_post_author_only' (only the author of the post being replied to — applies when this post is itself a reply, not a quote), or 'followers_only' (only the author's followers). See https://developers.facebook.com/docs/threads/reply-management/ for the authoritative list.");
 
 const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
 
