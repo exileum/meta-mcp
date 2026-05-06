@@ -27,11 +27,13 @@ Fixes #<!-- issue number; one per line if this PR closes several -->
 
 ## Test plan
 
-- [ ] `npm run build` passes
+- [ ] `npx tsc --noEmit` passes
+- [ ] `npm run lint` passes
 - [ ] `npm test` passes
+- [ ] `npm run build` passes
 - [ ] Added or updated tests for the change
 - [ ] Updated `README.md` / `llms.txt` if the public tool surface changed
-- [ ] Added a `CHANGELOG.md` entry under `[Unreleased]`
+- [ ] Added a `CHANGELOG.md` entry under `[Unreleased]` (skip for repo-only governance changes — `.github/`, `CONTRIBUTING.md`, etc.)
 
 ## Notes for reviewers
 

@@ -39,6 +39,8 @@ Common scripts (from `package.json`):
 | `npm start` | Run the compiled `dist/index.js`. |
 | `npm test` | Run the [vitest](https://vitest.dev) suite once. |
 | `npm run test:watch` | Re-run vitest on change. |
+| `npm run lint` | Run [ESLint](https://eslint.org) with `--max-warnings 0` (the same gate CI enforces). |
+| `npm run lint:fix` | Run ESLint with `--fix` for auto-fixable issues. |
 
 For local credentials, copy [`.env.example`](./.env.example) and export the variables before running the server. Only set the credential pair(s) you actually plan to exercise — `loadConfig()` validates them at startup and emits a stderr warning when one half of a pair is missing.
 
@@ -117,9 +119,9 @@ Reference the issue number in the subject (`fix: ig_respond_collaboration_invite
 
 ## CHANGELOG
 
-The changelog follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project follows [SemVer](https://semver.org/). Every user-visible change goes under `## [Unreleased]` in one of `Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`. Each entry links the issue it resolves (`([#94](https://github.com/exileum/meta-mcp/issues/94))`) and explains the *why* — readers should be able to tell whether the change matters to them without opening the PR.
+The changelog follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project follows [SemVer](https://semver.org/). Every change that affects the **published npm package or MCP runtime** goes under `## [Unreleased]` in one of `Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`. Each entry links the issue it resolves (`([#94](https://github.com/exileum/meta-mcp/issues/94))`) and explains the *why* — readers should be able to tell whether the change matters to them without opening the PR.
 
-CI-only changes (workflow tweaks, dependabot config, etc.) are usually skipped from the changelog. When in doubt, include them.
+The npm tarball ships only `dist/`, `LICENSE`, and `README.md` (see the `files` field in `package.json`). Changes that touch only repo-level governance — `CONTRIBUTING.md`, `.github/` templates and workflows, dependabot config, `.editorconfig`, etc. — are **not** logged in `CHANGELOG.md`; the commit message and PR description are the canonical record. When in doubt, lean toward inclusion only when the change is reachable from a published artifact.
 
 ## Pull request flow
 
@@ -128,11 +130,12 @@ CI-only changes (workflow tweaks, dependabot config, etc.) are usually skipped f
 3. Run the full local CI matrix before pushing:
    ```bash
    npx tsc --noEmit
+   npm run lint
    npm test
    npm audit --audit-level=high
    npm run build
    ```
-   (Use `npx` so the locally pinned TypeScript from `node_modules/.bin/` runs — there is no global `tsc` requirement and no `typecheck` script in `package.json`.)
+   (Use `npx tsc` so the locally pinned TypeScript from `node_modules/.bin/` runs — there is no global `tsc` requirement and no `typecheck` script in `package.json`.)
 4. Update the public surface docs alongside the code change: `README.md` (tool table), `llms.txt` (tool descriptions), `server.json` (only when version metadata changes — usually maintainer-only), and `CHANGELOG.md`.
 5. Open the PR with the [PR template](./.github/PULL_REQUEST_TEMPLATE.md). Include `Fixes #<N>` (each on its own line) so the issue auto-closes on merge.
 6. After the PR is open, automated reviewers may comment (`@claude` is wired up in [`.github/workflows/claude.yml`](./.github/workflows/claude.yml); third-party review bots may chime in too). Address actionable feedback in additional commits — do not force-push silently over an in-progress review.
@@ -143,10 +146,11 @@ Every PR runs the workflow at [`.github/workflows/ci.yml`](./.github/workflows/c
 
 - `setup` — `npm ci`, then caches `node_modules` for the rest of the matrix.
 - `typecheck` — `tsc --noEmit` (uses the cache).
+- `lint` — `npm run lint` → `eslint . --max-warnings 0` (uses the cache).
 - `test` — `npm test` (vitest, uses the cache).
 - `audit` — `npm audit --audit-level=high` (uses the cache).
 - `version-sync` — verifies `package.json.version`, `server.json.version`, and `server.json.packages[0].version` match. Runs independently of the cache (no `node_modules` needed). This is the gate most contributors trip over; if you bumped one, bump them all (or none, if you are not cutting a release).
-- `build` — runs only after the four gates pass; `npm run build`.
+- `build` — runs only after the five gates pass; `npm run build`.
 
 All jobs must be green before the PR can merge.
 
