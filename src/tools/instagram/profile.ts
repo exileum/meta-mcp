@@ -119,16 +119,16 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
   // ─── ig_respond_collaboration_invite ─────────────────────────
   server.tool(
     "ig_respond_collaboration_invite",
-    "Accept or decline a collaboration invite. Added in December 2025.",
+    "Accept or decline a collaboration invite by media_id (the IG Media ID of the tagged post; available via the `id` field returned by `ig_get_collaboration_invites`). Pass `accept: true` to accept, `accept: false` to decline. Per the Instagram Collaboration API. Added in December 2025.",
     {
-      invite_id: z.string().describe("Collaboration invite ID"),
-      action: z.enum(["accept", "decline"]).describe("Accept or decline the invite"),
+      media_id: z.string().min(1).describe("IG Media ID of the tagged post (from `ig_get_collaboration_invites` response `id` field)"),
+      accept: z.boolean().describe("true to accept the invite, false to decline"),
     },
-    async ({ invite_id, action }) => {
+    async ({ media_id, accept }) => {
       try {
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/collaboration_invites`, {
-          invite_id,
-          action,
+          media_id,
+          accept,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
