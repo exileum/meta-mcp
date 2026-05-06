@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Meta Platform / Graph API question
+    url: https://developers.facebook.com/community/
+    about: Questions about Meta API behaviour, quotas, or permissions belong with Meta — this tracker is for bugs and feature requests in meta-mcp's wrapper.

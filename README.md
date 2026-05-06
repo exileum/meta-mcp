@@ -352,6 +352,10 @@ Only the package root (`@exileum/meta-mcp`) is a supported import target. Deep i
 
 [![meta-mcp MCP server](https://glama.ai/mcp/servers/exileum/meta-mcp/badges/card.svg)](https://glama.ai/mcp/servers/exileum/meta-mcp)
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup, project layout, the tool-registration recipe, testing, commit conventions, the CHANGELOG flow, and the CI gates. Bug reports and feature requests use the [issue templates](.github/ISSUE_TEMPLATE); pull requests use the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
+
 ## License
 
 [MIT](LICENSE)
