@@ -1,3 +1,5 @@
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+
 export type ErrorType = "auth" | "validation" | "rate_limit" | "server" | "network" | "internal";
 
 interface MetaApiErrorInit {
@@ -147,6 +149,23 @@ export function formatErrorResponse(error: unknown, label: string): McpErrorResu
     content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
     isError: true,
   };
+}
+
+export function toMcpResourceError(error: unknown, label: string): McpError {
+  const errorType = categorize(error);
+  const original = error instanceof Error ? error.message : String(error);
+  const message = sanitizeRaw(`${label} failed: ${original}`);
+  const data: Record<string, unknown> = { error_type: errorType };
+  if (error instanceof MetaApiError) {
+    if (error.httpStatus !== undefined) data.http_status = error.httpStatus;
+    if (error.apiCode !== undefined) data.code = error.apiCode;
+    if (error.apiSubcode !== undefined) data.subcode = error.apiSubcode;
+    if (error.apiType) data.type = error.apiType;
+    if (error.fbtraceId) data.fbtrace_id = error.fbtraceId;
+  }
+  const remediation = REMEDIATION[errorType];
+  if (remediation) data.remediation = remediation;
+  return new McpError(ErrorCode.InternalError, message, data);
 }
 
 export function validationError(message: string): McpErrorResult {
