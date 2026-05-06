@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
@@ -18,7 +18,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     },
     async ({ limit, after, before }) => {
       try {
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           fields: "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count",
         };
         if (limit !== undefined) params.limit = limit;

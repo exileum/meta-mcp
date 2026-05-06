@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 export const igBusinessDiscoveryUsernameSchema = z
@@ -61,7 +61,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     },
     async ({ metric, period, metric_type, since, until }) => {
       try {
-        const params: Record<string, unknown> = { metric, period };
+        const params: FormParams = { metric, period };
         if (metric_type) params.metric_type = metric_type;
         if (since) params.since = since;
         if (until) params.until = until;
@@ -104,7 +104,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     },
     async ({ limit, after, before }) => {
       try {
-        const params: Record<string, unknown> = {};
+        const params: FormParams = {};
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;
