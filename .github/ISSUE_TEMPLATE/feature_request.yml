@@ -1,0 +1,61 @@
+name: Feature request
+description: Suggest a new tool, parameter, or improvement.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an improvement. Please confirm the Meta API actually supports the behaviour you want — meta-mcp wraps Meta's endpoints, so we can only expose what they offer.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface?
+      options:
+        - Instagram tool (ig_*)
+        - Threads tool (threads_*)
+        - Meta auth / webhook tool (meta_*)
+        - MCP resource or prompt
+        - Server runtime / config
+        - Build, CI, or packaging
+        - Other / cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today, or what is harder than it should be?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should meta-mcp do instead? New tool, new parameter, new default — be concrete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional — workarounds you tried, other shapes you weighed, why they fall short.
+
+  - type: input
+    id: meta-docs
+    attributes:
+      label: Meta API documentation link
+      description: The page proving the underlying API supports this. Strongly preferred for new tools / parameters.
+      placeholder: e.g. https://developers.facebook.com/docs/threads/...
+
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and the milestones for an overlapping request.
+          required: true
