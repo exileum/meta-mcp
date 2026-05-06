@@ -8,38 +8,72 @@ on:
 permissions:
   contents: read
 
+env:
+  NODE_VERSION: '22'
+
 jobs:
-  typecheck:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+  typecheck:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Fail if setup did not succeed
+        if: needs.setup.result != 'success'
+        run: |
+          echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
+          exit 1
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/restore-deps
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - run: tsc --noEmit
 
   test:
+    needs: setup
     runs-on: ubuntu-latest
+    if: always()
     steps:
+      - name: Fail if setup did not succeed
+        if: needs.setup.result != 'success'
+        run: |
+          echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
+          exit 1
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/restore-deps
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+          node-version: ${{ env.NODE_VERSION }}
       - run: npm test
 
   audit:
+    needs: setup
     runs-on: ubuntu-latest
+    if: always()
     steps:
+      - name: Fail if setup did not succeed
+        if: needs.setup.result != 'success'
+        run: |
+          echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
+          exit 1
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/restore-deps
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+          node-version: ${{ env.NODE_VERSION }}
       - run: npm audit --audit-level=high
 
   version-sync:
@@ -48,7 +82,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
       - name: Check server.json version matches package.json
         run: |
           PKG=$(node -p "require('./package.json').version")
@@ -60,13 +94,23 @@ jobs:
           fi
 
   build:
-    needs: [typecheck, test, audit, version-sync]
+    needs: [setup, typecheck, test, audit, version-sync]
     runs-on: ubuntu-latest
+    if: always()
     steps:
+      - name: Fail if any upstream job did not succeed
+        if: |
+          needs.setup.result != 'success' ||
+          needs.typecheck.result != 'success' ||
+          needs.test.result != 'success' ||
+          needs.audit.result != 'success' ||
+          needs['version-sync'].result != 'success'
+        run: |
+          echo "::error::An upstream job did not succeed"
+          echo "setup=${{ needs.setup.result }} typecheck=${{ needs.typecheck.result }} test=${{ needs.test.result }} audit=${{ needs.audit.result }} version-sync=${{ needs['version-sync'].result }}"
+          exit 1
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/restore-deps
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
+          node-version: ${{ env.NODE_VERSION }}
       - run: npm run build
