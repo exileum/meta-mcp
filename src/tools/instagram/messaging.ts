@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerIgMessagingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_conversations ────────────────────────────────────
@@ -25,7 +26,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/conversations`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get conversations failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get conversations");
       }
     }
   );
@@ -50,7 +51,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         const { data, rateLimit } = await client.ig("GET", `/${conversation_id}/messages`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get messages failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get messages");
       }
     }
   );
@@ -72,7 +73,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         }, { json: true });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Send message failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Send message");
       }
     }
   );
@@ -91,7 +92,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get message failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get message");
       }
     }
   );
