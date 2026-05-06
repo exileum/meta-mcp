@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
-import { waitForThreadsContainer } from "../../utils/container.js";
+import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
@@ -226,7 +226,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForThreadsContainer(client, containerId, 120);
+        await waitForThreadsContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT);
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
@@ -268,7 +268,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           const { data: child } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
-          await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? 120 : 30);
+          await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
           childIds.push(childId);
         }
         const carouselParams: FormParams = {

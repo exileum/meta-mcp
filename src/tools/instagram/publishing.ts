@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
-import { waitForIgContainer } from "../../utils/container.js";
+import { waitForIgContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const collaboratorUsername = z
@@ -86,7 +86,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId, 120);
+        await waitForIgContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
@@ -133,7 +133,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
-          await waitForIgContainer(client, childId, item.type === "VIDEO" ? 120 : 30);
+          await waitForIgContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
           childIds.push(childId);
         }
         // Step 2: Create carousel container
@@ -183,7 +183,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId, 120);
+        await waitForIgContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
@@ -213,7 +213,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId, media_type === "VIDEO" ? 120 : 30);
+        await waitForIgContainer(client, containerId, media_type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
