@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`before` pagination cursor on Instagram tools** — added the optional `before` cursor parameter to `ig_get_comments`, `ig_get_replies`, `ig_get_conversations`, `ig_get_messages`, `ig_get_tagged_media`, `ig_get_collaboration_invites`, `ig_get_hashtag_recent`, and `ig_get_hashtag_top`; previously these tools only accepted `after`, so callers could only page forward through results despite Meta's [Graph API cursor pagination](https://developers.facebook.com/docs/graph-api/results) supporting both directions; the existing `after` description was updated from `"Pagination cursor"` to `"Pagination cursor for next page"` for symmetry with the new `"Pagination cursor for previous page"` and to match the `ig_get_media_list` reference implementation; no breaking changes — all callers omitting `before` see identical behavior ([#54](https://github.com/exileum/meta-mcp/issues/54))
+
 ## [4.0.0] — 2026-05-06
 
 ### Added

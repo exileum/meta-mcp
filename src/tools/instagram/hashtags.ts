@@ -49,9 +49,10 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     {
       hashtag_id: z.string().describe("Hashtag ID"),
       limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
     },
-    async ({ hashtag_id, limit, after }) => {
+    async ({ hashtag_id, limit, after, before }) => {
       try {
         const params: Record<string, unknown> = {
           user_id: client.igUserId,
@@ -59,6 +60,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/recent_media`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
@@ -74,9 +76,10 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     {
       hashtag_id: z.string().describe("Hashtag ID"),
       limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
     },
-    async ({ hashtag_id, limit, after }) => {
+    async ({ hashtag_id, limit, after, before }) => {
       try {
         const params: Record<string, unknown> = {
           user_id: client.igUserId,
@@ -84,6 +87,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/top_media`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {

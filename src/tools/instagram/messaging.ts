@@ -10,10 +10,11 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     {
       folder: z.enum(["inbox", "spam"]).optional().describe("Folder to retrieve (default: inbox)"),
       limit: z.number().optional().describe("Number of conversations"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
       fields: z.string().optional().describe("Comma-separated fields (default: id,updated_time,participants,messages{id,message,from,created_time})"),
     },
-    async ({ folder, limit, after, fields }) => {
+    async ({ folder, limit, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = {
           platform: "instagram",
@@ -22,6 +23,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         if (folder) params.folder = folder;
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/conversations`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
@@ -37,16 +39,18 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     {
       conversation_id: z.string().describe("Conversation ID"),
       limit: z.number().optional().describe("Number of messages"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
       fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
     },
-    async ({ conversation_id, limit, after, fields }) => {
+    async ({ conversation_id, limit, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = {
           fields: fields || "id,message,from,created_time,attachments",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${conversation_id}/messages`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
