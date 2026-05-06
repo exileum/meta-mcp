@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **BREAKING: removed `threads_get_user_threads`** — redundant alias of `threads_get_posts` that called the same `GET /{user-id}/threads` endpoint with a smaller field set (9 vs 16) and no `before` pagination cursor; the duplicate confused LLM tool selection. Callers must switch to `threads_get_posts`, which now also accepts an optional `fields` parameter for callers that previously relied on the slimmer default field list ([#58](https://github.com/exileum/meta-mcp/issues/58))
 
+### Fixed
+- **`threads_get_replies` requested `is_verified`/`profile_picture_url` for `mode='full_tree'` even though they're "Only available on direct replies"** — split the default `fields` string into mode-aware defaults: `top_level` keeps `is_verified,profile_picture_url` (always populated for direct replies on `/{post}/replies`), `full_tree` drops them (sparse on `/{post}/conversation` since most nested entries are not direct replies). Per the [Threads Replies and Conversations docs](https://developers.facebook.com/docs/threads/retrieve-and-manage-replies/replies-and-conversations/), all listed fields are accepted by both endpoints, so requesting them did not error — but on `full_tree` they were `undefined` for every non-direct reply, giving misleading sparse payloads and inflating responses. Also added an optional `fields` parameter so callers can override the default in either mode (matches the pattern from [#100](https://github.com/exileum/meta-mcp/issues/100)), letting them re-request the dropped fields explicitly when needed ([#107](https://github.com/exileum/meta-mcp/issues/107))
+
 ## [4.0.0] — 2026-05-06
 
 ### Added
