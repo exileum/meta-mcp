@@ -25,8 +25,18 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "ig_get_account_insights",
     "Get Instagram account insights. Note: 'impressions', 'email_contacts', 'phone_call_clicks', 'text_message_clicks', 'get_directions_clicks', 'website_clicks', 'profile_views' were deprecated in v22.0. Use 'views', 'reach', 'follower_count', 'reposts' instead.",
     {
-      metric: z.string().describe("Comma-separated metrics: views,reach,follower_count,reposts,accounts_engaged,total_interactions"),
-      period: z.enum(["day", "week", "days_28", "month", "lifetime"]).describe("Aggregation period"),
+      metric: z.string().describe(
+        "Comma-separated metrics. Time-series metrics (use period=day/week/days_28): " +
+        "views, reach, accounts_engaged, total_interactions, reposts, profile_links_taps. " +
+        "Lifetime-only metrics (use period=lifetime): follower_count, follower_demographics, " +
+        "engaged_audience_demographics."
+      ),
+      period: z.enum(["day", "week", "days_28", "lifetime"]).describe(
+        "Aggregation period. Use 'day', 'week', or 'days_28' for time-series metrics " +
+        "(views, reach, accounts_engaged, total_interactions, reposts, profile_links_taps). " +
+        "Use 'lifetime' only for follower_count and demographic metrics " +
+        "(follower_demographics, engaged_audience_demographics)."
+      ),
       since: z.string().optional().describe("Start date (Unix timestamp or ISO 8601)"),
       until: z.string().optional().describe("End date (Unix timestamp or ISO 8601)"),
     },

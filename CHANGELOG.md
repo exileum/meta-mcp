@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`ig_get_account_insights` accepted invalid `month` period and gave no signal about per-metric `lifetime` restriction** — removed the non-existent `month` value from the `period` enum (Meta's API rejects it for every metric, returning `(#100) The period param is invalid`) and rewrote the `period` and `metric` `.describe()` strings to enumerate per-metric validity: `day`/`week`/`days_28` for time-series metrics (`views`, `reach`, `accounts_engaged`, `total_interactions`, `reposts`, `profile_links_taps`) and `lifetime` only for `follower_count` and demographic metrics (`follower_demographics`, `engaged_audience_demographics`) per the [Instagram User Insights docs](https://developers.facebook.com/docs/instagram-platform/api-reference/instagram-user/insights/); same documentation pattern as the sibling `threads_get_user_insights` tool ([#55](https://github.com/exileum/meta-mcp/issues/55))
+
 ## [4.0.0] — 2026-05-06
 
 ### Added
