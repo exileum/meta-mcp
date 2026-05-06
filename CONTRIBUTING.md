@@ -57,7 +57,8 @@ src/
 ├── tools/
 │   ├── instagram/            # ig_* tools, grouped by domain (publishing, media, comments, …)
 │   ├── threads/              # threads_* tools, grouped by domain (publishing, media, replies, …)
-│   ├── meta/auth.ts          # meta_* tools (token exchange / refresh / debug, webhooks, app info)
+│   ├── meta/
+│   │   └── auth.ts           # meta_* tools (token exchange / refresh / debug, webhooks, app info)
 │   └── test-utils.ts         # Shared mock helpers for tool tests
 ├── resources/                # MCP resources (instagram-profile, threads-profile)
 └── prompts/                  # MCP prompts (content_publish, analytics_report)
@@ -71,7 +72,7 @@ Tests live next to the file they cover (`*.test.ts`) — see e.g. [`src/tools/in
 2. **Define the input schema with Zod.** Use `.describe()` on every parameter and explain the constraint or default in the description; reviewers expect a link to the Meta API doc that justifies non-obvious choices. See `igBusinessDiscoveryUsernameSchema` in `src/tools/instagram/profile.ts` for a worked example with `.trim()`, `.transform()`, and `.refine()`.
 3. **Write the handler inside `try` / `catch`.** Success returns `{ content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] }`. Failures must go through `formatErrorResponse(error, "<Action label>")` so the structured error contract (`error_type`, `http_status`, `code`, `subcode`, `remediation`, sanitized `raw`) is preserved and tokens never leak. Resource handlers use `toMcpResourceError(error, "<label>")` instead.
 4. **Register the tool** inside the relevant `registerXxxTools(server, client)` function. If you create a new register function, wire it up in `src/index.ts` next to the existing imports.
-5. **Add tests** alongside the source file using the `makeMockServer()` / `makeMockClient()` pattern from `src/tools/test-utils.ts` (or the inline equivalents in existing test files). Cover at least: the happy path, the input validation error, and any handler-level branching.
+5. **Add tests** alongside the source file. Use `makeMockServer()` from [`src/tools/test-utils.ts`](./src/tools/test-utils.ts) and a locally defined `makeMockClient()` following the pattern in existing tests (e.g. [`src/tools/instagram/profile.test.ts`](./src/tools/instagram/profile.test.ts), [`media.test.ts`](./src/tools/instagram/media.test.ts) — `makeMockClient()` is inlined per file because each test stubs out only the `MetaClient` methods it needs). Cover at least: the happy path, the input validation error, and any handler-level branching.
 6. **Update the docs surface** — the tool table in [`README.md`](./README.md), the matching list in [`llms.txt`](./llms.txt), and the `### Added` block of [`CHANGELOG.md`](./CHANGELOG.md) under `[Unreleased]`. Renaming or removing a tool is a breaking change and goes under `### Changed` or `### Removed` with the `BREAKING:` prefix used elsewhere in the changelog.
 
 ## Testing
@@ -140,10 +141,10 @@ CI-only changes (workflow tweaks, dependabot config, etc.) are usually skipped f
 Every PR runs the workflow at [`.github/workflows/ci.yml`](./.github/workflows/ci.yml):
 
 - `setup` — `npm ci`, then caches `node_modules` for the rest of the matrix.
-- `typecheck` — `tsc --noEmit`.
-- `test` — `npm test` (vitest).
-- `audit` — `npm audit --audit-level=high`.
-- `version-sync` — verifies `package.json.version`, `server.json.version`, and `server.json.packages[0].version` match. This is the gate most contributors trip over; if you bumped one, bump them all (or none, if you are not cutting a release).
+- `typecheck` — `tsc --noEmit` (uses the cache).
+- `test` — `npm test` (vitest, uses the cache).
+- `audit` — `npm audit --audit-level=high` (uses the cache).
+- `version-sync` — verifies `package.json.version`, `server.json.version`, and `server.json.packages[0].version` match. Runs independently of the cache (no `node_modules` needed). This is the gate most contributors trip over; if you bumped one, bump them all (or none, if you are not cutting a release).
 - `build` — runs only after the four gates pass; `npm run build`.
 
 All jobs must be green before the PR can merge.
