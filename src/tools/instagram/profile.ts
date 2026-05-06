@@ -3,6 +3,21 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
+export const igBusinessDiscoveryUsernameSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/^@+/, ""))
+  .refine((v) => v.length > 0, {
+    message: "Username cannot be empty, only whitespace, or only '@' characters",
+  })
+  .refine((v) => /^[a-zA-Z0-9._]{1,30}$/.test(v), {
+    message:
+      "Instagram username must be 1-30 characters and contain only letters, numbers, periods, and underscores",
+  })
+  .describe(
+    "Instagram username to look up (1-30 chars, letters/numbers/periods/underscores only; without @, leading '@' characters and surrounding whitespace are auto-stripped)"
+  );
+
 export function registerIgProfileTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_profile ──────────────────────────────────────────
   server.tool(
@@ -61,14 +76,14 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "ig_business_discovery",
     "Look up another Instagram Business/Creator account's public info by username.",
     {
-      username: z.string().describe("Instagram username to look up (without @)"),
+      username: igBusinessDiscoveryUsernameSchema,
       fields: z.string().optional().describe("Fields to retrieve (default: id,username,name,biography,followers_count,follows_count,media_count)"),
     },
     async ({ username, fields }) => {
       try {
         const f = fields || "id,username,name,biography,followers_count,follows_count,media_count";
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
-          fields: `business_discovery.fields(${f}){username=${username}}`,
+          fields: `business_discovery.username(${username}){${f}}`,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
