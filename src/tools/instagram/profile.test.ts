@@ -73,6 +73,7 @@ describe("ig_get_account_insights describe strings", () => {
     expect(periodDescription).toMatch(/lifetime/);
     expect(periodDescription).toMatch(/follower_count/);
     expect(periodDescription).toMatch(/follower_demographics/);
+    expect(periodDescription).toMatch(/engaged_audience_demographics/);
   });
 
   it("metric describe lists both time-series and lifetime-only metrics", () => {
