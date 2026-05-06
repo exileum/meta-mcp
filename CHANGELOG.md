@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`threads_get_posts` now accepts an optional `fields` parameter** — comma-separated string that overrides the default field list, matching the existing pattern on `threads_get_post`. Defaults are unchanged so existing callers see identical responses; the new parameter lets callers slim payloads (e.g., `id,text,permalink`) or request additional fields not in the default set (e.g., `owner`, `quoted_post`, `text_attachment`) per the [Threads Media API docs](https://developers.facebook.com/docs/threads/threads-media/) ([#58](https://github.com/exileum/meta-mcp/issues/58))
+
+### Removed
+- **Removed `threads_get_user_threads`** — redundant alias of `threads_get_posts` that called the same `GET /{user-id}/threads` endpoint with a smaller field set (9 vs 16) and no `before` pagination cursor; the duplicate confused LLM tool selection. **Breaking change:** callers must switch to `threads_get_posts`, which now also accepts an optional `fields` parameter for callers that previously relied on the slimmer default field list ([#58](https://github.com/exileum/meta-mcp/issues/58))
+
 ## [4.0.0] — 2026-05-06
 
 ### Added

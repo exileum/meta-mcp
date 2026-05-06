@@ -36,6 +36,18 @@ describe("threads_get_posts default fields", () => {
     expect(fields).toContain("gif_url");
     expect(fields).not.toContain("gif_attachment");
   });
+
+  it("respects custom fields parameter", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsMediaTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_posts")!;
+    await handler({ fields: "id,text,permalink" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2].fields).toBe("id,text,permalink");
+  });
 });
 
 describe("threads_get_post default fields", () => {
