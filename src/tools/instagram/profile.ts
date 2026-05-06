@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export const igBusinessDiscoveryUsernameSchema = z
   .string()
@@ -30,7 +31,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get profile failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get profile");
       }
     }
   );
@@ -40,8 +41,18 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "ig_get_account_insights",
     "Get Instagram account insights. Note: 'impressions', 'email_contacts', 'phone_call_clicks', 'text_message_clicks', 'get_directions_clicks', 'website_clicks', 'profile_views' were deprecated in v22.0. Use 'views', 'reach', 'follower_count', 'reposts' instead.",
     {
-      metric: z.string().describe("Comma-separated metrics: views,reach,follower_count,reposts,accounts_engaged,total_interactions"),
-      period: z.enum(["day", "week", "days_28", "month", "lifetime"]).describe("Aggregation period"),
+      metric: z.string().describe(
+        "Comma-separated metrics. Time-series metrics (use period=day/week/days_28): " +
+        "views,reach,accounts_engaged,total_interactions,reposts,profile_links_taps. " +
+        "Lifetime-only metrics (use period=lifetime): " +
+        "follower_count,follower_demographics,engaged_audience_demographics."
+      ),
+      period: z.enum(["day", "week", "days_28", "lifetime"]).describe(
+        "Aggregation period. Use 'day', 'week', or 'days_28' for time-series metrics " +
+        "(views,reach,accounts_engaged,total_interactions,reposts,profile_links_taps). " +
+        "Use 'lifetime' only for follower_count and demographic metrics " +
+        "(follower_demographics,engaged_audience_demographics)."
+      ),
       since: z.string().optional().describe("Start date (Unix timestamp or ISO 8601)"),
       until: z.string().optional().describe("End date (Unix timestamp or ISO 8601)"),
     },
@@ -53,7 +64,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/insights`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get account insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get account insights");
       }
     }
   );
@@ -74,7 +85,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Business discovery failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Business discovery");
       }
     }
   );
@@ -95,7 +106,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/collaboration_invites`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get collaboration invites failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get collaboration invites");
       }
     }
   );
@@ -116,7 +127,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Respond to collaboration invite failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Respond to collaboration invite");
       }
     }
   );

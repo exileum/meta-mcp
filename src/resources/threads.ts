@@ -4,7 +4,7 @@ import { MetaClient } from "../services/meta-client.js";
 export function registerThreadsResources(server: McpServer, client: MetaClient) {
   server.resource(
     "threads-profile",
-    "threads://profile",
+    "meta-mcp://threads/profile",
     { description: "Threads user profile information", mimeType: "application/json" },
     async () => {
       const { data } = await client.threads("GET", `/${client.threadsUserId}`, {
@@ -13,7 +13,7 @@ export function registerThreadsResources(server: McpServer, client: MetaClient) 
       return {
         contents: [
           {
-            uri: "threads://profile",
+            uri: "meta-mcp://threads/profile",
             mimeType: "application/json",
             text: JSON.stringify(data, null, 2),
           },

@@ -1,4 +1,5 @@
 import { MetaConfig } from "../config.js";
+import { MetaApiError } from "../utils/errors.js";
 
 const IG_BASE = "https://graph.instagram.com/v25.0";
 const FB_BASE = "https://graph.facebook.com/v25.0";
@@ -21,6 +22,32 @@ export interface ClientResponse {
 
 export interface RequestOptions {
   json?: boolean;
+}
+
+interface ParsedMetaError {
+  message?: string;
+  code?: number;
+  subcode?: number;
+  type?: string;
+  fbtraceId?: string;
+}
+
+function parseMetaErrorBody(text: string): ParsedMetaError | undefined {
+  if (!text) return undefined;
+  try {
+    const parsed = JSON.parse(text) as { error?: Record<string, unknown> };
+    const err = parsed.error;
+    if (!err) return undefined;
+    return {
+      message: typeof err.message === "string" ? err.message : undefined,
+      code: typeof err.code === "number" ? err.code : undefined,
+      subcode: typeof err.error_subcode === "number" ? err.error_subcode : undefined,
+      type: typeof err.type === "string" ? err.type : undefined,
+      fbtraceId: typeof err.fbtrace_id === "string" ? err.fbtrace_id : undefined,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 export class MetaClient {
@@ -91,7 +118,19 @@ export class MetaClient {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(`Meta API ${method} ${path} (${res.status}): ${text}`);
+      const parsed = parseMetaErrorBody(text);
+      const detail = parsed?.message ?? text;
+      throw new MetaApiError({
+        message: `Meta API ${method} ${path} (${res.status}): ${detail}`,
+        httpStatus: res.status,
+        apiCode: parsed?.code,
+        apiSubcode: parsed?.subcode,
+        apiType: parsed?.type,
+        fbtraceId: parsed?.fbtraceId,
+        endpoint: path,
+        method,
+        body: text,
+      });
     }
 
     const rateLimit = this.parseRateLimit(res.headers);
@@ -100,7 +139,21 @@ export class MetaClient {
       const data = (await res.json()) as Record<string, unknown>;
       if (data.error) {
         const err = data.error as Record<string, unknown>;
-        throw new Error(`Meta API error: ${err.message} (code ${err.code})`);
+        const apiCode = typeof err.code === "number" ? err.code : undefined;
+        const apiSubcode = typeof err.error_subcode === "number" ? err.error_subcode : undefined;
+        const apiType = typeof err.type === "string" ? err.type : undefined;
+        const apiMessage = typeof err.message === "string" ? err.message : String(err.message ?? "");
+        const fbtraceId = typeof err.fbtrace_id === "string" ? err.fbtrace_id : undefined;
+        throw new MetaApiError({
+          message: `Meta API error: ${apiMessage} (code ${apiCode ?? "?"})`,
+          apiCode,
+          apiSubcode,
+          apiType,
+          fbtraceId,
+          endpoint: path,
+          method,
+          body: JSON.stringify(err),
+        });
       }
       return { data, rateLimit };
     }
