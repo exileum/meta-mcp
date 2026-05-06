@@ -108,28 +108,16 @@ describe("threads_get_replies mode", () => {
     expect(call[2]).not.toHaveProperty("after");
   });
 
-  it("default mode (top_level) includes is_verified and profile_picture_url in default fields", async () => {
+  it.each([
+    { label: "default (omitted)", input: { post_id: "post-42" } },
+    { label: "explicit mode='top_level'", input: { post_id: "post-42", mode: "top_level" as const } },
+  ])("$label includes is_verified and profile_picture_url in default fields", async ({ input }) => {
     const server = makeMockServer();
     const client = makeMockClient();
     registerThreadsReplyTools(server as never, client);
 
     const handler = server.tools.get("threads_get_replies")!;
-    await handler({ post_id: "post-42" });
-
-    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
-    const fields = call[2].fields as string;
-    expect(fields).toBe(REPLIES_TOP_LEVEL_DEFAULT_FIELDS);
-    expect(fields).toContain("is_verified");
-    expect(fields).toContain("profile_picture_url");
-  });
-
-  it("explicit mode='top_level' includes is_verified and profile_picture_url in default fields", async () => {
-    const server = makeMockServer();
-    const client = makeMockClient();
-    registerThreadsReplyTools(server as never, client);
-
-    const handler = server.tools.get("threads_get_replies")!;
-    await handler({ post_id: "post-42", mode: "top_level" });
+    await handler(input);
 
     const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
     const fields = call[2].fields as string;
