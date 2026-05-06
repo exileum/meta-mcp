@@ -10,7 +10,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     languageOptions: {
-      globals: { ...globals.node },
+      globals: { ...globals.nodeBuiltin },
     },
     rules: {
       "@typescript-eslint/no-unused-vars": [

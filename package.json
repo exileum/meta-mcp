@@ -27,7 +27,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -64,9 +64,9 @@
     "ip-address": "^10.1.1"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.4",
     "@types/node": "^25.6.0",
-    "eslint": "^10.3.0",
+    "eslint": "^9.39.4",
     "globals": "^17.6.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
