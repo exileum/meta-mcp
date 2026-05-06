@@ -1,18 +1,32 @@
 import { z } from "zod";
 
-const numericId = (envName: string) =>
+// Regex `*` (zero-or-more) is intentional so the Zod `.default("")` for unset
+// vars passes validation; an empty string is treated as "absent" by warning
+// logic and by the lazy "X is not configured" runtime checks in MetaClient.
+const appIdSchema = z
+  .string()
+  .regex(/^\d*$/, "META_APP_ID must be a numeric string")
+  .default("");
+
+// User IDs accept either a numeric string or the literal "me" — Meta's
+// Graph/Threads APIs accept "me" as the authenticated-user alias on
+// `/{user-id}/...` paths (e.g., GET https://graph.threads.net/v1.0/me).
+const userIdSchema = (envName: string) =>
   z
     .string()
-    .regex(/^\d*$/, `${envName} must be a numeric string`)
+    .regex(
+      /^(me|\d*)$/,
+      `${envName} must be a numeric string or "me"`
+    )
     .default("");
 
 export const MetaConfigSchema = z.object({
-  appId: numericId("META_APP_ID"),
+  appId: appIdSchema,
   appSecret: z.string().default(""),
   instagramAccessToken: z.string().default(""),
-  instagramUserId: numericId("INSTAGRAM_USER_ID"),
+  instagramUserId: userIdSchema("INSTAGRAM_USER_ID"),
   threadsAccessToken: z.string().default(""),
-  threadsUserId: numericId("THREADS_USER_ID"),
+  threadsUserId: userIdSchema("THREADS_USER_ID"),
 });
 
 export type MetaConfig = z.infer<typeof MetaConfigSchema>;
@@ -37,11 +51,7 @@ export function loadConfig(): MetaConfig {
 }
 
 function warnIfMisconfigured(config: MetaConfig): void {
-  const noCredentials =
-    !config.instagramAccessToken &&
-    !config.threadsAccessToken &&
-    !config.appId &&
-    !config.appSecret;
+  const noCredentials = Object.values(config).every((v) => !v);
   if (noCredentials) {
     console.error(
       "[meta-mcp] Warning: no credentials configured — every tool invocation will fail until you set INSTAGRAM_ACCESS_TOKEN, THREADS_ACCESS_TOKEN, or META_APP_ID/META_APP_SECRET."

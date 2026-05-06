@@ -11,13 +11,13 @@
 ## Environment Variables
 
 - `INSTAGRAM_ACCESS_TOKEN` (for Instagram) — Instagram Graph API access token
-- `INSTAGRAM_USER_ID` (for Instagram) — Instagram Business/Creator account ID (numeric string)
+- `INSTAGRAM_USER_ID` (for Instagram) — Instagram Business/Creator account ID (numeric string, or `"me"` for the authenticated user)
 - `THREADS_ACCESS_TOKEN` (for Threads) — Threads API access token
-- `THREADS_USER_ID` (for Threads) — Threads user ID (numeric string)
+- `THREADS_USER_ID` (for Threads) — Threads user ID (numeric string, or `"me"` for the authenticated user)
 - `META_APP_ID` (for token/webhook tools) — Meta App ID (numeric string)
 - `META_APP_SECRET` (for token/webhook tools) — Meta App Secret
 
-Only set variables for the platforms you use. The server validates these at startup: non-numeric values for the three numeric fields exit with `Invalid meta-mcp configuration: …`; setting only one half of a credential pair prints a stderr warning and continues.
+Only set variables for the platforms you use. The server validates these at startup: malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` exit with `Invalid meta-mcp configuration: …`; setting only one half of a credential pair prints a stderr warning and continues.
 
 ## MCP Config
 

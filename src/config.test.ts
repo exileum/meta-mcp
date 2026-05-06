@@ -137,6 +137,54 @@ describe("loadConfig", () => {
     );
   });
 
+  it('accepts "me" as INSTAGRAM_USER_ID (Meta authenticated-user alias)', () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "ig-token");
+    vi.stubEnv("INSTAGRAM_USER_ID", "me");
+
+    const config = loadConfig();
+
+    expect(config.instagramUserId).toBe("me");
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('accepts "me" as THREADS_USER_ID (Meta authenticated-user alias)', () => {
+    vi.stubEnv("THREADS_ACCESS_TOKEN", "threads-token");
+    vi.stubEnv("THREADS_USER_ID", "me");
+
+    const config = loadConfig();
+
+    expect(config.threadsUserId).toBe("me");
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects "me" with a suffix (must be exactly "me" or numeric)', () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "ig-token");
+    vi.stubEnv("INSTAGRAM_USER_ID", "me123");
+
+    expect(() => loadConfig()).toThrow(
+      /INSTAGRAM_USER_ID must be a numeric string or "me"/
+    );
+  });
+
+  it('does not allow "me" for META_APP_ID (Meta App IDs are always numeric)', () => {
+    vi.stubEnv("META_APP_ID", "me");
+    vi.stubEnv("META_APP_SECRET", "app-secret");
+
+    expect(() => loadConfig()).toThrow(/META_APP_ID must be a numeric string/);
+  });
+
+  it("emits only the pair warning, not the no-credentials warning, when only a user ID is set", () => {
+    vi.stubEnv("INSTAGRAM_USER_ID", "12345");
+
+    loadConfig();
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain(
+      "INSTAGRAM_USER_ID is set but INSTAGRAM_ACCESS_TOKEN is missing"
+    );
+    expect(warnSpy.mock.calls[0]?.[0]).not.toContain("no credentials configured");
+  });
+
   it("does not emit pair warnings when both halves of a pair are set", () => {
     vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "ig-token");
     vi.stubEnv("INSTAGRAM_USER_ID", "17841405822304914");
