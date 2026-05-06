@@ -1,6 +1,12 @@
-import { MetaClient, ClientResponse } from "../services/meta-client.js";
+import { MetaClient, ClientResponse, FormParams } from "../services/meta-client.js";
 
-type ApiCallFn = (method: string, path: string, params?: Record<string, unknown>) => Promise<ClientResponse>;
+type ApiCallFn = (method: string, path: string, params?: FormParams) => Promise<ClientResponse>;
+
+// Image containers typically finish in a single poll. Video containers can need
+// up to 5 minutes — Meta recommends "querying a container's status once per minute,
+// for no more than 5 minutes" per the Instagram content publishing docs.
+export const IMAGE_PROCESSING_TIMEOUT = 30;
+export const VIDEO_PROCESSING_TIMEOUT = 300;
 
 export interface PollContainerOptions {
   apiCall: ApiCallFn;
@@ -12,7 +18,7 @@ export interface PollContainerOptions {
 
 /** Poll container status until FINISHED or terminal status */
 export async function pollContainerStatus(containerId: string, options: PollContainerOptions): Promise<void> {
-  const { apiCall, statusField, label, maxWait = 30, interval = 5000 } = options;
+  const { apiCall, statusField, label, maxWait = IMAGE_PROCESSING_TIMEOUT, interval = 5000 } = options;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
   let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {
@@ -31,7 +37,7 @@ export async function pollContainerStatus(containerId: string, options: PollCont
 }
 
 /** Instagram container polling — uses client.ig() and status_code field */
-export async function waitForIgContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
+export async function waitForIgContainer(client: MetaClient, containerId: string, maxWait = IMAGE_PROCESSING_TIMEOUT): Promise<void> {
   return pollContainerStatus(containerId, {
     apiCall: client.ig.bind(client),
     statusField: "status_code",
@@ -41,7 +47,7 @@ export async function waitForIgContainer(client: MetaClient, containerId: string
 }
 
 /** Threads container polling — uses client.threads() and status field */
-export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = 30): Promise<void> {
+export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = IMAGE_PROCESSING_TIMEOUT): Promise<void> {
   return pollContainerStatus(containerId, {
     apiCall: client.threads.bind(client),
     statusField: "status",

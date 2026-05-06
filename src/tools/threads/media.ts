@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const THREADS_MEDIA_FIELDS = [
@@ -47,7 +47,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     },
     async ({ limit, since, until, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = { fields };
+        const params: FormParams = { fields };
         if (limit !== undefined) params.limit = limit;
         if (since) params.since = since;
         if (until) params.until = until;
@@ -96,7 +96,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     },
     async ({ q, search_type, search_mode, media_type, author_username, since, until, limit, after }) => {
       try {
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           q,
           fields: "id,text,username,permalink,timestamp,media_type,media_url,topic_tag",
         };
