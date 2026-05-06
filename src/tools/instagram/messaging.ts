@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
@@ -21,7 +21,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     },
     async ({ folder, limit, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           platform: "instagram",
           fields,
         };
@@ -50,7 +50,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     },
     async ({ conversation_id, limit, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = { fields };
+        const params: FormParams = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;
@@ -72,11 +72,13 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     },
     async ({ recipient_id, message }) => {
       try {
-        const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/messages`, {
-          recipient: { id: recipient_id },
-          message: { text: message },
-          messaging_type: "RESPONSE",
-        }, { json: true });
+        const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/messages`, undefined, {
+          jsonBody: {
+            recipient: { id: recipient_id },
+            message: { text: message },
+            messaging_type: "RESPONSE",
+          },
+        });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Send message");

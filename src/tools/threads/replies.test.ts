@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   registerThreadsReplyTools,
   REPLIES_TOP_LEVEL_DEFAULT_FIELDS,
@@ -203,7 +203,7 @@ describe("threads_reply auto_publish", () => {
     expect(calls[1][2]).toHaveProperty("creation_id", "container-1");
   });
 
-  it("image reply: ignores auto_publish and always uses the two-step flow", async () => {
+  it("image reply: ignores auto_publish, polls container, then publishes", async () => {
     const server = makeMockServer();
     const client = makePublishMockClient();
     registerThreadsReplyTools(server as never, client);
@@ -216,12 +216,16 @@ describe("threads_reply auto_publish", () => {
     });
 
     const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
-    // Image: create container + publish (no status poll for images in threads_reply)
-    expect(calls).toHaveLength(2);
+    // Image: create container + GET status (FINISHED) + publish.
+    // Polling matches threads_publish_image and prevents the same race
+    // condition #29 fixed there.
+    expect(calls).toHaveLength(3);
     expect(calls[0][2]).not.toHaveProperty("auto_publish_text");
     expect(calls[0][2]).toHaveProperty("media_type", "IMAGE");
     expect(calls[0][2]).toHaveProperty("image_url", "https://example.com/photo.jpg");
-    expect(calls[1][1]).toBe("/threads-123/threads_publish");
+    expect(calls[1][0]).toBe("GET");
+    expect(calls[1][1]).toContain("container-1");
+    expect(calls[2][1]).toBe("/threads-123/threads_publish");
   });
 
   it("video reply: ignores auto_publish, polls container, then publishes", async () => {
@@ -246,5 +250,80 @@ describe("threads_reply auto_publish", () => {
     expect(calls[1][1]).toContain("container-1");
     expect(calls[2][0]).toBe("POST");
     expect(calls[2][1]).toBe("/threads-123/threads_publish");
+  });
+});
+
+// ─── threads_reply video timeout regression (#49) ─────────────────────
+// Polling defaults to a 5-second interval, so a 30-second cap allows at most
+// 6 status checks before throwing. A video reply that takes 35+ seconds to
+// FINISHED would have failed under the previous default; with the bug fix
+// the helper waits up to VIDEO_PROCESSING_TIMEOUT (300s).
+
+describe("threads_reply video timeout (#49 regression)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("waits past the 30-second image cap before publishing a video reply", async () => {
+    const server = makeMockServer();
+    const calls: Array<[string, string, Record<string, unknown>?]> = [];
+    let getCount = 0;
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async (method: string, path: string, params?: Record<string, unknown>) => {
+        calls.push([method, path, params]);
+        if (method === "GET") {
+          getCount++;
+          // 8 IN_PROGRESS polls (40s of waiting) — well past the 30s image cap
+          // but inside the 300s video cap. Then return FINISHED.
+          return {
+            data: { status: getCount <= 8 ? "IN_PROGRESS" : "FINISHED" },
+            rateLimit: undefined,
+          };
+        }
+        if (path.endsWith("/threads_publish")) {
+          return { data: { id: "published-1" }, rateLimit: undefined };
+        }
+        return { data: { id: "container-1" }, rateLimit: undefined };
+      }),
+    } as unknown as MetaClient;
+
+    registerThreadsReplyTools(server as never, client);
+    const handler = server.tools.get("threads_reply")!;
+    const promise = handler({
+      reply_to_id: "post-42",
+      text: "With video",
+      video_url: "https://example.com/clip.mp4",
+    });
+
+    // 8 IN_PROGRESS sleeps × 5s = 40s of waiting before the 9th poll
+    // returns FINISHED (no trailing sleep). 60s is generous headroom.
+    await vi.advanceTimersByTimeAsync(60_000);
+    await promise;
+
+    const getCalls = calls.filter((c) => c[0] === "GET");
+    expect(getCalls.length).toBe(9);
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall[0]).toBe("POST");
+    expect(lastCall[1]).toBe("/threads-123/threads_publish");
+  });
+});
+
+describe("threads_reply image_url/video_url mutual exclusion", () => {
+  it("rejects providing both image_url and video_url", async () => {
+    const server = makeMockServer();
+    const client = makePublishMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_reply")!;
+    const result = await handler({
+      reply_to_id: "post-42",
+      text: "With both",
+      image_url: "https://example.com/photo.jpg",
+      video_url: "https://example.com/clip.mp4",
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("image_url and video_url cannot be combined on a single reply");
+    expect(client.threads).not.toHaveBeenCalled();
   });
 });

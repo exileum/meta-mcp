@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}";
@@ -21,7 +21,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     },
     async ({ media_id, limit, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = { fields };
+        const params: FormParams = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;
@@ -82,7 +82,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     },
     async ({ comment_id, limit, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = { fields };
+        const params: FormParams = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;
