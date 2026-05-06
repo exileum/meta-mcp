@@ -18,6 +18,8 @@ export const igBusinessDiscoveryUsernameSchema = z
     "Instagram username to look up (1-30 chars, letters/numbers/periods/underscores only; without @, leading '@' characters and surrounding whitespace are auto-stripped)"
   );
 
+const BUSINESS_DISCOVERY_DEFAULT_FIELDS = "id,username,name,biography,followers_count,follows_count,media_count";
+
 export function registerIgProfileTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_profile ──────────────────────────────────────────
   server.tool(
@@ -77,13 +79,12 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "Look up another Instagram Business/Creator account's public info by username.",
     {
       username: igBusinessDiscoveryUsernameSchema,
-      fields: z.string().optional().describe("Fields to retrieve (default: id,username,name,biography,followers_count,follows_count,media_count)"),
+      fields: z.string().optional().default(BUSINESS_DISCOVERY_DEFAULT_FIELDS).describe(`Fields to retrieve (default: ${BUSINESS_DISCOVERY_DEFAULT_FIELDS})`),
     },
     async ({ username, fields }) => {
       try {
-        const f = fields || "id,username,name,biography,followers_count,follows_count,media_count";
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
-          fields: `business_discovery.username(${username}){${f}}`,
+          fields: `business_discovery.username(${username}){${fields}}`,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {

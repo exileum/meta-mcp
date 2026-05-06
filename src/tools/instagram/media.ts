@@ -3,6 +3,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
+const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
+const GET_MEDIA_INSIGHTS_DEFAULT_METRIC = "views,reach";
+
 export function registerIgMediaTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_media_list ───────────────────────────────────────
   server.tool(
@@ -35,12 +38,11 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     "Get details of a specific Instagram media post.",
     {
       media_id: z.string().describe("Media ID"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count)"),
+      fields: z.string().optional().default(GET_MEDIA_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MEDIA_DEFAULT_FIELDS})`),
     },
     async ({ media_id, fields }) => {
       try {
-        const f = fields || "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
-        const { data, rateLimit } = await client.ig("GET", `/${media_id}`, { fields: f });
+        const { data, rateLimit } = await client.ig("GET", `/${media_id}`, { fields });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Get media");
@@ -75,12 +77,11 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
       "Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. See https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/ for the authoritative per-type matrix.",
     {
       media_id: z.string().describe("Media ID"),
-      metric: z.string().optional().describe("Comma-separated metrics. Default 'views,reach' is universally supported; override per media type per the tool description."),
+      metric: z.string().optional().default(GET_MEDIA_INSIGHTS_DEFAULT_METRIC).describe(`Comma-separated metrics. Default '${GET_MEDIA_INSIGHTS_DEFAULT_METRIC}' is universally supported; override per media type per the tool description.`),
     },
     async ({ media_id, metric }) => {
       try {
-        const m = metric || "views,reach";
-        const { data, rateLimit } = await client.ig("GET", `/${media_id}/insights`, { metric: m });
+        const { data, rateLimit } = await client.ig("GET", `/${media_id}/insights`, { metric });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Get media insights");

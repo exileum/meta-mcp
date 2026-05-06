@@ -1,16 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerIgCommentTools } from "./comments.js";
 import { MetaClient } from "../../services/meta-client.js";
-
-function makeMockServer() {
-  const tools = new Map<string, (...args: unknown[]) => unknown>();
-  return {
-    tools,
-    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
-      tools.set(name, handler);
-    }),
-  };
-}
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -23,8 +14,8 @@ function makeMockClient(): MetaClient {
 }
 
 describe("ig_get_comments fields override", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -32,9 +23,8 @@ describe("ig_get_comments fields override", () => {
     registerIgCommentTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_comments")!;
-    await handler({ media_id: "media_1" });
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_comments", { media_id: "media_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/media_1/comments");
@@ -44,8 +34,7 @@ describe("ig_get_comments fields override", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_comments")!;
-    await handler({ media_id: "media_2", fields: "id,text,hidden" });
+    await server.callTool("ig_get_comments", { media_id: "media_2", fields: "id,text,hidden" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ fields: "id,text,hidden" });
@@ -53,8 +42,8 @@ describe("ig_get_comments fields override", () => {
 });
 
 describe("ig_get_comment fields override", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -62,9 +51,8 @@ describe("ig_get_comment fields override", () => {
     registerIgCommentTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_comment")!;
-    await handler({ comment_id: "c_1" });
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_comment", { comment_id: "c_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/c_1");
@@ -74,8 +62,7 @@ describe("ig_get_comment fields override", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_comment")!;
-    await handler({ comment_id: "c_2", fields: "id,text,hidden,user" });
+    await server.callTool("ig_get_comment", { comment_id: "c_2", fields: "id,text,hidden,user" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toEqual({ fields: "id,text,hidden,user" });
@@ -83,8 +70,8 @@ describe("ig_get_comment fields override", () => {
 });
 
 describe("ig_get_replies fields override", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -92,9 +79,8 @@ describe("ig_get_replies fields override", () => {
     registerIgCommentTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_replies")!;
-    await handler({ comment_id: "c_1" });
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_replies", { comment_id: "c_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/c_1/replies");
@@ -104,8 +90,7 @@ describe("ig_get_replies fields override", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_replies")!;
-    await handler({ comment_id: "c_2", fields: "id,text" });
+    await server.callTool("ig_get_replies", { comment_id: "c_2", fields: "id,text" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ fields: "id,text" });

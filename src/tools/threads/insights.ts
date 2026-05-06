@@ -12,12 +12,11 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
     `Get insights/analytics for a specific Threads post (${POST_INSIGHTS_DEFAULT_METRICS.replaceAll(",", ", ")}).`,
     {
       post_id: z.string().describe("Threads post ID"),
-      metric: z.string().optional().describe(`Comma-separated metrics (default: ${POST_INSIGHTS_DEFAULT_METRICS})`),
+      metric: z.string().optional().default(POST_INSIGHTS_DEFAULT_METRICS).describe(`Comma-separated metrics (default: ${POST_INSIGHTS_DEFAULT_METRICS})`),
     },
     async ({ post_id, metric }) => {
       try {
-        const m = metric || POST_INSIGHTS_DEFAULT_METRICS;
-        const { data, rateLimit } = await client.threads("GET", `/${post_id}/insights`, { metric: m });
+        const { data, rateLimit } = await client.threads("GET", `/${post_id}/insights`, { metric });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Get post insights");
@@ -37,8 +36,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
     },
     async ({ metric, period, since, until }) => {
       try {
-        const effectivePeriod = period ?? "day";
-        const params: Record<string, unknown> = { metric, period: effectivePeriod };
+        const params: Record<string, unknown> = { metric, period };
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_insights`, params);

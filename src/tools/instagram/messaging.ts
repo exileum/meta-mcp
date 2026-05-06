@@ -3,6 +3,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
+const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
+// Both /conversations/{id}/messages and /messages/{id} share the same Message resource shape, so they reuse the same default field set.
+const MESSAGE_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
+
 export function registerIgMessagingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_conversations ────────────────────────────────────
   server.tool(
@@ -13,13 +17,13 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       limit: z.number().optional().describe("Number of conversations"),
       after: z.string().optional().describe("Pagination cursor for next page"),
       before: z.string().optional().describe("Pagination cursor for previous page"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,updated_time,participants,messages{id,message,from,created_time})"),
+      fields: z.string().optional().default(GET_CONVERSATIONS_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_CONVERSATIONS_DEFAULT_FIELDS})`),
     },
     async ({ folder, limit, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = {
           platform: "instagram",
-          fields: fields || "id,updated_time,participants,messages{id,message,from,created_time}",
+          fields,
         };
         if (folder) params.folder = folder;
         if (limit !== undefined) params.limit = limit;
@@ -42,13 +46,11 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       limit: z.number().optional().describe("Number of messages"),
       after: z.string().optional().describe("Pagination cursor for next page"),
       before: z.string().optional().describe("Pagination cursor for previous page"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
+      fields: z.string().optional().default(MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${MESSAGE_DEFAULT_FIELDS})`),
     },
     async ({ conversation_id, limit, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = {
-          fields: fields || "id,message,from,created_time,attachments",
-        };
+        const params: Record<string, unknown> = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;
@@ -88,12 +90,11 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     "Get details of a specific DM message.",
     {
       message_id: z.string().describe("Message ID"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
+      fields: z.string().optional().default(MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${MESSAGE_DEFAULT_FIELDS})`),
     },
     async ({ message_id, fields }) => {
       try {
-        const f = fields || "id,message,from,created_time,attachments";
-        const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields: f });
+        const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Get message");

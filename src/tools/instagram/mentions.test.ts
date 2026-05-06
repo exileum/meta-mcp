@@ -1,19 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerIgMentionTools } from "./mentions.js";
 import { MetaClient } from "../../services/meta-client.js";
-
-function makeMockServer() {
-  const tools = new Map<string, (...args: unknown[]) => unknown>();
-  const descriptions = new Map<string, string>();
-  return {
-    tools,
-    descriptions,
-    tool: vi.fn((name: string, desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
-      tools.set(name, handler);
-      descriptions.set(name, desc);
-    }),
-  };
-}
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -26,8 +14,8 @@ function makeMockClient(): MetaClient {
 }
 
 describe("ig_get_mentioned_comment", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -45,9 +33,8 @@ describe("ig_get_mentioned_comment", () => {
     expect(desc).toMatch(/single comment|specific comment/i);
   });
 
-  it("calls the singular /mentioned_comment endpoint with comment_id and default fields", async () => {
-    const handler = server.tools.get("ig_get_mentioned_comment")!;
-    await handler({ comment_id: "comment_42" });
+  it("calls the singular /mentioned_comment endpoint with comment_id and schema default fields", async () => {
+    await server.callTool("ig_get_mentioned_comment", { comment_id: "comment_42" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("GET");
@@ -59,8 +46,7 @@ describe("ig_get_mentioned_comment", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_mentioned_comment")!;
-    await handler({ comment_id: "comment_99", fields: "id,text" });
+    await server.callTool("ig_get_mentioned_comment", { comment_id: "comment_99", fields: "id,text" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toEqual({ comment_id: "comment_99", fields: "id,text" });
@@ -68,8 +54,8 @@ describe("ig_get_mentioned_comment", () => {
 });
 
 describe("ig_get_tagged_media", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -81,9 +67,8 @@ describe("ig_get_tagged_media", () => {
     expect(server.tools.has("ig_get_tagged_media")).toBe(true);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_tagged_media")!;
-    await handler({});
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_tagged_media", {});
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/123/tags");
@@ -93,8 +78,7 @@ describe("ig_get_tagged_media", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_tagged_media")!;
-    await handler({ fields: "id,caption,media_type" });
+    await server.callTool("ig_get_tagged_media", { fields: "id,caption,media_type" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ fields: "id,caption,media_type" });

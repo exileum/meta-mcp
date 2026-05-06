@@ -1,17 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerThreadsInsightTools } from "./insights.js";
-
-// Capture tool registrations from server.tool()
-type ToolHandler = (args: Record<string, unknown>) => Promise<{ content: { type: string; text: string }[]; isError?: boolean }>;
-const registeredTools = new Map<string, ToolHandler>();
-
-const mockServer = {
-  tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: ToolHandler) => {
-    registeredTools.set(name, handler);
-  }),
-} as unknown as McpServer;
+import { MetaClient } from "../../services/meta-client.js";
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(response: unknown = { data: [] }): MetaClient {
   return {
@@ -21,13 +11,17 @@ function makeMockClient(response: unknown = { data: [] }): MetaClient {
 }
 
 describe("threads_get_post_insights", () => {
-  it("includes shares in default post-level metrics", async () => {
-    const client = makeMockClient();
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
+  let server: MockServer;
+  let client: MetaClient;
 
-    const handler = registeredTools.get("threads_get_post_insights")!;
-    await handler({ post_id: "post-456" } as Record<string, unknown>);
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerThreadsInsightTools(server as never, client);
+  });
+
+  it("includes shares in default post-level metrics", async () => {
+    await server.callTool("threads_get_post_insights", { post_id: "post-456" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
       metric: "views,likes,replies,reposts,quotes,shares",
@@ -35,12 +29,7 @@ describe("threads_get_post_insights", () => {
   });
 
   it("passes custom metric when provided", async () => {
-    const client = makeMockClient();
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
-
-    const handler = registeredTools.get("threads_get_post_insights")!;
-    await handler({ post_id: "post-456", metric: "views,likes" });
+    await server.callTool("threads_get_post_insights", { post_id: "post-456", metric: "views,likes" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
       metric: "views,likes",
@@ -48,15 +37,14 @@ describe("threads_get_post_insights", () => {
   });
 
   it("returns error content on API failure", async () => {
-    const client = {
+    const failingClient = {
       threads: vi.fn(async () => { throw new Error("Invalid metric"); }),
       threadsUserId: "user-123",
     } as unknown as MetaClient;
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
+    const failingServer = makeMockServer();
+    registerThreadsInsightTools(failingServer as never, failingClient);
 
-    const handler = registeredTools.get("threads_get_post_insights")!;
-    const result = await handler({ post_id: "post-456" } as Record<string, unknown>);
+    const result = await failingServer.callTool("threads_get_post_insights", { post_id: "post-456" }) as { content: { text: string }[]; isError?: boolean };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Invalid metric");
@@ -64,13 +52,17 @@ describe("threads_get_post_insights", () => {
 });
 
 describe("threads_get_user_insights", () => {
-  it("passes period to the API (explicit value)", async () => {
-    const client = makeMockClient();
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
+  let server: MockServer;
+  let client: MetaClient;
 
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    await handler({ metric: "views", period: "lifetime", since: undefined, until: undefined });
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerThreadsInsightTools(server as never, client);
+  });
+
+  it("passes period to the API (explicit value)", async () => {
+    await server.callTool("threads_get_user_insights", { metric: "views", period: "lifetime" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "views",
@@ -79,12 +71,7 @@ describe("threads_get_user_insights", () => {
   });
 
   it("defaults period to 'day' when omitted", async () => {
-    const client = makeMockClient();
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
-
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    await handler({ metric: "likes" } as Record<string, unknown>);
+    await server.callTool("threads_get_user_insights", { metric: "likes" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "likes",
@@ -93,12 +80,7 @@ describe("threads_get_user_insights", () => {
   });
 
   it("includes since and until when provided", async () => {
-    const client = makeMockClient();
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
-
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    await handler({ metric: "views", period: "day", since: "1712991600", until: "1713078000" });
+    await server.callTool("threads_get_user_insights", { metric: "views", period: "day", since: "1712991600", until: "1713078000" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "views",
@@ -109,15 +91,14 @@ describe("threads_get_user_insights", () => {
   });
 
   it("returns error content on API failure", async () => {
-    const client = {
+    const failingClient = {
       threads: vi.fn(async () => { throw new Error("API rate limit"); }),
       threadsUserId: "user-123",
     } as unknown as MetaClient;
-    registeredTools.clear();
-    registerThreadsInsightTools(mockServer, client);
+    const failingServer = makeMockServer();
+    registerThreadsInsightTools(failingServer as never, failingClient);
 
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    const result = await handler({ metric: "views", period: "day", since: undefined, until: undefined });
+    const result = await failingServer.callTool("threads_get_user_insights", { metric: "views", period: "day" }) as { content: { text: string }[]; isError?: boolean };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("API rate limit");
