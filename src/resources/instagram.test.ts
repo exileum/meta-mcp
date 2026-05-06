@@ -112,11 +112,13 @@ describe("instagram-profile resource", () => {
     } as unknown as MetaClient;
     registerInstagramResources(server as never, client);
 
-    await expect(server.resources[0].handler()).rejects.toBeInstanceOf(McpError);
-    await expect(server.resources[0].handler()).rejects.toMatchObject({
+    const caught = await server.resources[0].handler().catch((e: unknown) => e);
+    expect(caught).toBeInstanceOf(McpError);
+    expect(caught).toMatchObject({
       code: ErrorCode.InternalError,
       data: { error_type: "auth", http_status: 401, code: 190 },
     });
+    expect((client.ig as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
   });
 
   it("handler sanitizes access_token leaks in the thrown McpError message", async () => {

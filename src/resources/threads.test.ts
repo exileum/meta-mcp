@@ -111,11 +111,13 @@ describe("threads-profile resource", () => {
     } as unknown as MetaClient;
     registerThreadsResources(server as never, client);
 
-    await expect(server.resources[0].handler()).rejects.toBeInstanceOf(McpError);
-    await expect(server.resources[0].handler()).rejects.toMatchObject({
+    const caught = await server.resources[0].handler().catch((e: unknown) => e);
+    expect(caught).toBeInstanceOf(McpError);
+    expect(caught).toMatchObject({
       code: ErrorCode.InternalError,
       data: { error_type: "rate_limit", http_status: 429, code: 17 },
     });
+    expect((client.threads as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
   });
 
   it("handler labels the error as 'Get Threads profile' and sanitizes tokens", async () => {

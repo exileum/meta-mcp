@@ -127,6 +127,14 @@ export interface McpErrorResult {
   isError: true;
 }
 
+function assignMetaApiFields(target: Record<string, unknown>, error: MetaApiError): void {
+  if (error.httpStatus !== undefined) target.http_status = error.httpStatus;
+  if (error.apiCode !== undefined) target.code = error.apiCode;
+  if (error.apiSubcode !== undefined) target.subcode = error.apiSubcode;
+  if (error.apiType) target.type = error.apiType;
+  if (error.fbtraceId) target.fbtrace_id = error.fbtraceId;
+}
+
 export function formatErrorResponse(error: unknown, label: string): McpErrorResult {
   const errorType = categorize(error);
   const original = error instanceof Error ? error.message : String(error);
@@ -136,11 +144,7 @@ export function formatErrorResponse(error: unknown, label: string): McpErrorResu
     message: `${label} failed: ${original}`,
   };
   if (error instanceof MetaApiError) {
-    if (error.httpStatus !== undefined) payload.http_status = error.httpStatus;
-    if (error.apiCode !== undefined) payload.code = error.apiCode;
-    if (error.apiSubcode !== undefined) payload.subcode = error.apiSubcode;
-    if (error.apiType) payload.type = error.apiType;
-    if (error.fbtraceId) payload.fbtrace_id = error.fbtraceId;
+    assignMetaApiFields(payload as unknown as Record<string, unknown>, error);
   }
   const remediation = REMEDIATION[errorType];
   if (remediation) payload.remediation = remediation;
@@ -157,11 +161,7 @@ export function toMcpResourceError(error: unknown, label: string): McpError {
   const message = sanitizeRaw(`${label} failed: ${original}`);
   const data: Record<string, unknown> = { error_type: errorType };
   if (error instanceof MetaApiError) {
-    if (error.httpStatus !== undefined) data.http_status = error.httpStatus;
-    if (error.apiCode !== undefined) data.code = error.apiCode;
-    if (error.apiSubcode !== undefined) data.subcode = error.apiSubcode;
-    if (error.apiType) data.type = error.apiType;
-    if (error.fbtraceId) data.fbtrace_id = error.fbtraceId;
+    assignMetaApiFields(data, error);
   }
   const remediation = REMEDIATION[errorType];
   if (remediation) data.remediation = remediation;
