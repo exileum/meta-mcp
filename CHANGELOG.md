@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`metric_type` parameter on `ig_get_account_insights`** — new optional `metric_type` parameter (`total_value` or `time_series`) lets callers control whether each metric is returned as a single aggregated total or as a daily breakdown; per the [Instagram User Insights docs](https://developers.facebook.com/docs/instagram-platform/api-reference/instagram-user/insights/) only `reach` (and the deprecated `impressions`) supports both shapes — `views`, `likes`, `replies`, `reposts`, `quotes`, `shares`, `saves`, `accounts_engaged`, `total_interactions`, `comments`, `profile_links_taps`, and demographics support only `total_value`; the parameter is passed through to the API only when set, so omitting it preserves the previous "API picks the default for each metric" behavior ([#56](https://github.com/exileum/meta-mcp/issues/56))
+
 ## [4.0.0] — 2026-05-06
 
 ### Added
