@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 import { registerThreadsMediaTools, authorUsernameSchema } from "./media.js";
 import { MetaClient } from "../../services/meta-client.js";
 
@@ -6,8 +7,9 @@ function makeMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
   return {
     tools,
-    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
-      tools.set(name, handler);
+    tool: vi.fn((name: string, _desc: string, schema: z.ZodRawShape, handler: (...args: unknown[]) => unknown) => {
+      const parsed = z.object(schema);
+      tools.set(name, async (args: Record<string, unknown> = {}) => handler(parsed.parse(args)));
     }),
   };
 }

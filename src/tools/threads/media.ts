@@ -43,13 +43,11 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
       until: z.string().optional().describe("End date (ISO 8601 or Unix timestamp)"),
       after: z.string().optional().describe("Pagination cursor"),
       before: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().describe("Comma-separated fields (overrides the default field list)"),
+      fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
     },
     async ({ limit, since, until, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = {
-          fields: fields || THREADS_MEDIA_FIELDS,
-        };
+        const params: Record<string, unknown> = { fields };
         if (limit !== undefined) params.limit = limit;
         if (since) params.since = since;
         if (until) params.until = until;
@@ -69,12 +67,11 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     "Get details of a specific Threads post.",
     {
       post_id: z.string().describe("Threads post ID"),
-      fields: z.string().optional().describe("Comma-separated fields"),
+      fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
     },
     async ({ post_id, fields }) => {
       try {
-        const f = fields || THREADS_MEDIA_FIELDS;
-        const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields: f });
+        const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Get post");
