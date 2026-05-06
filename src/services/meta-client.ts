@@ -38,11 +38,12 @@ export interface RequestOptions {
    * data into both transports.
    *
    * **When to use:** only when Meta's documentation explicitly requires
-   * `Content-Type: application/json` for the endpoint. Today the Instagram
-   * Messaging Send API (`POST /{ig-user-id}/messages`, used by `ig_send_message`)
-   * is the only such endpoint — it accepts nested `recipient` / `message`
-   * objects that would be flattened to `[object Object]` if sent through the
-   * form path. See https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
+   * `Content-Type: application/json` for the endpoint. Currently the
+   * Instagram Messaging Send API (`POST /{ig-user-id}/messages`, used by
+   * `ig_send_message`) is the only such endpoint — it accepts nested
+   * `recipient` / `message` objects that would be flattened to
+   * `[object Object]` if sent through the form path. See
+   * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
    *
    * **When not to use:** every other Graph API endpoint (Threads publish,
    * Instagram media/comments/collaboration, Meta App Subscriptions, etc.)
