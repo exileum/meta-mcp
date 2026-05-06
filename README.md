@@ -286,7 +286,7 @@ Your **`META_APP_ID`** and **`META_APP_SECRET`** are in **App Settings -> Basic*
    https://threads.net/oauth/authorize
      ?client_id=YOUR_APP_ID
      &redirect_uri=YOUR_REDIRECT_URI
-     &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_share_to_instagram,threads_manage_mentions
+     &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_share_to_instagram,threads_manage_mentions,threads_keyword_search
      &response_type=code
    ```
    For local testing, use `https://localhost/` as redirect URI (configure in App Settings -> Threads API -> Redirect URIs).
@@ -332,6 +332,52 @@ Access tokens expire after ~60 days. Refresh before expiration (token must be at
   ```
 
 Check token status anytime with `meta_debug_token`.
+
+## Troubleshooting
+
+Tool failures return `isError: true` with a JSON body in `content[0].text` matching the envelope documented in [`CHANGELOG.md`](./CHANGELOG.md): `{ error_type, http_status, code, subcode, type, message, remediation, fbtrace_id, raw }`. The fastest path to a fix is to read `error_type` and the Meta API `code`, then jump to the matching subsection below. The full code reference is the [Meta Graph API error handling guide](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
+
+### `error_type: "auth"` — expired, revoked, or under-scoped token
+
+Triggered by Meta API codes `190`, `10`, `102`, HTTP `401`, or `type: "OAuthException"`. Common messages:
+
+- `Error validating access token: Session has expired` — long-lived tokens expire ~60 days after issue.
+- `Application does not have permission for this action` — the token is missing a scope, or the account is not eligible (e.g., a **Personal** Instagram account on Graph API endpoints).
+
+What to do:
+
+1. Run `meta_debug_token` to inspect `expires_at`, `is_valid`, and `scopes`.
+2. If expired and the token is still ≥24h old, refresh in place with `meta_refresh_token` (`platform: "instagram"` or `"threads"`). If the token is fully expired, regenerate from the Meta App dashboard and exchange the short-lived token via `meta_exchange_token`.
+3. If scopes are missing, regenerate the token with the required permissions:
+   - **Instagram**: `instagram_business_basic` (always required) plus `instagram_business_content_publish`, `instagram_business_manage_comments`, `instagram_business_manage_messages` per feature.
+   - **Threads**: `threads_basic`, `threads_content_publish`, `threads_manage_insights`, `threads_manage_replies`, `threads_read_replies`, `threads_share_to_instagram`, `threads_manage_mentions`, `threads_keyword_search` per feature.
+4. If your Instagram account is **Personal**, switch to **Business** or **Creator** for free in the Instagram app (Settings → Account type and tools → Switch to professional account). The Graph API rejects Personal accounts.
+
+### `error_type: "rate_limit"` — application or user quota exhausted
+
+Triggered by Meta API codes `4`, `17`, `32`, `341`, `613`, the business-use-case range `80001`–`80008`, or HTTP `429`. Includes any `OAuthException` with code `4` / `17` (these are surfaced as `error_type: "rate_limit"`, **not** `"auth"`, despite the type field).
+
+What to do:
+
+1. Inspect the `_rateLimit` field on prior successful tool responses. `callCount`, `totalCpuTime`, and `totalTime` come from Meta's `x-app-usage` header; when `callCount` approaches `100` you are near the per-app threshold.
+2. Back off with exponential delay; reduce request volume; cache profile metadata between calls.
+3. Threads has hard daily quotas (250 publishes, 100 deletes) — query the remaining quota with `threads_get_publishing_limit` before bulk operations.
+
+### `error_type: "validation"` — bad parameter, wrong ID, or unsupported field
+
+Triggered by Meta API codes `100`, `200`, `803`, or any unmapped 4xx HTTP status. Common pitfalls:
+
+- **Wrong user ID format** — `INSTAGRAM_USER_ID` and `THREADS_USER_ID` must be the **numeric ID** returned by `GET /me?fields=user_id` (Instagram) or `GET /me?fields=id` (Threads), or the literal `"me"` for the authenticated user. The Instagram **username** is not accepted.
+- **`(#100) Messaging is not supported`** on `ig_send_message` / `ig_get_conversations` / `ig_get_messages` — the account does not have the messaging API enabled. Grant `instagram_business_manage_messages` on your token and ensure DMs are enabled in the Instagram app (Settings → Privacy → Messages).
+- **Deprecated publish endpoint** — `ig_publish_video` was retired by Meta on Nov 9, 2023; use `ig_publish_reel` for video posts. `ig_publish_story` is required for Stories.
+- **Mutually exclusive Threads attachments** — a `threads_publish_text` post can carry only one of `text_attachment`, `poll_options`, `link_attachment`, or `gif_attachment`; combining them is rejected at the schema level.
+- **Unsupported `metric` / `fields` for the resource** — see the per-tool Meta docs (`ig_get_media_insights` lists per-`media_type` valid metrics in its description).
+
+### Other categories
+
+- `error_type: "server"` (codes `1`, `2`, HTTP 5xx) — transient Meta outage; retry with exponential backoff. Check [metastatus.com](https://metastatus.com/) if it persists.
+- `error_type: "network"` — `fetch` timed out or failed before reaching Meta. Verify outbound connectivity and retry.
+- `error_type: "internal"` — unexpected condition that did not map to a Meta error code. The `raw` field carries the sanitized original message; `access_token`, `client_secret`, and `input_token` values are scrubbed to `***` before reporting.
 
 ## API Stability
 
