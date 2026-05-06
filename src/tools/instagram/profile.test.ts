@@ -333,6 +333,85 @@ describe("ig_get_account_insights handler", () => {
   });
 });
 
+describe("ig_respond_collaboration_invite", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgProfileTools(server as never, client);
+  });
+
+  function respondSchema() {
+    const raw = server.schemas.get("ig_respond_collaboration_invite")!;
+    return z.object(raw);
+  }
+
+  it("calls POST /{ig-user-id}/collaboration_invites with media_id + accept=true", async () => {
+    const handler = server.tools.get("ig_respond_collaboration_invite")!;
+    await handler({ media_id: "1789", accept: true });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toBe("POST");
+    expect(call[1]).toBe("/123/collaboration_invites");
+    expect(call[2]).toEqual({ media_id: "1789", accept: true });
+  });
+
+  it("forwards accept=false (regression guard against falsy filtering)", async () => {
+    const handler = server.tools.get("ig_respond_collaboration_invite")!;
+    await handler({ media_id: "1789", accept: false });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toEqual({ media_id: "1789", accept: false });
+  });
+
+  it("rejects empty media_id at schema parse time", () => {
+    const result = respondSchema().safeParse({ media_id: "", accept: true });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing accept at schema parse time", () => {
+    const result = respondSchema().safeParse({ media_id: "1789" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects legacy string `accept` value (must be boolean)", () => {
+    const result = respondSchema().safeParse({ media_id: "1789", accept: "accept" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects legacy string `decline` value (must be boolean)", () => {
+    const result = respondSchema().safeParse({ media_id: "1789", accept: "decline" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects legacy invite_id parameter (now media_id)", () => {
+    const result = respondSchema().safeParse({ invite_id: "1789", action: "accept" });
+    expect(result.success).toBe(false);
+  });
+
+  it("returns isError=true with a descriptive prefix when the API call fails", async () => {
+    const failingClient = {
+      igUserId: "123",
+      ig: vi.fn(async () => { throw new Error("Meta API error: invalid media_id"); }),
+    } as unknown as MetaClient;
+    const failingServer = makeMockServer();
+    registerIgProfileTools(failingServer as never, failingClient);
+
+    const handler = failingServer.tools.get("ig_respond_collaboration_invite")!;
+    const result = (await handler({ media_id: "1789", accept: true })) as {
+      isError?: boolean;
+      content: { type: string; text: string }[];
+    };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].type).toBe("text");
+    expect(result.content[0].text).toContain("Respond to collaboration invite failed");
+    expect(result.content[0].text).toContain("invalid media_id");
+  });
+});
+
 describe("ig_get_collaboration_invites pagination cursors", () => {
   let server: ReturnType<typeof makeMockServer>;
   let client: ReturnType<typeof makeMockClient>;

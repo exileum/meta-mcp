@@ -145,7 +145,7 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 | `ig_get_account_insights` | Get account-level analytics (views, reach, follower_count). Optional `metric_type` (`total_value` or `time_series`) controls aggregation shape |
 | `ig_business_discovery` | Look up another business account |
 | `ig_get_collaboration_invites` | Get pending collaboration invites |
-| `ig_respond_collaboration_invite` | Accept or decline collaboration invites |
+| `ig_respond_collaboration_invite` | Accept/decline a collaboration invite by media_id |
 
 ### Instagram — Hashtags (4)
 
