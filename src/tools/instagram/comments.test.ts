@@ -108,8 +108,7 @@ describe("ig_get_comments pagination cursors", () => {
   });
 
   it("omits both cursors when neither is provided", async () => {
-    const handler = server.tools.get("ig_get_comments")!;
-    await handler({ media_id: "media_1" });
+    await server.callTool("ig_get_comments", { media_id: "media_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).not.toHaveProperty("after");
@@ -117,8 +116,7 @@ describe("ig_get_comments pagination cursors", () => {
   });
 
   it("forwards before cursor when provided alone", async () => {
-    const handler = server.tools.get("ig_get_comments")!;
-    await handler({ media_id: "media_1", before: "cursor-prev" });
+    await server.callTool("ig_get_comments", { media_id: "media_1", before: "cursor-prev" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ before: "cursor-prev" });
@@ -126,8 +124,7 @@ describe("ig_get_comments pagination cursors", () => {
   });
 
   it("forwards both cursors when both are provided", async () => {
-    const handler = server.tools.get("ig_get_comments")!;
-    await handler({ media_id: "media_1", after: "cursor-next", before: "cursor-prev" });
+    await server.callTool("ig_get_comments", { media_id: "media_1", after: "cursor-next", before: "cursor-prev" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ after: "cursor-next", before: "cursor-prev" });
@@ -145,8 +142,7 @@ describe("ig_get_replies pagination cursors", () => {
   });
 
   it("omits both cursors when neither is provided", async () => {
-    const handler = server.tools.get("ig_get_replies")!;
-    await handler({ comment_id: "c_1" });
+    await server.callTool("ig_get_replies", { comment_id: "c_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).not.toHaveProperty("after");
@@ -154,8 +150,7 @@ describe("ig_get_replies pagination cursors", () => {
   });
 
   it("forwards before cursor when provided alone", async () => {
-    const handler = server.tools.get("ig_get_replies")!;
-    await handler({ comment_id: "c_1", before: "cursor-prev" });
+    await server.callTool("ig_get_replies", { comment_id: "c_1", before: "cursor-prev" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ before: "cursor-prev" });
@@ -163,8 +158,7 @@ describe("ig_get_replies pagination cursors", () => {
   });
 
   it("forwards both cursors when both are provided", async () => {
-    const handler = server.tools.get("ig_get_replies")!;
-    await handler({ comment_id: "c_1", after: "cursor-next", before: "cursor-prev" });
+    await server.callTool("ig_get_replies", { comment_id: "c_1", after: "cursor-next", before: "cursor-prev" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ after: "cursor-next", before: "cursor-prev" });
