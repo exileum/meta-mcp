@@ -57,6 +57,20 @@
           "isRequired": false,
           "format": "string",
           "isSecret": true
+        },
+        {
+          "name": "META_API_VERSION",
+          "description": "Optional Meta Graph API version for Instagram and Facebook endpoints (defaults to v25.0; format vMAJOR.MINOR; OAuth token endpoints are unversioned)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "THREADS_API_VERSION",
+          "description": "Optional Threads API version (defaults to v1.0; separate single-major-version track from the Graph API)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ]
     }

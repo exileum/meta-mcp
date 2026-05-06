@@ -1,5 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MetaClient } from "./meta-client.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  MetaClient,
+  DEFAULT_META_API_VERSION,
+  DEFAULT_THREADS_API_VERSION,
+} from "./meta-client.js";
 import { MetaConfig } from "../config.js";
 import { MetaApiError } from "../utils/errors.js";
 
@@ -373,6 +377,213 @@ describe("MetaClient token endpoints", () => {
       const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
       expect(url).not.toMatch(/\/v\d+/);
     });
+  });
+});
+
+// Regression guard for #70 — Meta Graph API and Threads API versions used to
+// be hardcoded as `v25.0` / `v1.0` in three URL string literals; deprecation
+// of either version forced a meta-mcp release just to flip the string. The
+// version is now an optional constructor knob with `META_API_VERSION` /
+// `THREADS_API_VERSION` env-var fallback. Token endpoints stay unversioned.
+describe("MetaClient API version override (#70)", () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // Fresh Response per call — Response bodies can only be read once, so
+    // tests that exercise multiple fetches need mockImplementation, not
+    // mockResolvedValue (which would hand out the same exhausted Response).
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      )
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("uses the documented defaults (v25.0 for Graph API, v1.0 for Threads)", () => {
+    expect(DEFAULT_META_API_VERSION).toBe("v25.0");
+    expect(DEFAULT_THREADS_API_VERSION).toBe("v1.0");
+  });
+
+  it("default constructor builds /v25.0/ Instagram URLs and /v1.0/ Threads URLs", async () => {
+    const client = new MetaClient(mockConfig());
+    await client.ig("GET", "/me");
+    await client.threads("GET", "/me");
+
+    const [igUrl] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [threadsUrl] = fetchSpy.mock.calls[1] as [string, RequestInit];
+
+    expect(igUrl).toContain("https://graph.instagram.com/v25.0/me");
+    expect(threadsUrl).toContain("https://graph.threads.net/v1.0/me");
+  });
+
+  it("metaApiVersion option overrides Instagram and Facebook URLs", async () => {
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "v26.0" });
+    await client.ig("GET", "/me");
+    await client.meta("GET", "/me");
+
+    const [igUrl] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [fbUrl] = fetchSpy.mock.calls[1] as [string, RequestInit];
+
+    expect(igUrl).toContain("https://graph.instagram.com/v26.0/me");
+    expect(fbUrl).toContain("https://graph.facebook.com/v26.0/me");
+  });
+
+  it("metaApiVersion override does NOT leak into IG token endpoints", async () => {
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "v26.0" });
+    await client.igExchangeToken("short-tok");
+    await client.igRefreshToken("long-tok");
+
+    const [exchangeUrl] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [refreshUrl] = fetchSpy.mock.calls[1] as [string, RequestInit];
+
+    expect(exchangeUrl).not.toMatch(/\/v\d+/);
+    expect(refreshUrl).not.toMatch(/\/v\d+/);
+  });
+
+  it("threadsApiVersion option overrides Threads URLs only", async () => {
+    const client = new MetaClient(mockConfig(), { threadsApiVersion: "v2.0" });
+    await client.threads("GET", "/me");
+    await client.ig("GET", "/me");
+
+    const [threadsUrl] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [igUrl] = fetchSpy.mock.calls[1] as [string, RequestInit];
+
+    expect(threadsUrl).toContain("https://graph.threads.net/v2.0/me");
+    expect(igUrl).toContain("https://graph.instagram.com/v25.0/me");
+  });
+
+  it("threadsApiVersion override does NOT leak into Threads token endpoints", async () => {
+    const client = new MetaClient(mockConfig(), { threadsApiVersion: "v2.0" });
+    await client.threadsExchangeToken("short-tok");
+    await client.threadsRefreshToken("long-tok");
+
+    const [exchangeUrl] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [refreshUrl] = fetchSpy.mock.calls[1] as [string, RequestInit];
+
+    expect(exchangeUrl).not.toMatch(/\/v\d+/);
+    expect(refreshUrl).not.toMatch(/\/v\d+/);
+  });
+
+  it("META_API_VERSION env var is picked up when no explicit option is passed", async () => {
+    vi.stubEnv("META_API_VERSION", "v27.0");
+    const client = new MetaClient(mockConfig());
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("https://graph.instagram.com/v27.0/me");
+  });
+
+  it("THREADS_API_VERSION env var is picked up when no explicit option is passed", async () => {
+    vi.stubEnv("THREADS_API_VERSION", "v3.0");
+    const client = new MetaClient(mockConfig());
+    await client.threads("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("https://graph.threads.net/v3.0/me");
+  });
+
+  it("explicit option takes precedence over env var", async () => {
+    vi.stubEnv("META_API_VERSION", "v27.0");
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "v28.0" });
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("https://graph.instagram.com/v28.0/me");
+  });
+
+  it.each([
+    ["25", "missing v prefix"],
+    ["v25", "missing minor"],
+    ["v25.0.1", "extra segment"],
+    ["abc", "non-numeric"],
+    ["V25.0", "uppercase V"],
+  ])("malformed META_API_VERSION %s (%s) falls back to default with stderr warning", async (badValue) => {
+    vi.stubEnv("META_API_VERSION", badValue);
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig());
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`META_API_VERSION="${badValue}"`)
+    );
+  });
+
+  it("malformed THREADS_API_VERSION falls back to default with stderr warning", async () => {
+    vi.stubEnv("THREADS_API_VERSION", "1.0");
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig());
+    await client.threads("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.threads.net/${DEFAULT_THREADS_API_VERSION}/me`);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`THREADS_API_VERSION="1.0"`)
+    );
+  });
+
+  it("malformed metaApiVersion option falls back to default with stderr warning", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "v25-0" });
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`MetaClientOptions.META_API_VERSION="v25-0"`)
+    );
+  });
+
+  it("malformed threadsApiVersion option falls back to default with stderr warning", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig(), { threadsApiVersion: "abc" });
+    await client.threads("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.threads.net/${DEFAULT_THREADS_API_VERSION}/me`);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`MetaClientOptions.THREADS_API_VERSION="abc"`)
+    );
+  });
+
+  it("empty-string metaApiVersion option falls through to default without warning", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "" });
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
+    // Empty string is treated as "not set" — same as the env-var path — and
+    // must NOT slip through to produce a "https://graph.instagram.com//me"
+    // double-slash URL.
+    expect(url).not.toContain("graph.instagram.com//");
+    expect(errSpy).not.toHaveBeenCalled();
+  });
+
+  it("empty META_API_VERSION env var falls through to default without warning", async () => {
+    vi.stubEnv("META_API_VERSION", "");
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig());
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
+    expect(errSpy).not.toHaveBeenCalled();
   });
 });
 

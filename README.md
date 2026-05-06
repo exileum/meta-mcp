@@ -69,6 +69,8 @@ npm run build
 | `THREADS_USER_ID` | For Threads | Threads user ID (numeric string, or `"me"` for the authenticated user) |
 | `META_APP_ID` | For token/webhook tools | Meta App ID (numeric string) |
 | `META_APP_SECRET` | For token/webhook tools | Meta App Secret |
+| `META_API_VERSION` | Optional | Meta Graph API version for Instagram and Facebook endpoints — defaults to `v25.0` (verified 2026-05-06). Override only when Meta deprecates a version before meta-mcp ships a new release. Format: `vMAJOR.MINOR` (e.g., `v26.0`); malformed values fall back to the default with a stderr warning. OAuth token endpoints are unversioned and unaffected by this setting |
+| `THREADS_API_VERSION` | Optional | Threads API version — defaults to `v1.0` (verified 2026-05-06). Threads runs a separate single-major-version track and is not bumped in lockstep with the Graph API. Same `vMAJOR.MINOR` format and fallback behavior as `META_API_VERSION` |
 
 The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` cause the process to exit with `Invalid meta-mcp configuration: …`. Setting only one half of a credential pair (e.g., `INSTAGRAM_ACCESS_TOKEN` without `INSTAGRAM_USER_ID`) prints a stderr warning and continues; related tool invocations still fail at call time.
 
