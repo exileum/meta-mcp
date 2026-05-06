@@ -20,8 +20,21 @@ export interface ClientResponse {
   rateLimit?: RateLimit;
 }
 
+/**
+ * Allowed value types for form-encoded query string and request body parameters.
+ * Non-primitive values (arrays, objects) must be serialized by the caller (JSON.stringify, .join(",") etc.)
+ * before being assigned — the form-encoded path uses String(v) which produces "[object Object]" / "1,2,3"
+ * for objects/arrays and silently corrupts the request.
+ */
+export type FormParamValue = string | number | boolean | undefined | null;
+export type FormParams = Record<string, FormParamValue>;
+
 export interface RequestOptions {
-  json?: boolean;
+  /**
+   * When set, sent as the application/json request body (e.g., Instagram Messaging API).
+   * Replaces the form-encoded body; the access_token is still placed in the query string.
+   */
+  jsonBody?: Record<string, unknown>;
 }
 
 interface ParsedMetaError {
@@ -72,45 +85,61 @@ export class MetaClient {
     }
   }
 
+  // Used for both form bodies (POST/PUT) and query strings (GET/DELETE) — every
+  // entry ends up URL-encoded in `qs`. Skipping `""` must precede the typeof
+  // check so the type narrowing below stays correct after the filter.
+  private appendFormParams(qs: URLSearchParams, params: FormParams): void {
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null || v === "") continue;
+      if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
+        const kind = Array.isArray(v) ? "array" : typeof v;
+        throw new Error(
+          `MetaClient: form parameter "${k}" has unsupported type "${kind}". ` +
+          `Form-encoded params must be string | number | boolean — serialize arrays/objects ` +
+          `explicitly with JSON.stringify(...) or .join(",") before assigning.`
+        );
+      }
+      qs.set(k, String(v));
+    }
+  }
+
   private async request(
     baseUrl: string,
     token: string,
     method: string,
     path: string,
-    params?: Record<string, unknown>,
+    params?: FormParams,
     options?: RequestOptions
   ): Promise<ClientResponse> {
     let url = `${baseUrl}${path}`;
     const init: RequestInit = { method, signal: AbortSignal.timeout(30_000) };
 
     const isWrite = method !== "GET" && method !== "DELETE";
-    const useJson = isWrite && options?.json;
+    const useJson = isWrite && options?.jsonBody !== undefined;
+
+    // `params` always lands in the URL query string (form body for POST/PUT,
+    // query string for GET/DELETE/JSON-mode). Combining `params` with
+    // `jsonBody` is rejected so that callers don't accidentally route data
+    // intended for the body into the query string when the JSON-mode wrapper
+    // overrides the body.
+    if (useJson && params !== undefined) {
+      throw new Error(
+        "MetaClient: `params` cannot be combined with `options.jsonBody`. Pass either form-encoded `params` or a JSON `jsonBody`, not both."
+      );
+    }
 
     const qs = new URLSearchParams();
     qs.set("access_token", token);
+    if (params) this.appendFormParams(qs, params);
 
     if (useJson) {
       url += (url.includes("?") ? "&" : "?") + qs.toString();
       init.headers = { "Content-Type": "application/json" };
-      init.body = JSON.stringify(params ?? {});
+      init.body = JSON.stringify(options!.jsonBody);
     } else if (isWrite) {
-      if (params) {
-        for (const [k, v] of Object.entries(params)) {
-          if (v !== undefined && v !== null && v !== "") {
-            qs.set(k, String(v));
-          }
-        }
-      }
       init.headers = { "Content-Type": "application/x-www-form-urlencoded" };
       init.body = qs.toString();
     } else {
-      if (params) {
-        for (const [k, v] of Object.entries(params)) {
-          if (v !== undefined && v !== null && v !== "") {
-            qs.set(k, String(v));
-          }
-        }
-      }
       url += (url.includes("?") ? "&" : "?") + qs.toString();
     }
 
@@ -164,7 +193,7 @@ export class MetaClient {
   async ig(
     method: string,
     path: string,
-    params?: Record<string, unknown>,
+    params?: FormParams,
     options?: RequestOptions
   ): Promise<ClientResponse> {
     if (!this.config.instagramAccessToken) {
@@ -176,7 +205,7 @@ export class MetaClient {
   async threads(
     method: string,
     path: string,
-    params?: Record<string, unknown>,
+    params?: FormParams,
     options?: RequestOptions
   ): Promise<ClientResponse> {
     if (!this.config.threadsAccessToken) {
@@ -188,7 +217,7 @@ export class MetaClient {
   async meta(
     method: string,
     path: string,
-    params?: Record<string, unknown>,
+    params?: FormParams,
     options?: RequestOptions
   ): Promise<ClientResponse> {
     if (!this.config.appId || !this.config.appSecret) {
