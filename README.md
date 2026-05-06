@@ -331,6 +331,21 @@ Access tokens expire after ~60 days. Refresh before expiration (token must be at
 
 Check token status anytime with `meta_debug_token`.
 
+## API Stability
+
+meta-mcp is consumed as an **MCP server runtime**, not as a library. The supported entry points are:
+
+- `npx @exileum/meta-mcp` (recommended for end users)
+- `node dist/index.js` (manual installation)
+
+The single programmatic export from the package root, `createSandboxServer(): McpServer`, exists for the [Smithery](https://smithery.ai) sandbox runner and is the only stable JavaScript/TypeScript API.
+
+**`zod` and other transitive runtime dependencies are internal** and not part of meta-mcp's public API. No `zod` symbols, types, or schemas flow through `dist/index.d.ts`, so `zod`'s version may change in any release — including major version bumps — without a corresponding meta-mcp major bump.
+
+**`@modelcontextprotocol/sdk` is the one exception**: `McpServer` (the return type of `createSandboxServer()`) is imported from that package, so a breaking change to `McpServer`'s public interface would also be a breaking change for meta-mcp's programmatic API. In practice the MCP SDK follows semver, so consumers can treat `@modelcontextprotocol/sdk` as an implicit peer dependency of the `createSandboxServer` export.
+
+Only the package root (`@exileum/meta-mcp`) is a supported import target. Deep imports into the published `dist/` tree (e.g. `@exileum/meta-mcp/dist/schemas.js`) are blocked by the `package.json` `exports` map for any spec-compliant resolver and are **not** part of the public API; they may be renamed, removed, or restructured in any release.
+
 ## Glama
 
 [![meta-mcp MCP server](https://glama.ai/mcp/servers/exileum/meta-mcp/badges/card.svg)](https://glama.ai/mcp/servers/exileum/meta-mcp)
