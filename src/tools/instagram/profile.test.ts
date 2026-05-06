@@ -100,8 +100,8 @@ describe("igBusinessDiscoveryUsernameSchema validation", () => {
     expect(igBusinessDiscoveryUsernameSchema.parse("@@@@bluebottle")).toBe("bluebottle");
   });
 
-  it("preserves '@' that is not at the start", () => {
-    expect(igBusinessDiscoveryUsernameSchema.parse("user@name")).toBe("user@name");
+  it("rejects '@' that is not at the start (Instagram usernames cannot contain @)", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("user@name")).toThrow();
   });
 
   it("trims surrounding whitespace before stripping '@'", () => {
@@ -123,5 +123,47 @@ describe("igBusinessDiscoveryUsernameSchema validation", () => {
 
   it("rejects multiple '@' only (empty after strip)", () => {
     expect(() => igBusinessDiscoveryUsernameSchema.parse("@@@@")).toThrow();
+  });
+
+  it("accepts a 1-character username (length boundary)", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("a")).toBe("a");
+  });
+
+  it("accepts a 30-character username (length boundary)", () => {
+    const max = "a".repeat(30);
+    expect(igBusinessDiscoveryUsernameSchema.parse(max)).toBe(max);
+  });
+
+  it("rejects a 31-character username (over length boundary)", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("a".repeat(31))).toThrow();
+  });
+
+  it("accepts usernames with periods and underscores", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("user.name_test")).toBe("user.name_test");
+    expect(igBusinessDiscoveryUsernameSchema.parse("a.b.c")).toBe("a.b.c");
+    expect(igBusinessDiscoveryUsernameSchema.parse("_underscore_")).toBe("_underscore_");
+  });
+
+  it("rejects hyphens (not allowed in Instagram usernames)", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("user-name")).toThrow();
+  });
+
+  it("rejects internal whitespace", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("blue bottle")).toThrow();
+  });
+
+  it.each([
+    ["closing parenthesis", "bluebottle)"],
+    ["opening parenthesis", "bluebottle("],
+    ["closing brace", "bluebottle}"],
+    ["opening brace", "bluebottle{"],
+    ["comma", "blue,bottle"],
+    ["equals sign", "blue=evil"],
+    ["semicolon", "blue;evil"],
+    ["query injection payload", "bluebottle){evil="],
+    ["non-ASCII letter", "bluebött"],
+    ["emoji", "blue🌸"],
+  ])("rejects username containing %s", (_label, value) => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse(value)).toThrow();
   });
 });

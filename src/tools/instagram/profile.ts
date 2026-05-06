@@ -9,8 +9,12 @@ export const igBusinessDiscoveryUsernameSchema = z
   .refine((v) => v.length > 0, {
     message: "Username cannot be empty, only whitespace, or only '@' characters",
   })
+  .refine((v) => /^[a-zA-Z0-9._]{1,30}$/.test(v), {
+    message:
+      "Instagram username must be 1-30 characters and contain only letters, numbers, periods, and underscores",
+  })
   .describe(
-    "Instagram username to look up (without @; leading '@' characters and surrounding whitespace are auto-stripped)"
+    "Instagram username to look up (1-30 chars, letters/numbers/periods/underscores only; without @, leading '@' characters and surrounding whitespace are auto-stripped)"
   );
 
 export function registerIgProfileTools(server: McpServer, client: MetaClient): void {
