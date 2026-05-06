@@ -96,8 +96,7 @@ describe("ig_get_tagged_media pagination cursors", () => {
   });
 
   it("omits both cursors when neither is provided", async () => {
-    const handler = server.tools.get("ig_get_tagged_media")!;
-    await handler({});
+    await server.callTool("ig_get_tagged_media", {});
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).not.toHaveProperty("after");
@@ -105,8 +104,7 @@ describe("ig_get_tagged_media pagination cursors", () => {
   });
 
   it("forwards before cursor when provided alone", async () => {
-    const handler = server.tools.get("ig_get_tagged_media")!;
-    await handler({ before: "cursor-prev" });
+    await server.callTool("ig_get_tagged_media", { before: "cursor-prev" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ before: "cursor-prev" });
@@ -114,8 +112,7 @@ describe("ig_get_tagged_media pagination cursors", () => {
   });
 
   it("forwards both cursors when both are provided", async () => {
-    const handler = server.tools.get("ig_get_tagged_media")!;
-    await handler({ after: "cursor-next", before: "cursor-prev" });
+    await server.callTool("ig_get_tagged_media", { after: "cursor-next", before: "cursor-prev" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ after: "cursor-next", before: "cursor-prev" });
