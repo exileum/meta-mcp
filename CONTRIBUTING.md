@@ -127,11 +127,12 @@ CI-only changes (workflow tweaks, dependabot config, etc.) are usually skipped f
 2. Keep the change small and focused. One logical change per PR makes review and revert tractable.
 3. Run the full local CI matrix before pushing:
    ```bash
-   tsc --noEmit
+   npx tsc --noEmit
    npm test
    npm audit --audit-level=high
    npm run build
    ```
+   (Use `npx` so the locally pinned TypeScript from `node_modules/.bin/` runs — there is no global `tsc` requirement and no `typecheck` script in `package.json`.)
 4. Update the public surface docs alongside the code change: `README.md` (tool table), `llms.txt` (tool descriptions), `server.json` (only when version metadata changes — usually maintainer-only), and `CHANGELOG.md`.
 5. Open the PR with the [PR template](./.github/PULL_REQUEST_TEMPLATE.md). Include `Fixes #<N>` (each on its own line) so the issue auto-closes on merge.
 6. After the PR is open, automated reviewers may comment (`@claude` is wired up in [`.github/workflows/claude.yml`](./.github/workflows/claude.yml); third-party review bots may chime in too). Address actionable feedback in additional commits — do not force-push silently over an in-progress review.
