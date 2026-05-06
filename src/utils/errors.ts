@@ -93,10 +93,17 @@ const REMEDIATION: Partial<Record<ErrorType, string>> = {
   network: "Network error or timeout reaching the Meta API. Retry with exponential backoff; verify outbound connectivity.",
 };
 
+const SENSITIVE_PARAMS = ["access_token", "client_secret", "input_token"];
+
 export function sanitizeRaw(text: string): string {
-  return text
-    .replace(/access_token=[^&"\s]+/gi, "access_token=***")
-    .replace(/"access_token"\s*:\s*"[^"]*"/gi, '"access_token":"***"');
+  let result = text;
+  for (const param of SENSITIVE_PARAMS) {
+    const queryRegex = new RegExp(`${param}=[^&"\\s]+`, "gi");
+    const jsonRegex = new RegExp(`"${param}"\\s*:\\s*"[^"]*"`, "gi");
+    result = result.replace(queryRegex, `${param}=***`);
+    result = result.replace(jsonRegex, `"${param}":"***"`);
+  }
+  return result;
 }
 
 interface ErrorPayload {

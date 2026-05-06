@@ -283,6 +283,27 @@ describe("sanitizeRaw", () => {
   it("scrubs JSON access_token field", () => {
     expect(sanitizeRaw('{"access_token": "EAABwz"}')).toBe('{"access_token":"***"}');
   });
+
+  it("scrubs client_secret query param (token exchange URLs)", () => {
+    expect(sanitizeRaw("https://graph.instagram.com/access_token?client_secret=app_secret_xyz&grant_type=ig_exchange_token"))
+      .toContain("client_secret=***");
+    expect(sanitizeRaw("client_secret=secret123")).toBe("client_secret=***");
+  });
+
+  it("scrubs input_token query param (debug_token URLs)", () => {
+    expect(sanitizeRaw("/debug_token?input_token=tok_to_inspect&access_token=app_token"))
+      .toBe("/debug_token?input_token=***&access_token=***");
+  });
+
+  it("scrubs JSON client_secret and input_token fields", () => {
+    expect(sanitizeRaw('{"client_secret":"abc","input_token":"def"}'))
+      .toBe('{"client_secret":"***","input_token":"***"}');
+  });
+
+  it("scrubs all sensitive params in a single string", () => {
+    const input = "access_token=A&client_secret=B&input_token=C&fields=id";
+    expect(sanitizeRaw(input)).toBe("access_token=***&client_secret=***&input_token=***&fields=id");
+  });
 });
 
 describe("MetaApiError", () => {
