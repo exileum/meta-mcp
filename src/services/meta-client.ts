@@ -85,6 +85,9 @@ export class MetaClient {
     }
   }
 
+  // Used for both form bodies (POST/PUT) and query strings (GET/DELETE) — every
+  // entry ends up URL-encoded in `qs`. Skipping `""` must precede the typeof
+  // check so the type narrowing below stays correct after the filter.
   private appendFormParams(qs: URLSearchParams, params: FormParams): void {
     for (const [k, v] of Object.entries(params)) {
       if (v === undefined || v === null || v === "") continue;
@@ -113,6 +116,17 @@ export class MetaClient {
 
     const isWrite = method !== "GET" && method !== "DELETE";
     const useJson = isWrite && options?.jsonBody !== undefined;
+
+    // `params` always lands in the URL query string (form body for POST/PUT,
+    // query string for GET/DELETE/JSON-mode). Combining `params` with
+    // `jsonBody` is rejected so that callers don't accidentally route data
+    // intended for the body into the query string when the JSON-mode wrapper
+    // overrides the body.
+    if (useJson && params !== undefined) {
+      throw new Error(
+        "MetaClient: `params` cannot be combined with `options.jsonBody`. Pass either form-encoded `params` or a JSON `jsonBody`, not both."
+      );
+    }
 
     const qs = new URLSearchParams();
     qs.set("access_token", token);

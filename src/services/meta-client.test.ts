@@ -236,6 +236,20 @@ describe("form-encoded params reject non-primitive values (#81)", () => {
     expect(body.has("gone2")).toBe(false);
     expect(body.has("gone3")).toBe(false);
   });
+
+  it("throws on DELETE with non-primitive params (query-string path)", async () => {
+    const client = new MetaClient(mockConfig());
+    await expect(
+      client.ig("DELETE", "/x", { ids: ["a", "b"] as unknown as string })
+    ).rejects.toThrow(/form parameter "ids" has unsupported type "array"/);
+  });
+
+  it("rejects combining params with jsonBody", async () => {
+    const client = new MetaClient(mockConfig());
+    await expect(
+      client.ig("POST", "/x", { extra: "v" }, { jsonBody: { body: true } })
+    ).rejects.toThrow(/`params` cannot be combined with `options\.jsonBody`/);
+  });
 });
 
 describe("MetaClient token endpoints", () => {
