@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForIgContainer } from "../../utils/container.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 const collaboratorUsername = z
   .string()
@@ -57,7 +58,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish photo failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish photo");
       }
     }
   );
@@ -91,7 +92,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish video failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish video");
       }
     }
   );
@@ -154,7 +155,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish carousel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish carousel");
       }
     }
   );
@@ -188,7 +189,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish reel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish reel");
       }
     }
   );
@@ -218,7 +219,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish story failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish story");
       }
     }
   );
@@ -237,7 +238,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get container status failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get container status");
       }
     }
   );

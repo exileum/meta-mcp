@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "../../utils/container.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerThreadsReplyTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_replies ─────────────────────────────────────
@@ -28,7 +29,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/${edge}`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get replies failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get replies");
       }
     }
   );
@@ -77,7 +78,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Reply");
       }
     }
   );
@@ -94,7 +95,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("POST", `/${reply_id}/manage_reply`, { hide: true });
         return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Hide reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Hide reply");
       }
     }
   );
@@ -111,7 +112,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("POST", `/${reply_id}/manage_reply`, { hide: false });
         return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: false, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Unhide reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Unhide reply");
       }
     }
   );

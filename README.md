@@ -87,6 +87,7 @@ npm run build
 - **2 resources**: Instagram profile, Threads profile
 - **2 prompts**: Cross-platform content publishing, analytics report
 - Rate limit tracking via `x-app-usage` header
+- **Structured error responses** with `error_type` (`auth`, `validation`, `rate_limit`, `server`, `network`, `internal`), HTTP status, Meta API code/subcode/type, and a `remediation` hint where actionable — see [`CHANGELOG.md`](./CHANGELOG.md) for the JSON shape
 
 ## Tools
 
