@@ -814,15 +814,6 @@ describe("threads_publish_text gif_id/gif_provider co-dependency", () => {
     expect(createCall[2].gif_attachment).toBe(JSON.stringify({ gif_id: "abc123", provider: "GIPHY" }));
   });
 
-  it("accepts gif_id + gif_provider + alt_text together (alt_text describes the GIF)", async () => {
-    const handler = server.tools.get("threads_publish_text")!;
-    await handler({ text: "Hello", gif_id: "abc123", gif_provider: "GIPHY", alt_text: "A dancing cat" });
-
-    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(createCall[2].gif_attachment).toBe(JSON.stringify({ gif_id: "abc123", provider: "GIPHY" }));
-    expect(createCall[2]).toHaveProperty("alt_text", "A dancing cat");
-  });
-
   it("excludes gif_attachment when neither is provided", async () => {
     const handler = server.tools.get("threads_publish_text")!;
     await handler({ text: "Hello" });
@@ -904,18 +895,6 @@ describe("threads_publish_text attachment mutual exclusion", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("poll_options cannot be combined with link_attachment");
-    expect(client.threads).not.toHaveBeenCalled();
-  });
-
-  it("rejects alt_text without gif_id", async () => {
-    const handler = server.tools.get("threads_publish_text")!;
-    const result = await handler({
-      text: "Hello",
-      alt_text: "Describes nothing",
-    }) as { content: Array<{ text: string }>; isError: boolean };
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("alt_text requires a GIF attachment");
     expect(client.threads).not.toHaveBeenCalled();
   });
 });

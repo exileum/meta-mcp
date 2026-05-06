@@ -8,7 +8,7 @@ export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic
 
 export const shareToIgStorySchema = z.enum(["light", "dark"]).optional().describe("Cross-share this post to linked Instagram as a Story. 'light' = normal, 'dark' = dark mode. Requires threads_share_to_instagram permission and a linked Instagram account. The Threads post still publishes even if cross-share fails.");
 
-export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment.");
+export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment. Cannot be combined with text_attachment, link_attachment, or gif_id+gif_provider.");
 
 export const textStylingEnum = z.enum(["bold", "italic", "highlight", "underline", "strikethrough"]);
 
@@ -41,17 +41,16 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. alt_text is only valid when paired with a GIF attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
+    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
-      link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post). Cannot be combined with text_attachment."),
+      link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post). Cannot be combined with text_attachment, poll_options, or gif_id+gif_provider."),
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       poll_options: pollOptionsSchema,
       gif_id: z.string().min(1).optional().describe("GIPHY GIF ID. Must be provided together with gif_provider — providing only one returns an error."),
       gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported. Must be provided together with gif_id — providing only one returns an error."),
-      alt_text: z.string().max(1000).optional().describe("Alt text for the GIF attachment, for accessibility (max 1000 chars). Requires gif_id + gif_provider — alt_text on a text-only post without a GIF is rejected because there is no media to describe."),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
@@ -60,7 +59,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       text_attachment_styling: textAttachmentStylingSchema,
       auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       try {
         // Validate mutual exclusions
         if (text_attachment && poll_options) {
@@ -100,9 +99,6 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (gif_id && (text_attachment || poll_options || link_attachment)) {
           return { content: [{ type: "text", text: "GIF attachment cannot be combined with text_attachment, poll_options, or link_attachment" }], isError: true };
         }
-        if (alt_text && !gif_id) {
-          return { content: [{ type: "text", text: "alt_text requires a GIF attachment (gif_id + gif_provider). Text-only posts have no media for alt_text to describe." }], isError: true };
-        }
 
         const params: Record<string, unknown> = { media_type: "TEXT", text };
         if (reply_control) params.reply_control = reply_control;
@@ -120,7 +116,6 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (gif_id && gif_provider) {
           params.gif_attachment = JSON.stringify({ gif_id, provider: gif_provider });
         }
-        if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
         if (text_attachment) {
           const obj: Record<string, unknown> = { plaintext: text_attachment };
