@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerThreadsMentionsTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_mentions ────────────────────────────────────
@@ -25,7 +26,7 @@ export function registerThreadsMentionsTools(server: McpServer, client: MetaClie
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/mentions`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get mentions failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get mentions");
       }
     }
   );

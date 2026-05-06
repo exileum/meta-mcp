@@ -2,6 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerMetaAuthTools(server: McpServer, client: MetaClient): void {
   // ─── meta_exchange_token ─────────────────────────────────────
@@ -19,7 +20,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
           : await client.igExchangeToken(short_lived_token);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Token exchange failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Token exchange");
       }
     }
   );
@@ -39,7 +40,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
           : await client.igRefreshToken(long_lived_token);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Token refresh failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Token refresh");
       }
     }
   );
@@ -56,7 +57,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = await client.debugToken(input_token);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Token debug failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Token debug");
       }
     }
   );
@@ -73,7 +74,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get app info failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get app info");
       }
     }
   );
@@ -98,7 +99,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Webhook subscribe failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Webhook subscribe");
       }
     }
   );
@@ -113,7 +114,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = await client.meta("GET", `/app/subscriptions`);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get webhooks failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get webhooks");
       }
     }
   );

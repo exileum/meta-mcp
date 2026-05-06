@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "../../utils/container.js";
+import { formatErrorResponse, validationError } from "../../utils/errors.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
@@ -64,21 +65,21 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       try {
         // Validate mutual exclusions
         if (text_attachment && poll_options) {
-          return { content: [{ type: "text", text: "text_attachment cannot be combined with poll_options" }], isError: true };
+          return validationError("text_attachment cannot be combined with poll_options");
         }
         if (text_attachment && link_attachment) {
-          return { content: [{ type: "text", text: "text_attachment cannot be combined with link_attachment. Use text_attachment_link instead to include a link inside the text attachment." }], isError: true };
+          return validationError("text_attachment cannot be combined with link_attachment. Use text_attachment_link instead to include a link inside the text attachment.");
         }
         if (text_attachment_link && !text_attachment) {
-          return { content: [{ type: "text", text: "text_attachment_link requires text_attachment" }], isError: true };
+          return validationError("text_attachment_link requires text_attachment");
         }
         if (text_attachment_styling && !text_attachment) {
-          return { content: [{ type: "text", text: "text_attachment_styling requires text_attachment" }], isError: true };
+          return validationError("text_attachment_styling requires text_attachment");
         }
         if (text_attachment_styling) {
           for (const range of text_attachment_styling) {
             if (range.offset + range.length > text_attachment!.length) {
-              return { content: [{ type: "text", text: `text_attachment_styling range at offset ${range.offset} with length ${range.length} exceeds text_attachment length (${text_attachment!.length})` }], isError: true };
+              return validationError(`text_attachment_styling range at offset ${range.offset} with length ${range.length} exceeds text_attachment length (${text_attachment!.length})`);
             }
           }
           if (text_attachment_styling.length > 1) {
@@ -86,13 +87,13 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
             for (let i = 1; i < sorted.length; i++) {
               const prev = sorted[i - 1];
               if (sorted[i].offset < prev.offset + prev.length) {
-                return { content: [{ type: "text", text: `text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}` }], isError: true };
+                return validationError(`text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}`);
               }
             }
           }
         }
         if ((gif_id && !gif_provider) || (!gif_id && gif_provider)) {
-          return { content: [{ type: "text", text: "gif_id and gif_provider must be provided together (both or neither). Per the Threads Posts API, gif_attachment requires both the GIF ID and provider." }], isError: true };
+          return validationError("gif_id and gif_provider must be provided together (both or neither). Per the Threads Posts API, gif_attachment requires both the GIF ID and provider.");
         }
 
         const params: Record<string, unknown> = { media_type: "TEXT", text };
@@ -146,7 +147,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish text failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish text");
       }
     }
   );
@@ -186,7 +187,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish image failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish image");
       }
     }
   );
@@ -226,7 +227,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish video failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish video");
       }
     }
   );
@@ -284,7 +285,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish carousel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish carousel");
       }
     }
   );
@@ -301,7 +302,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("DELETE", `/${post_id}`);
         return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Delete post failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Delete post");
       }
     }
   );
@@ -322,9 +323,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg.includes("nonexisting field")) {
-          return { content: [{ type: "text", text: "This ID appears to be a published post, not an unpublished container. The status and error_message fields are only available on unpublished media containers (returned from container creation endpoints before calling threads_publish)." }], isError: true };
+          return validationError("This ID appears to be a published post, not an unpublished container. The status and error_message fields are only available on unpublished media containers (returned from container creation endpoints before calling threads_publish).");
         }
-        return { content: [{ type: "text", text: `Get container status failed: ${msg}` }], isError: true };
+        return formatErrorResponse(error, "Get container status");
       }
     }
   );
@@ -341,7 +342,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get publishing limit failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get publishing limit");
       }
     }
   );
@@ -358,7 +359,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${post_id}/repost`, {});
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Repost failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Repost");
       }
     }
   );
