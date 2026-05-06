@@ -1,0 +1,150 @@
+export type ErrorType = "auth" | "validation" | "rate_limit" | "server" | "network" | "internal";
+
+interface MetaApiErrorInit {
+  message: string;
+  httpStatus?: number;
+  apiCode?: number;
+  apiSubcode?: number;
+  apiType?: string;
+  fbtraceId?: string;
+  endpoint: string;
+  method: string;
+  body?: string;
+}
+
+export class MetaApiError extends Error {
+  readonly httpStatus?: number;
+  readonly apiCode?: number;
+  readonly apiSubcode?: number;
+  readonly apiType?: string;
+  readonly fbtraceId?: string;
+  readonly endpoint: string;
+  readonly method: string;
+  readonly body?: string;
+
+  constructor(init: MetaApiErrorInit) {
+    super(init.message);
+    this.name = "MetaApiError";
+    this.httpStatus = init.httpStatus;
+    this.apiCode = init.apiCode;
+    this.apiSubcode = init.apiSubcode;
+    this.apiType = init.apiType;
+    this.fbtraceId = init.fbtraceId;
+    this.endpoint = init.endpoint;
+    this.method = init.method;
+    this.body = init.body;
+  }
+}
+
+const AUTH_CODES = new Set([10, 102, 190]);
+const RATE_LIMIT_CODES = new Set([4, 17, 32, 341, 613]);
+const VALIDATION_CODES = new Set([100, 200, 803]);
+const SERVER_CODES = new Set([1, 2]);
+
+function isBusinessUseCaseRateLimit(code?: number): boolean {
+  return typeof code === "number" && code >= 80001 && code <= 80008;
+}
+
+function categorize(error: unknown): ErrorType {
+  if (error instanceof MetaApiError) {
+    const { httpStatus, apiCode, apiType } = error;
+    if (
+      httpStatus === 401 ||
+      apiType === "OAuthException" ||
+      (apiCode !== undefined && AUTH_CODES.has(apiCode))
+    ) {
+      return "auth";
+    }
+    if (
+      httpStatus === 429 ||
+      (apiCode !== undefined && RATE_LIMIT_CODES.has(apiCode)) ||
+      isBusinessUseCaseRateLimit(apiCode)
+    ) {
+      return "rate_limit";
+    }
+    if (httpStatus === 400 || (apiCode !== undefined && VALIDATION_CODES.has(apiCode))) {
+      return "validation";
+    }
+    if (
+      (httpStatus !== undefined && httpStatus >= 500) ||
+      (apiCode !== undefined && SERVER_CODES.has(apiCode))
+    ) {
+      return "server";
+    }
+    return "server";
+  }
+  if (error instanceof Error) {
+    if (error.name === "AbortError" || error.name === "TimeoutError") return "network";
+    if (error.name === "TypeError" && /fetch failed|network/i.test(error.message)) return "network";
+    if (/fetch failed/i.test(error.message)) return "network";
+  }
+  return "internal";
+}
+
+const REMEDIATION: Partial<Record<ErrorType, string>> = {
+  auth: "Refresh the access token via meta_exchange_token (short→long) or meta_refresh_token (long→long), or generate a new token from the Meta App dashboard. The token may be expired, revoked, or scoped incorrectly.",
+  rate_limit: "Retry after a delay with exponential backoff. Inspect the _rateLimit field on prior successful responses to gauge headroom; consider reducing call volume or batching.",
+  server: "Transient Meta server issue — retry with exponential backoff. If it persists, check status.dev.facebook.com.",
+  network: "Network error or timeout reaching the Meta API. Retry with exponential backoff; verify outbound connectivity.",
+};
+
+export function sanitizeRaw(text: string): string {
+  return text
+    .replace(/access_token=[^&"\s]+/gi, "access_token=***")
+    .replace(/"access_token"\s*:\s*"[^"]*"/gi, '"access_token":"***"');
+}
+
+interface ErrorPayload {
+  error: true;
+  error_type: ErrorType;
+  http_status?: number;
+  code?: number;
+  subcode?: number;
+  type?: string;
+  message: string;
+  remediation?: string;
+  fbtrace_id?: string;
+  raw?: string;
+}
+
+export interface McpErrorResult {
+  [key: string]: unknown;
+  content: { type: "text"; text: string }[];
+  isError: true;
+}
+
+export function formatErrorResponse(error: unknown, label: string): McpErrorResult {
+  const errorType = categorize(error);
+  const original = error instanceof Error ? error.message : String(error);
+  const payload: ErrorPayload = {
+    error: true,
+    error_type: errorType,
+    message: `${label} failed: ${original}`,
+  };
+  if (error instanceof MetaApiError) {
+    if (error.httpStatus !== undefined) payload.http_status = error.httpStatus;
+    if (error.apiCode !== undefined) payload.code = error.apiCode;
+    if (error.apiSubcode !== undefined) payload.subcode = error.apiSubcode;
+    if (error.apiType) payload.type = error.apiType;
+    if (error.fbtraceId) payload.fbtrace_id = error.fbtraceId;
+  }
+  const remediation = REMEDIATION[errorType];
+  if (remediation) payload.remediation = remediation;
+  payload.raw = sanitizeRaw(original);
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    isError: true,
+  };
+}
+
+export function validationError(message: string): McpErrorResult {
+  const payload: ErrorPayload = {
+    error: true,
+    error_type: "validation",
+    message,
+  };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    isError: true,
+  };
+}

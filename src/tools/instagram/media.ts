@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerIgMediaTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_media_list ───────────────────────────────────────
@@ -23,7 +24,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/media`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get media list failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get media list");
       }
     }
   );
@@ -42,7 +43,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         const { data, rateLimit } = await client.ig("GET", `/${media_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get media failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get media");
       }
     }
   );
@@ -59,7 +60,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         const { data, rateLimit } = await client.ig("DELETE", `/${media_id}`);
         return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Delete media failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Delete media");
       }
     }
   );
@@ -82,7 +83,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/insights`, { metric: m });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get media insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get media insights");
       }
     }
   );
@@ -102,7 +103,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         });
         return { content: [{ type: "text", text: JSON.stringify({ success: true, comment_enabled: enabled, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Toggle comments failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Toggle comments");
       }
     }
   );
