@@ -16,6 +16,8 @@
 - `THREADS_USER_ID` (for Threads) — Threads user ID (numeric string, or `"me"` for the authenticated user)
 - `META_APP_ID` (for token/webhook tools) — Meta App ID (numeric string)
 - `META_APP_SECRET` (for token/webhook tools) — Meta App Secret
+- `META_API_VERSION` (optional) — Meta Graph API version for Instagram and Facebook endpoints, defaults to `v25.0` (format `vMAJOR.MINOR`; malformed values fall back to default with a stderr warning)
+- `THREADS_API_VERSION` (optional) — Threads API version, defaults to `v1.0` (separate single-major-version track from the Graph API)
 
 Only set variables for the platforms you use. The server validates these at startup: malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` exit with `Invalid meta-mcp configuration: …`; setting only one half of a credential pair prints a stderr warning and continues.
 

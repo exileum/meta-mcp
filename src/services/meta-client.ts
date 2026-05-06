@@ -1,13 +1,42 @@
 import { MetaConfig } from "../config.js";
 import { MetaApiError } from "../utils/errors.js";
 
-const IG_BASE = "https://graph.instagram.com/v25.0";
-const FB_BASE = "https://graph.facebook.com/v25.0";
-const THREADS_BASE = "https://graph.threads.net/v1.0";
+// Default Meta Graph API and Threads API versions — last verified 2026-05-06.
+// The Graph API ships a new minor version every ~4 months and supports each
+// for ~2 years; Threads runs a separate single-major-version track (v1.0 since
+// launch) and is intentionally not bumped in lockstep with the Graph API.
+// Operators can override either default at runtime via `META_API_VERSION` /
+// `THREADS_API_VERSION` to buy time when Meta deprecates a version before a
+// new meta-mcp release ships. OAuth token endpoints
+// (`graph.instagram.com/access_token`, `graph.threads.net/refresh_access_token`,
+// etc.) are unversioned by Meta — `IG_TOKEN_BASE` / `THREADS_TOKEN_BASE` stay
+// unversioned regardless of the version env vars.
+export const DEFAULT_META_API_VERSION = "v25.0";
+export const DEFAULT_THREADS_API_VERSION = "v1.0";
 
-// Unversioned bases for OAuth token endpoints
+const API_VERSION_PATTERN = /^v\d+\.\d+$/;
+
+// Unversioned bases for OAuth token endpoints (deliberate — Meta's OAuth
+// surface has no version segment; piping META_API_VERSION here would 404).
 const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
+
+function resolveApiVersion(envName: string, fallback: string): string {
+  const raw = process.env[envName];
+  if (!raw) return fallback;
+  if (!API_VERSION_PATTERN.test(raw)) {
+    console.error(
+      `[meta-mcp] Warning: ${envName}="${raw}" is not in vX.Y format — falling back to ${fallback}.`
+    );
+    return fallback;
+  }
+  return raw;
+}
+
+export interface MetaClientOptions {
+  metaApiVersion?: string;
+  threadsApiVersion?: string;
+}
 
 export interface RateLimit {
   callCount?: number;
@@ -65,9 +94,21 @@ function parseMetaErrorBody(text: string): ParsedMetaError | undefined {
 
 export class MetaClient {
   private config: MetaConfig;
+  private igBase: string;
+  private fbBase: string;
+  private threadsBase: string;
 
-  constructor(config: MetaConfig) {
+  constructor(config: MetaConfig, options?: MetaClientOptions) {
     this.config = config;
+    const metaVersion =
+      options?.metaApiVersion ??
+      resolveApiVersion("META_API_VERSION", DEFAULT_META_API_VERSION);
+    const threadsVersion =
+      options?.threadsApiVersion ??
+      resolveApiVersion("THREADS_API_VERSION", DEFAULT_THREADS_API_VERSION);
+    this.igBase = `https://graph.instagram.com/${metaVersion}`;
+    this.fbBase = `https://graph.facebook.com/${metaVersion}`;
+    this.threadsBase = `https://graph.threads.net/${threadsVersion}`;
   }
 
   private parseRateLimit(headers: Headers): RateLimit | undefined {
@@ -199,7 +240,7 @@ export class MetaClient {
     if (!this.config.instagramAccessToken) {
       throw new Error("INSTAGRAM_ACCESS_TOKEN is not configured.");
     }
-    return this.request(IG_BASE, this.config.instagramAccessToken, method, path, params, options);
+    return this.request(this.igBase, this.config.instagramAccessToken, method, path, params, options);
   }
 
   async threads(
@@ -211,7 +252,7 @@ export class MetaClient {
     if (!this.config.threadsAccessToken) {
       throw new Error("THREADS_ACCESS_TOKEN is not configured.");
     }
-    return this.request(THREADS_BASE, this.config.threadsAccessToken, method, path, params, options);
+    return this.request(this.threadsBase, this.config.threadsAccessToken, method, path, params, options);
   }
 
   async meta(
@@ -224,7 +265,7 @@ export class MetaClient {
       throw new Error("META_APP_ID and META_APP_SECRET are required.");
     }
     const appToken = `${this.config.appId}|${this.config.appSecret}`;
-    return this.request(FB_BASE, appToken, method, path, params, options);
+    return this.request(this.fbBase, appToken, method, path, params, options);
   }
 
   /** Exchange short-lived Instagram token for long-lived token (60 days) */
@@ -269,7 +310,7 @@ export class MetaClient {
       throw new Error("META_APP_ID and META_APP_SECRET are required for token debug.");
     }
     const appToken = `${this.config.appId}|${this.config.appSecret}`;
-    return this.request(FB_BASE, appToken, "GET", "/debug_token", {
+    return this.request(this.fbBase, appToken, "GET", "/debug_token", {
       input_token: inputToken,
     });
   }
