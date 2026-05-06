@@ -98,13 +98,15 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "Get pending collaboration invites for the Instagram account. Added in December 2025.",
     {
       limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
     },
-    async ({ limit, after }) => {
+    async ({ limit, after, before }) => {
       try {
         const params: Record<string, unknown> = {};
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/collaboration_invites`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {

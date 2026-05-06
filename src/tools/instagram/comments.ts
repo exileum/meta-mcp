@@ -11,16 +11,18 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     {
       media_id: z.string().describe("Media ID"),
       limit: z.number().optional().describe("Number of comments to return"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
       fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count,replies{id,text,username,timestamp})"),
     },
-    async ({ media_id, limit, after, fields }) => {
+    async ({ media_id, limit, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = {
           fields: fields || "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/comments`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
@@ -73,16 +75,18 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     {
       comment_id: z.string().describe("Comment ID to get replies for"),
       limit: z.number().optional().describe("Number of replies to return"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
       fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count)"),
     },
-    async ({ comment_id, limit, after, fields }) => {
+    async ({ comment_id, limit, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = {
           fields: fields || "id,text,username,timestamp,like_count",
         };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}/replies`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
