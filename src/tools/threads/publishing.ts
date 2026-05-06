@@ -59,6 +59,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
       auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
+      alt_text: z.never("alt_text is not supported on text-only Threads posts (media_type=TEXT). Use threads_publish_image, threads_publish_video, or threads_publish_carousel for accessibility labels — those tools accept alt_text on IMAGE/VIDEO/CAROUSEL containers.").optional().describe("Reserved — must be omitted. alt_text is only supported on image, video, and carousel posts; passing it here raises a Zod schema error."),
     },
     async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       try {
