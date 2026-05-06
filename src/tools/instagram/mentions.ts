@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const MENTIONED_COMMENT_DEFAULT_FIELDS = "id,text,timestamp,username,media{id,media_url,media_type}";
@@ -40,7 +40,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     },
     async ({ limit, after, before, fields }) => {
       try {
-        const params: Record<string, unknown> = { fields };
+        const params: FormParams = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         if (before) params.before = before;

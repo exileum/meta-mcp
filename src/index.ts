@@ -39,7 +39,13 @@ const server = new McpServer({
   version: SERVER_VERSION,
 });
 
-const config = loadConfig();
+let config: MetaConfig;
+try {
+  config = loadConfig();
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
 const client = new MetaClient(config);
 
 // Register tools

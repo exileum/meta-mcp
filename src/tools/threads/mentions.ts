@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerThreadsMentionsTools(server: McpServer, client: MetaClient): void {
@@ -16,7 +16,7 @@ export function registerThreadsMentionsTools(server: McpServer, client: MetaClie
     },
     async ({ limit, since, until, after }) => {
       try {
-        const params: Record<string, unknown> = {
+        const params: FormParams = {
           fields: "id,media_product_type,media_type,media_url,text,permalink,timestamp,username,shortcode,is_quote_post,topic_tag,has_replies,is_verified,profile_picture_url",
         };
         if (limit !== undefined) params.limit = limit;

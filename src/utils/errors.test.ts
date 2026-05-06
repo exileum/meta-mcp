@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { MetaApiError, formatErrorResponse, validationError, sanitizeRaw } from "./errors.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { MetaApiError, formatErrorResponse, toMcpResourceError, validationError, sanitizeRaw } from "./errors.js";
 
 interface ErrorPayload {
   error: true;
@@ -251,6 +252,73 @@ describe("formatErrorResponse — raw field & sanitization", () => {
     const raw = parsePayload(formatErrorResponse(error, "X")).raw;
     expect(raw).toContain('"access_token":"***"');
     expect(raw).not.toContain("secret123");
+  });
+});
+
+describe("toMcpResourceError", () => {
+  it("returns an McpError with InternalError code for any input", () => {
+    const error = new Error("boom");
+    const result = toMcpResourceError(error, "Get Instagram profile");
+    expect(result).toBeInstanceOf(McpError);
+    expect(result.code).toBe(ErrorCode.InternalError);
+  });
+
+  it("prefixes the message with the label and sanitizes access_token", () => {
+    const error = new Error("Failed: https://example.com/?access_token=EAAB_secret_xyz");
+    const result = toMcpResourceError(error, "Get Instagram profile");
+    expect(result.message).toContain("Get Instagram profile failed:");
+    expect(result.message).toContain("access_token=***");
+    expect(result.message).not.toContain("EAAB_secret_xyz");
+  });
+
+  it("categorizes MetaApiError 401 as auth and includes remediation in data", () => {
+    const error = new MetaApiError({
+      message: "Meta API GET /me (401): OAuthException",
+      httpStatus: 401,
+      apiType: "OAuthException",
+      apiCode: 190,
+      apiSubcode: 463,
+      fbtraceId: "Abc123FbTrace",
+      endpoint: "/me",
+      method: "GET",
+    });
+    const result = toMcpResourceError(error, "Get Threads profile");
+    const data = result.data as Record<string, unknown>;
+    expect(data.error_type).toBe("auth");
+    expect(data.http_status).toBe(401);
+    expect(data.code).toBe(190);
+    expect(data.subcode).toBe(463);
+    expect(data.type).toBe("OAuthException");
+    expect(data.fbtrace_id).toBe("Abc123FbTrace");
+    expect(data.remediation).toContain("meta_exchange_token");
+  });
+
+  it("categorizes 429 MetaApiError as rate_limit with backoff hint", () => {
+    const error = new MetaApiError({
+      message: "Meta API GET /me (429): rate limit",
+      httpStatus: 429,
+      apiCode: 17,
+      endpoint: "/me",
+      method: "GET",
+    });
+    const data = toMcpResourceError(error, "X").data as Record<string, unknown>;
+    expect(data.error_type).toBe("rate_limit");
+    expect(data.remediation).toContain("backoff");
+  });
+
+  it("categorizes plain Error as internal and omits MetaApiError-only fields", () => {
+    const data = toMcpResourceError(new Error("oops"), "X").data as Record<string, unknown>;
+    expect(data.error_type).toBe("internal");
+    expect(data.http_status).toBeUndefined();
+    expect(data.code).toBeUndefined();
+    expect(data.fbtrace_id).toBeUndefined();
+    expect(data.remediation).toBeUndefined();
+  });
+
+  it("handles non-Error thrown values", () => {
+    const result = toMcpResourceError("string thrown", "X");
+    expect(result.message).toContain("X failed: string thrown");
+    expect((result.data as Record<string, unknown>).error_type).toBe("internal");
   });
 });
 

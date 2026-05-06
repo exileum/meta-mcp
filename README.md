@@ -64,11 +64,13 @@ npm run build
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `INSTAGRAM_ACCESS_TOKEN` | For Instagram | Instagram Graph API access token |
-| `INSTAGRAM_USER_ID` | For Instagram | Instagram Business/Creator account ID |
+| `INSTAGRAM_USER_ID` | For Instagram | Instagram Business/Creator account ID (numeric string, or `"me"` for the authenticated user) |
 | `THREADS_ACCESS_TOKEN` | For Threads | Threads API access token |
-| `THREADS_USER_ID` | For Threads | Threads user ID |
-| `META_APP_ID` | For token/webhook tools | Meta App ID |
+| `THREADS_USER_ID` | For Threads | Threads user ID (numeric string, or `"me"` for the authenticated user) |
+| `META_APP_ID` | For token/webhook tools | Meta App ID (numeric string) |
 | `META_APP_SECRET` | For token/webhook tools | Meta App Secret |
+
+The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` cause the process to exit with `Invalid meta-mcp configuration: …`. Setting only one half of a credential pair (e.g., `INSTAGRAM_ACCESS_TOKEN` without `INSTAGRAM_USER_ID`) prints a stderr warning and continues; related tool invocations still fail at call time.
 
 ## Account Requirements
 
@@ -143,7 +145,7 @@ npm run build
 | `ig_get_account_insights` | Get account-level analytics (views, reach, follower_count). Optional `metric_type` (`total_value` or `time_series`) controls aggregation shape |
 | `ig_business_discovery` | Look up another business account |
 | `ig_get_collaboration_invites` | Get pending collaboration invites |
-| `ig_respond_collaboration_invite` | Accept or decline collaboration invites |
+| `ig_respond_collaboration_invite` | Accept/decline a collaboration invite by media_id |
 
 ### Instagram — Hashtags (4)
 

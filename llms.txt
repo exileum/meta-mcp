@@ -11,13 +11,13 @@
 ## Environment Variables
 
 - `INSTAGRAM_ACCESS_TOKEN` (for Instagram) — Instagram Graph API access token
-- `INSTAGRAM_USER_ID` (for Instagram) — Instagram Business/Creator account ID
+- `INSTAGRAM_USER_ID` (for Instagram) — Instagram Business/Creator account ID (numeric string, or `"me"` for the authenticated user)
 - `THREADS_ACCESS_TOKEN` (for Threads) — Threads API access token
-- `THREADS_USER_ID` (for Threads) — Threads user ID
-- `META_APP_ID` (for token/webhook tools) — Meta App ID
+- `THREADS_USER_ID` (for Threads) — Threads user ID (numeric string, or `"me"` for the authenticated user)
+- `META_APP_ID` (for token/webhook tools) — Meta App ID (numeric string)
 - `META_APP_SECRET` (for token/webhook tools) — Meta App Secret
 
-Only set variables for the platforms you use.
+Only set variables for the platforms you use. The server validates these at startup: malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` exit with `Invalid meta-mcp configuration: …`; setting only one half of a credential pair prints a stderr warning and continues.
 
 ## MCP Config
 
@@ -87,7 +87,7 @@ Tool failures return `isError: true` and a JSON-encoded body in `content[0].text
 - ig_get_account_insights — Get account-level analytics (views, reach, follower_count). Optional `metric_type` (`total_value` or `time_series`) controls aggregation shape
 - ig_business_discovery — Look up another business account
 - ig_get_collaboration_invites — Get pending collaboration invites
-- ig_respond_collaboration_invite — Accept or decline collaboration invites
+- ig_respond_collaboration_invite — Accept/decline a collaboration invite by media_id
 
 ### Instagram — Hashtags (4)
 - ig_search_hashtag — Search hashtag by name
