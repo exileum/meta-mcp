@@ -23,6 +23,14 @@ export const allowlistedCountryCodesSchema = z.array(
   z.string().regex(/^[A-Za-z]{2}$/, "Must be an ISO 3166-1 alpha-2 country code (2 letters)")
 ).min(1).optional().describe("ISO 3166-1 alpha-2 country codes (e.g., ['US','CA','GB']) restricting post visibility to those countries (geo-gating). Requires the account to be eligible — check `is_eligible_for_geo_gating` via `threads_get_profile`. The creator can always see their own posts regardless. Codes are normalized to uppercase and sent comma-joined (e.g., 'US,CA') as required by the API.");
 
+export const replyControlSchema = z.enum([
+  "everyone",
+  "accounts_you_follow",
+  "mentioned_only",
+  "parent_post_author_only",
+  "followers_only",
+]).optional().describe("Who can reply to this post. One of: 'everyone' (default — anyone can reply), 'accounts_you_follow' (only profiles the author follows), 'mentioned_only' (only profiles @-mentioned in the post), 'parent_post_author_only' (only the author of the quoted/parent post), or 'followers_only' (only the author's followers). See https://developers.facebook.com/docs/threads/reply-management/ for the authoritative list.");
+
 const POLL_OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"] as const;
 
 function applyShareToIgStory(params: Record<string, unknown>, share_to_ig_story?: "light" | "dark"): void {
@@ -45,7 +53,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
-      reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
+      reply_control: replyControlSchema,
       link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post). Cannot be combined with text_attachment, poll_options, or gif_id+gif_provider."),
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
@@ -163,7 +171,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     {
       image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
       text: z.string().max(500).optional().describe("Caption text"),
-      reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
+      reply_control: replyControlSchema,
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
@@ -203,7 +211,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     {
       video_url: httpsUrl.describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
-      reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
+      reply_control: replyControlSchema,
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
@@ -247,7 +255,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         alt_text: z.string().max(1000).optional().describe("Alt text for this item"),
       })).min(2).max(20).describe("Array of media items"),
       text: z.string().max(500).optional().describe("Caption text"),
-      reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
+      reply_control: replyControlSchema,
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       share_to_ig_story: shareToIgStorySchema,
