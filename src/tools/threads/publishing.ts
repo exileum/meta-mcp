@@ -3,12 +3,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { waitForThreadsContainer } from "../../utils/container.js";
+import { formatErrorResponse, validationError } from "../../utils/errors.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
 export const shareToIgStorySchema = z.enum(["light", "dark"]).optional().describe("Cross-share this post to linked Instagram as a Story. 'light' = normal, 'dark' = dark mode. Requires threads_share_to_instagram permission and a linked Instagram account. The Threads post still publishes even if cross-share fails.");
 
-export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment.");
+export const pollOptionsSchema = z.array(z.string().min(1).max(25)).min(2).max(4).optional().describe("Poll options (2-4 choices, each 1-25 chars). Creates a poll attachment. Cannot be combined with text_attachment, link_attachment, or gif_id+gif_provider.");
 
 export const textStylingEnum = z.enum(["bold", "italic", "highlight", "underline", "strikethrough"]);
 
@@ -41,44 +42,46 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). text_attachment cannot be combined with poll_options or link_attachment. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
+    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: z.enum(["everyone", "accounts_you_follow", "mentioned_only", "parent_post_author_only", "followers_only"]).optional().describe("Who can reply"),
-      link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post). Cannot be combined with text_attachment."),
+      link_attachment: z.string().url().optional().describe("URL to attach as a link preview card (max 5 links per post). Cannot be combined with text_attachment, poll_options, or gif_id+gif_provider."),
       topic_tag: topicTagSchema,
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       poll_options: pollOptionsSchema,
       gif_id: z.string().min(1).optional().describe("GIPHY GIF ID. Must be provided together with gif_provider — providing only one returns an error."),
       gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported. Must be provided together with gif_id — providing only one returns an error."),
-      alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars)"),
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
-      text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options or link_attachment."),
+      text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options, link_attachment, or gif_id+gif_provider."),
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
       auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       try {
         // Validate mutual exclusions
         if (text_attachment && poll_options) {
-          return { content: [{ type: "text", text: "text_attachment cannot be combined with poll_options" }], isError: true };
+          return validationError("text_attachment cannot be combined with poll_options");
         }
         if (text_attachment && link_attachment) {
-          return { content: [{ type: "text", text: "text_attachment cannot be combined with link_attachment. Use text_attachment_link instead to include a link inside the text attachment." }], isError: true };
+          return validationError("text_attachment cannot be combined with link_attachment. Use text_attachment_link instead to include a link inside the text attachment.");
+        }
+        if (poll_options && link_attachment) {
+          return validationError("poll_options cannot be combined with link_attachment");
         }
         if (text_attachment_link && !text_attachment) {
-          return { content: [{ type: "text", text: "text_attachment_link requires text_attachment" }], isError: true };
+          return validationError("text_attachment_link requires text_attachment");
         }
         if (text_attachment_styling && !text_attachment) {
-          return { content: [{ type: "text", text: "text_attachment_styling requires text_attachment" }], isError: true };
+          return validationError("text_attachment_styling requires text_attachment");
         }
         if (text_attachment_styling) {
           for (const range of text_attachment_styling) {
             if (range.offset + range.length > text_attachment!.length) {
-              return { content: [{ type: "text", text: `text_attachment_styling range at offset ${range.offset} with length ${range.length} exceeds text_attachment length (${text_attachment!.length})` }], isError: true };
+              return validationError(`text_attachment_styling range at offset ${range.offset} with length ${range.length} exceeds text_attachment length (${text_attachment!.length})`);
             }
           }
           if (text_attachment_styling.length > 1) {
@@ -86,13 +89,16 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
             for (let i = 1; i < sorted.length; i++) {
               const prev = sorted[i - 1];
               if (sorted[i].offset < prev.offset + prev.length) {
-                return { content: [{ type: "text", text: `text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}` }], isError: true };
+                return validationError(`text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}`);
               }
             }
           }
         }
         if ((gif_id && !gif_provider) || (!gif_id && gif_provider)) {
-          return { content: [{ type: "text", text: "gif_id and gif_provider must be provided together (both or neither). Per the Threads Posts API, gif_attachment requires both the GIF ID and provider." }], isError: true };
+          return validationError("gif_id and gif_provider must be provided together (both or neither). Per the Threads Posts API, gif_attachment requires both the GIF ID and provider.");
+        }
+        if (gif_id && (text_attachment || poll_options || link_attachment)) {
+          return validationError("GIF attachment cannot be combined with text_attachment, poll_options, or link_attachment");
         }
 
         const params: Record<string, unknown> = { media_type: "TEXT", text };
@@ -111,7 +117,6 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (gif_id && gif_provider) {
           params.gif_attachment = JSON.stringify({ gif_id, provider: gif_provider });
         }
-        if (alt_text) params.alt_text = alt_text;
         if (is_spoiler) params.is_spoiler_media = true;
         if (text_attachment) {
           const obj: Record<string, unknown> = { plaintext: text_attachment };
@@ -146,7 +151,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish text failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish text");
       }
     }
   );
@@ -186,7 +191,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish image failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish image");
       }
     }
   );
@@ -226,7 +231,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish video failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish video");
       }
     }
   );
@@ -284,7 +289,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Publish carousel failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Publish carousel");
       }
     }
   );
@@ -301,7 +306,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("DELETE", `/${post_id}`);
         return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Delete post failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Delete post");
       }
     }
   );
@@ -322,9 +327,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg.includes("nonexisting field")) {
-          return { content: [{ type: "text", text: "This ID appears to be a published post, not an unpublished container. The status and error_message fields are only available on unpublished media containers (returned from container creation endpoints before calling threads_publish)." }], isError: true };
+          return validationError("This ID appears to be a published post, not an unpublished container. The status and error_message fields are only available on unpublished media containers (returned from container creation endpoints before calling threads_publish).");
         }
-        return { content: [{ type: "text", text: `Get container status failed: ${msg}` }], isError: true };
+        return formatErrorResponse(error, "Get container status");
       }
     }
   );
@@ -341,7 +346,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get publishing limit failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get publishing limit");
       }
     }
   );
@@ -358,7 +363,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${post_id}/repost`, {});
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Repost failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Repost");
       }
     }
   );

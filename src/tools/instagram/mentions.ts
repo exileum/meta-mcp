@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerIgMentionTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_mentioned_comment ────────────────────────────────
@@ -20,7 +21,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get mentioned comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get mentioned comment");
       }
     }
   );
@@ -46,7 +47,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/tags`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get tagged media failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get tagged media");
       }
     }
   );

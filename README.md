@@ -80,13 +80,14 @@ npm run build
 
 ## Features
 
-- **57 tools** across Instagram (33), Threads (18), and Meta platform (6)
+- **58 tools** across Instagram (33), Threads (19), and Meta platform (6)
 - **Instagram**: Publish photos/videos/reels/stories/carousels with alt text, manage comments, view insights, search hashtags, handle DMs, manage collaboration invites
 - **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; delete posts; view insights
 - **Meta**: Token exchange/refresh/debug, webhook management
 - **2 resources**: Instagram profile, Threads profile
 - **2 prompts**: Cross-platform content publishing, analytics report
 - Rate limit tracking via `x-app-usage` header
+- **Structured error responses** with `error_type` (`auth`, `validation`, `rate_limit`, `server`, `network`, `internal`), HTTP status, Meta API code/subcode/type, and a `remediation` hint where actionable — see [`CHANGELOG.md`](./CHANGELOG.md) for the JSON shape
 
 ## Tools
 
@@ -139,7 +140,7 @@ npm run build
 | Tool | Description |
 |------|-------------|
 | `ig_get_profile` | Get account profile info |
-| `ig_get_account_insights` | Get account-level analytics (views, reach, follower_count) |
+| `ig_get_account_insights` | Get account-level analytics (views, reach, follower_count). Optional `metric_type` (`total_value` or `time_series`) controls aggregation shape |
 | `ig_business_discovery` | Look up another business account |
 | `ig_get_collaboration_invites` | Get pending collaboration invites |
 | `ig_respond_collaboration_invite` | Accept or decline collaboration invites |
@@ -186,7 +187,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_posts` | List published posts (includes topic_tag, poll, GIF fields) |
+| `threads_get_posts` | List published posts (includes topic_tag, poll, GIF fields; optional `fields` param to override the default field list) |
 | `threads_get_post` | Get post details |
 | `threads_search_posts` | Search public posts by keyword or tag (requires `threads_keyword_search` permission) |
 
@@ -205,12 +206,11 @@ npm run build
 |------|-------------|
 | `threads_get_mentions` | List posts where the user was @mentioned (requires `threads_manage_mentions`) |
 
-### Threads — Profile (2)
+### Threads — Profile (1)
 
 | Tool | Description |
 |------|-------------|
 | `threads_get_profile` | Get Threads profile info (includes `is_verified` and `is_eligible_for_geo_gating`) |
-| `threads_get_user_threads` | List user's threads |
 
 ### Threads — Insights (2)
 
@@ -223,8 +223,8 @@ npm run build
 
 | Resource URI | Description |
 |-------------|-------------|
-| `instagram://profile` | Instagram account profile data |
-| `threads://profile` | Threads account profile data (includes is_verified) |
+| `meta-mcp://instagram/profile` | Instagram account profile data |
+| `meta-mcp://threads/profile` | Threads account profile data (includes is_verified) |
 
 ## Prompts
 
