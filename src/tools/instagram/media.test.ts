@@ -130,7 +130,7 @@ describe("ig_get_media rejects path-traversal media_id (#103)", () => {
   it("rejects empty media_id", async () => {
     await expect(
       server.callTool("ig_get_media", { media_id: "" })
-    ).rejects.toThrow();
+    ).rejects.toThrow(/letters, numbers, underscores, and hyphens/);
     expect(client.ig).not.toHaveBeenCalled();
   });
 
