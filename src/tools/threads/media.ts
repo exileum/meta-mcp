@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 const THREADS_MEDIA_FIELDS = [
   "id",
@@ -57,7 +58,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get posts");
       }
     }
   );
@@ -76,7 +77,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get post failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get post");
       }
     }
   );
@@ -113,7 +114,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/keyword_search`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Search posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Search posts");
       }
     }
   );

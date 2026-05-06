@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerThreadsProfileTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_profile ─────────────────────────────────────
@@ -14,7 +15,7 @@ export function registerThreadsProfileTools(server: McpServer, client: MetaClien
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get profile failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get profile");
       }
     }
   );

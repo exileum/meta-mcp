@@ -44,6 +44,10 @@ Only set variables for the platforms you use.
 - Threads: Any account
 - Meta token/webhook tools: Meta Developer App
 
+## Error Responses
+
+Tool failures return `isError: true` and a JSON-encoded body in `content[0].text` with this shape: `{ error: true, error_type: "auth"|"validation"|"rate_limit"|"server"|"network"|"internal", http_status?, code?, subcode?, type?, message, remediation?, fbtrace_id?, raw }`. `remediation` is populated for `auth`, `rate_limit`, `server`, `network`. Categories map from Meta API HTTP status, error code/subcode (e.g., `190`/`OAuthException` → `auth`; `4`/`17`/`80001-80008` → `rate_limit`).
+
 ## Tools (58)
 
 ### Meta Platform (6)
@@ -133,8 +137,8 @@ Only set variables for the platforms you use.
 - threads_get_user_insights — Account-level analytics (period: day/lifetime)
 
 ## Resources
-- instagram://profile — Instagram account profile data
-- threads://profile — Threads account profile data
+- meta-mcp://instagram/profile — Instagram account profile data
+- meta-mcp://threads/profile — Threads account profile data
 
 ## Prompts
 - content_publish — Cross-post content to Instagram and Threads

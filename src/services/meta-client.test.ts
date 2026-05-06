@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MetaClient } from "./meta-client.js";
 import { MetaConfig } from "../config.js";
+import { MetaApiError } from "../utils/errors.js";
 
 function mockConfig(overrides: Partial<MetaConfig> = {}): MetaConfig {
   return {
@@ -298,5 +299,121 @@ describe("MetaClient token endpoints", () => {
       const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
       expect(url).not.toMatch(/\/v\d+/);
     });
+  });
+});
+
+describe("MetaClient throws MetaApiError on failures", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("throws MetaApiError with httpStatus and parsed fields on HTTP error", async () => {
+    const errorBody = JSON.stringify({
+      error: {
+        message: "Invalid OAuth access token.",
+        type: "OAuthException",
+        code: 190,
+        error_subcode: 463,
+        fbtrace_id: "AbcTrace123",
+      },
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(errorBody, {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const client = new MetaClient(mockConfig());
+
+    await expect(client.ig("GET", "/me")).rejects.toMatchObject({
+      name: "MetaApiError",
+      httpStatus: 401,
+      apiCode: 190,
+      apiSubcode: 463,
+      apiType: "OAuthException",
+      fbtraceId: "AbcTrace123",
+      endpoint: "/me",
+      method: "GET",
+    });
+  });
+
+  it("preserves backwards-compatible message format", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('{"error":{"message":"Token expired","code":190}}', {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const client = new MetaClient(mockConfig());
+
+    await expect(client.ig("GET", "/me")).rejects.toThrow(/Meta API GET \/me \(401\):/);
+  });
+
+  it("falls back gracefully when error body is not JSON", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("Internal Server Error", {
+        status: 500,
+        headers: { "content-type": "text/plain" },
+      })
+    );
+
+    const client = new MetaClient(mockConfig());
+    let thrown: unknown;
+    try {
+      await client.ig("GET", "/me");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBeInstanceOf(MetaApiError);
+    expect((thrown as MetaApiError).httpStatus).toBe(500);
+    expect((thrown as MetaApiError).apiCode).toBeUndefined();
+    expect((thrown as MetaApiError).body).toBe("Internal Server Error");
+  });
+
+  it("throws MetaApiError on JSON success-status-but-error-body", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "(#100) Invalid parameter",
+            type: "GraphMethodException",
+            code: 100,
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const client = new MetaClient(mockConfig());
+
+    await expect(client.ig("GET", "/me")).rejects.toMatchObject({
+      name: "MetaApiError",
+      apiCode: 100,
+      apiType: "GraphMethodException",
+      endpoint: "/me",
+    });
+  });
+
+  it("preserves 'nonexisting field' substring in MetaApiError message", async () => {
+    const errorBody = JSON.stringify({
+      error: {
+        message: "(#100) Tried accessing nonexisting field (status) on node type",
+        type: "GraphMethodException",
+        code: 100,
+      },
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(errorBody, {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const client = new MetaClient(mockConfig());
+
+    await expect(client.threads("GET", "/123456")).rejects.toThrow(/nonexisting field/);
   });
 });
