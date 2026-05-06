@@ -21,12 +21,21 @@ const API_VERSION_PATTERN = /^v\d+\.\d+$/;
 const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
 
-function resolveApiVersion(envName: string, fallback: string): string {
-  const raw = process.env[envName];
+function resolveApiVersion(
+  envName: string,
+  fallback: string,
+  explicit?: string
+): string {
+  // Explicit MetaClientOptions value, if any, takes precedence over the env
+  // var; both go through the same regex check + warn-fallback so a malformed
+  // option (e.g., `{ metaApiVersion: "v25-0" }`) can't silently build a
+  // broken URL. Empty string on either path falls through to the default.
+  const source = explicit !== undefined ? `MetaClientOptions.${envName}` : envName;
+  const raw = explicit ?? process.env[envName];
   if (!raw) return fallback;
   if (!API_VERSION_PATTERN.test(raw)) {
     console.error(
-      `[meta-mcp] Warning: ${envName}="${raw}" is not in vX.Y format — falling back to ${fallback}.`
+      `[meta-mcp] Warning: ${source}="${raw}" is not in vX.Y format — falling back to ${fallback}.`
     );
     return fallback;
   }
@@ -100,12 +109,16 @@ export class MetaClient {
 
   constructor(config: MetaConfig, options?: MetaClientOptions) {
     this.config = config;
-    const metaVersion =
-      options?.metaApiVersion ??
-      resolveApiVersion("META_API_VERSION", DEFAULT_META_API_VERSION);
-    const threadsVersion =
-      options?.threadsApiVersion ??
-      resolveApiVersion("THREADS_API_VERSION", DEFAULT_THREADS_API_VERSION);
+    const metaVersion = resolveApiVersion(
+      "META_API_VERSION",
+      DEFAULT_META_API_VERSION,
+      options?.metaApiVersion
+    );
+    const threadsVersion = resolveApiVersion(
+      "THREADS_API_VERSION",
+      DEFAULT_THREADS_API_VERSION,
+      options?.threadsApiVersion
+    );
     this.igBase = `https://graph.instagram.com/${metaVersion}`;
     this.fbBase = `https://graph.facebook.com/${metaVersion}`;
     this.threadsBase = `https://graph.threads.net/${threadsVersion}`;

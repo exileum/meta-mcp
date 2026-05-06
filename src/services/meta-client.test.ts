@@ -533,6 +533,47 @@ describe("MetaClient API version override (#70)", () => {
     );
   });
 
+  it("malformed metaApiVersion option falls back to default with stderr warning", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "v25-0" });
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`MetaClientOptions.META_API_VERSION="v25-0"`)
+    );
+  });
+
+  it("malformed threadsApiVersion option falls back to default with stderr warning", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig(), { threadsApiVersion: "abc" });
+    await client.threads("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.threads.net/${DEFAULT_THREADS_API_VERSION}/me`);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`MetaClientOptions.THREADS_API_VERSION="abc"`)
+    );
+  });
+
+  it("empty-string metaApiVersion option falls through to default without warning", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const client = new MetaClient(mockConfig(), { metaApiVersion: "" });
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
+    // Empty string is treated as "not set" — same as the env-var path — and
+    // must NOT slip through to produce a "https://graph.instagram.com//me"
+    // double-slash URL.
+    expect(url).not.toContain("graph.instagram.com//");
+    expect(errSpy).not.toHaveBeenCalled();
+  });
+
   it("empty META_API_VERSION env var falls through to default without warning", async () => {
     vi.stubEnv("META_API_VERSION", "");
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
