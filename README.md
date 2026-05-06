@@ -335,7 +335,7 @@ Check token status anytime with `meta_debug_token`.
 
 ## Troubleshooting
 
-Tool failures return `isError: true` with a JSON body in `content[0].text` matching the envelope documented in [`CHANGELOG.md`](./CHANGELOG.md): `{ error_type, http_status, code, subcode, type, message, remediation, fbtrace_id, raw }`. The fastest path to a fix is to read `error_type` and the Meta API `code`, then jump to the matching subsection below. The full code reference is the [Meta Graph API error handling guide](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
+Tool failures return `isError: true` with a JSON body in `content[0].text` matching the envelope documented in [`CHANGELOG.md`](./CHANGELOG.md): `{ error: true, error_type, http_status, code, subcode, type, message, remediation, fbtrace_id, raw }`. The fastest path to a fix is to read `error_type` and the Meta API `code`, then jump to the matching subsection below. The full code reference is the [Meta Graph API error handling guide](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
 
 ### `error_type: "auth"` — expired, revoked, or under-scoped token
 
@@ -347,7 +347,7 @@ Triggered by Meta API codes `190`, `10`, `102`, HTTP `401`, or `type: "OAuthExce
 What to do:
 
 1. Run `meta_debug_token` to inspect `expires_at`, `is_valid`, and `scopes`.
-2. If expired and the token is still ≥24h old, refresh in place with `meta_refresh_token` (`platform: "instagram"` or `"threads"`). If the token is fully expired, regenerate from the Meta App dashboard and exchange the short-lived token via `meta_exchange_token`.
+2. If the token is **not yet expired** but at least 24h old, refresh in place with `meta_refresh_token` (`platform: "instagram"` or `"threads"`) — this extends the lifetime by another ~60 days. If the token is **already expired**, the refresh endpoint will reject it; regenerate a short-lived token from the Meta App dashboard and exchange it via `meta_exchange_token` (or run a full re-authorization for Threads).
 3. If scopes are missing, regenerate the token with the required permissions:
    - **Instagram**: `instagram_business_basic` (always required) plus `instagram_business_content_publish`, `instagram_business_manage_comments`, `instagram_business_manage_messages` per feature.
    - **Threads**: `threads_basic`, `threads_content_publish`, `threads_manage_insights`, `threads_manage_replies`, `threads_read_replies`, `threads_share_to_instagram`, `threads_manage_mentions`, `threads_keyword_search` per feature.
