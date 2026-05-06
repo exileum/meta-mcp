@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const MENTIONED_COMMENT_DEFAULT_FIELDS = "id,text,timestamp,username,media{id,media_url,media_type}";
@@ -12,7 +13,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     "ig_get_mentioned_comment",
     "Get details of a specific comment where the account was @mentioned. Requires the comment_id from a mention webhook notification. Returns a single comment with its associated media.",
     {
-      comment_id: z.string().describe("Comment ID from a mention webhook notification"),
+      comment_id: metaId.describe("Comment ID from a mention webhook notification"),
       fields: z.string().optional().default(MENTIONED_COMMENT_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${MENTIONED_COMMENT_DEFAULT_FIELDS})`),
     },
     async ({ comment_id, fields }) => {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const POST_INSIGHTS_DEFAULT_METRICS = "views,likes,replies,reposts,quotes,shares";
@@ -11,7 +12,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
     "threads_get_post_insights",
     `Get insights/analytics for a specific Threads post (${POST_INSIGHTS_DEFAULT_METRICS.replaceAll(",", ", ")}).`,
     {
-      post_id: z.string().describe("Threads post ID"),
+      post_id: metaId.describe("Threads post ID"),
       metric: z.string().optional().default(POST_INSIGHTS_DEFAULT_METRICS).describe(`Comma-separated metrics (default: ${POST_INSIGHTS_DEFAULT_METRICS})`),
     },
     async ({ post_id, metric }) => {

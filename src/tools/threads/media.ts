@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const THREADS_MEDIA_FIELDS = [
@@ -66,7 +67,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     "threads_get_post",
     "Get details of a specific Threads post.",
     {
-      post_id: z.string().describe("Threads post ID"),
+      post_id: metaId.describe("Threads post ID"),
       fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
     },
     async ({ post_id, fields }) => {

@@ -99,3 +99,45 @@ describe("ig_get_media_insights default metric", () => {
     expect(call[2]).toEqual({ metric: "views,reach,likes,comments,shares,reposts,reels_skip_rate" });
   });
 });
+
+// Regression guard for #103 — `media_id` interpolated into the URL path
+// must be validated by the shared `metaId` schema before any client.ig call,
+// so a crafted value can't rewrite the request path or inject query params.
+describe("ig_get_media rejects path-traversal media_id (#103)", () => {
+  let server: MockServer;
+  let client: MetaClient;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgMediaTools(server as never, client);
+  });
+
+  it("rejects ../v24.0/me before reaching client.ig", async () => {
+    await expect(
+      server.callTool("ig_get_media", { media_id: "../v24.0/me" })
+    ).rejects.toThrow(/letters, numbers, underscores, and hyphens/);
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects query-injection 123?fields=access_token", async () => {
+    await expect(
+      server.callTool("ig_get_media", { media_id: "123?fields=access_token" })
+    ).rejects.toThrow(/letters, numbers, underscores, and hyphens/);
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty media_id", async () => {
+    await expect(
+      server.callTool("ig_get_media", { media_id: "" })
+    ).rejects.toThrow();
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("accepts compound numeric IDs (carousel container format)", async () => {
+    await server.callTool("ig_get_media", { media_id: "17841405822304914_17889615324123" });
+    expect(client.ig).toHaveBeenCalledOnce();
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1]).toBe("/17841405822304914_17889615324123");
+  });
+});

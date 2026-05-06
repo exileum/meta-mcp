@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
-import { httpsUrl } from "../../schemas.js";
+import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 
@@ -308,7 +308,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     "threads_delete_post",
     "Delete a Threads post. This action is irreversible. Rate limited to 100 deletions per 24 hours.",
     {
-      post_id: z.string().describe("Threads post ID to delete"),
+      post_id: metaId.describe("Threads post ID to delete"),
     },
     async ({ post_id }) => {
       try {
@@ -325,7 +325,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     "threads_get_container_status",
     "Check the processing status of a Threads media container. Only works with unpublished container IDs (returned from container creation endpoints) — not with published post IDs.",
     {
-      container_id: z.string().describe("Unpublished container ID to check (from container creation, not a published post ID)"),
+      container_id: metaId.describe("Unpublished container ID to check (from container creation, not a published post ID)"),
     },
     async ({ container_id }) => {
       try {
@@ -365,7 +365,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     "threads_repost",
     "Repost an existing Threads post to your own profile. Reposts appear under the Reposts tab on your profile. Requires the threads_content_publish permission. Note: this is a simple repost — for quote-reposts use threads_publish_text with quote_post_id.",
     {
-      post_id: z.string().describe("Threads post ID to repost"),
+      post_id: metaId.describe("Threads post ID to repost"),
     },
     async ({ post_id }) => {
       try {
