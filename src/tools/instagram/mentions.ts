@@ -34,14 +34,16 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     "Get media where the account is tagged (photo tags, not @mentions).",
     {
       limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor"),
+      after: z.string().optional().describe("Pagination cursor for next page"),
+      before: z.string().optional().describe("Pagination cursor for previous page"),
       fields: z.string().optional().default(TAGGED_MEDIA_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${TAGGED_MEDIA_DEFAULT_FIELDS})`),
     },
-    async ({ limit, after, fields }) => {
+    async ({ limit, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
+        if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/tags`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
