@@ -1,0 +1,95 @@
+import { describe, it, expect, vi } from "vitest";
+import { registerInstagramResources } from "./instagram.js";
+import { MetaClient } from "../services/meta-client.js";
+
+type ResourceCall = {
+  name: string;
+  uri: string;
+  metadata: { description: string; mimeType: string };
+  handler: () => Promise<unknown>;
+};
+
+function makeMockServer() {
+  const resources: ResourceCall[] = [];
+  return {
+    resources,
+    resource: vi.fn(
+      (
+        name: string,
+        uri: string,
+        metadata: { description: string; mimeType: string },
+        handler: () => Promise<unknown>,
+      ) => {
+        resources.push({ name, uri, metadata, handler });
+      },
+    ),
+  };
+}
+
+function makeMockClient(): MetaClient {
+  return {
+    igUserId: "ig-123",
+    ig: vi.fn(async () => ({
+      data: {
+        id: "ig-123",
+        username: "testuser",
+        biography: "Test bio",
+      },
+      rateLimit: undefined,
+    })),
+  } as unknown as MetaClient;
+}
+
+describe("instagram-profile resource", () => {
+  it("registers under the namespaced meta-mcp:// URI scheme", () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerInstagramResources(server as never, client);
+
+    expect(server.resources).toHaveLength(1);
+    expect(server.resources[0].name).toBe("instagram-profile");
+    expect(server.resources[0].uri).toBe("meta-mcp://instagram/profile");
+  });
+
+  it("registers description and application/json mimeType metadata", () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerInstagramResources(server as never, client);
+
+    expect(server.resources[0].metadata.description).toContain("Instagram");
+    expect(server.resources[0].metadata.mimeType).toBe("application/json");
+  });
+
+  it("handler calls GET /{igUserId} with profile fields", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerInstagramResources(server as never, client);
+
+    await server.resources[0].handler();
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toBe("GET");
+    expect(call[1]).toBe("/ig-123");
+    const fields = call[2].fields as string;
+    expect(fields).toContain("id");
+    expect(fields).toContain("username");
+    expect(fields).toContain("biography");
+    expect(fields).toContain("followers_count");
+  });
+
+  it("handler returns content with the namespaced meta-mcp:// URI", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerInstagramResources(server as never, client);
+
+    const result = await server.resources[0].handler();
+    const contents = (
+      result as { contents: { uri: string; mimeType: string; text: string }[] }
+    ).contents;
+
+    expect(contents).toHaveLength(1);
+    expect(contents[0].uri).toBe("meta-mcp://instagram/profile");
+    expect(contents[0].mimeType).toBe("application/json");
+    expect(contents[0].text).toContain("testuser");
+  });
+});
