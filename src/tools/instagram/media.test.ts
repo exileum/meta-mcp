@@ -1,26 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { z } from "zod";
 import { registerIgMediaTools } from "./media.js";
 import { MetaClient } from "../../services/meta-client.js";
-
-type ZodShape = Record<string, z.ZodTypeAny>;
-type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
-
-function makeMockServer() {
-  const tools = new Map<string, { schema: ZodShape; handler: ToolHandler }>();
-  return {
-    tools,
-    tool: vi.fn((name: string, _desc: string, schema: ZodShape, handler: ToolHandler) => {
-      tools.set(name, { schema, handler });
-    }),
-    async callTool(name: string, args: Record<string, unknown>) {
-      const tool = tools.get(name);
-      if (!tool) throw new Error(`Tool ${name} not registered`);
-      const parsed = z.object(tool.schema).parse(args) as Record<string, unknown>;
-      return tool.handler(parsed);
-    },
-  };
-}
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -33,8 +14,8 @@ function makeMockClient(): MetaClient {
 }
 
 describe("ig_get_media_list limit=0", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -65,8 +46,8 @@ describe("ig_get_media_list limit=0", () => {
 });
 
 describe("ig_get_media default fields", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -93,8 +74,8 @@ describe("ig_get_media default fields", () => {
 });
 
 describe("ig_get_media_insights default metric", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();

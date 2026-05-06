@@ -3,8 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
-const GET_MESSAGES_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
-const GET_MESSAGE_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
+// Both /conversations/{id}/messages and /messages/{id} share the same Message resource shape, so they reuse the same default field set.
+const MESSAGE_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
 
 export function registerIgMessagingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_conversations ────────────────────────────────────
@@ -42,7 +42,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       conversation_id: z.string().describe("Conversation ID"),
       limit: z.number().optional().describe("Number of messages"),
       after: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().default(GET_MESSAGES_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MESSAGES_DEFAULT_FIELDS})`),
+      fields: z.string().optional().default(MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${MESSAGE_DEFAULT_FIELDS})`),
     },
     async ({ conversation_id, limit, after, fields }) => {
       try {
@@ -85,7 +85,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     "Get details of a specific DM message.",
     {
       message_id: z.string().describe("Message ID"),
-      fields: z.string().optional().default(GET_MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MESSAGE_DEFAULT_FIELDS})`),
+      fields: z.string().optional().default(MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${MESSAGE_DEFAULT_FIELDS})`),
     },
     async ({ message_id, fields }) => {
       try {

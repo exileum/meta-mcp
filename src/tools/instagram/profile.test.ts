@@ -1,26 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { z } from "zod";
 import { registerIgProfileTools } from "./profile.js";
 import { MetaClient } from "../../services/meta-client.js";
-
-type ZodShape = Record<string, z.ZodTypeAny>;
-type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
-
-function makeMockServer() {
-  const tools = new Map<string, { schema: ZodShape; handler: ToolHandler }>();
-  return {
-    tools,
-    tool: vi.fn((name: string, _desc: string, schema: ZodShape, handler: ToolHandler) => {
-      tools.set(name, { schema, handler });
-    }),
-    async callTool(name: string, args: Record<string, unknown>) {
-      const tool = tools.get(name);
-      if (!tool) throw new Error(`Tool ${name} not registered`);
-      const parsed = z.object(tool.schema).parse(args) as Record<string, unknown>;
-      return tool.handler(parsed);
-    },
-  };
-}
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -33,8 +14,8 @@ function makeMockClient(): MetaClient {
 }
 
 describe("ig_business_discovery", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -67,10 +48,10 @@ describe("ig_business_discovery", () => {
       igUserId: "123",
       ig: vi.fn(async () => { throw new Error("Account not found"); }),
     } as unknown as MetaClient;
-    server = makeMockServer();
-    registerIgProfileTools(server as never, failingClient);
+    const failingServer = makeMockServer();
+    registerIgProfileTools(failingServer as never, failingClient);
 
-    const result = await server.callTool("ig_business_discovery", { username: "missing" }) as { content: { text: string }[]; isError?: boolean };
+    const result = await failingServer.callTool("ig_business_discovery", { username: "missing" }) as { content: { text: string }[]; isError?: boolean };
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Account not found");
   });

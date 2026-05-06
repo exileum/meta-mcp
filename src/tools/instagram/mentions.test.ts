@@ -1,29 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { z } from "zod";
 import { registerIgMentionTools } from "./mentions.js";
 import { MetaClient } from "../../services/meta-client.js";
-
-type ZodShape = Record<string, z.ZodTypeAny>;
-type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
-
-function makeMockServer() {
-  const tools = new Map<string, { schema: ZodShape; handler: ToolHandler }>();
-  const descriptions = new Map<string, string>();
-  return {
-    tools,
-    descriptions,
-    tool: vi.fn((name: string, desc: string, schema: ZodShape, handler: ToolHandler) => {
-      tools.set(name, { schema, handler });
-      descriptions.set(name, desc);
-    }),
-    async callTool(name: string, args: Record<string, unknown>) {
-      const tool = tools.get(name);
-      if (!tool) throw new Error(`Tool ${name} not registered`);
-      const parsed = z.object(tool.schema).parse(args) as Record<string, unknown>;
-      return tool.handler(parsed);
-    },
-  };
-}
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -36,8 +14,8 @@ function makeMockClient(): MetaClient {
 }
 
 describe("ig_get_mentioned_comment", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -76,8 +54,8 @@ describe("ig_get_mentioned_comment", () => {
 });
 
 describe("ig_get_tagged_media", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();

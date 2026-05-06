@@ -1,26 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { z } from "zod";
 import { registerIgCommentTools } from "./comments.js";
 import { MetaClient } from "../../services/meta-client.js";
-
-type ZodShape = Record<string, z.ZodTypeAny>;
-type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
-
-function makeMockServer() {
-  const tools = new Map<string, { schema: ZodShape; handler: ToolHandler }>();
-  return {
-    tools,
-    tool: vi.fn((name: string, _desc: string, schema: ZodShape, handler: ToolHandler) => {
-      tools.set(name, { schema, handler });
-    }),
-    async callTool(name: string, args: Record<string, unknown>) {
-      const tool = tools.get(name);
-      if (!tool) throw new Error(`Tool ${name} not registered`);
-      const parsed = z.object(tool.schema).parse(args) as Record<string, unknown>;
-      return tool.handler(parsed);
-    },
-  };
-}
+import { makeMockServer, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -33,8 +14,8 @@ function makeMockClient(): MetaClient {
 }
 
 describe("ig_get_comments fields override", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -61,8 +42,8 @@ describe("ig_get_comments fields override", () => {
 });
 
 describe("ig_get_comment fields override", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
@@ -89,8 +70,8 @@ describe("ig_get_comment fields override", () => {
 });
 
 describe("ig_get_replies fields override", () => {
-  let server: ReturnType<typeof makeMockServer>;
-  let client: ReturnType<typeof makeMockClient>;
+  let server: MockServer;
+  let client: MetaClient;
 
   beforeEach(() => {
     server = makeMockServer();
