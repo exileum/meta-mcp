@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 const POST_INSIGHTS_DEFAULT_METRICS = "views,likes,replies,reposts,quotes,shares";
 
@@ -18,7 +19,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/insights`, { metric });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get post insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get post insights");
       }
     }
   );
@@ -41,7 +42,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_insights`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get user insights failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get user insights");
       }
     }
   );

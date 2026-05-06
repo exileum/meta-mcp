@@ -1,0 +1,19 @@
+name: Restore node_modules
+description: Set up Node and restore the cached node_modules saved by the setup job. Restore-only — never saves, so parallel jobs do not race on the same cache key. Caller must run actions/checkout before this action so the local action file is on disk.
+
+inputs:
+  node-version:
+    description: Node major version to set up. Must match the version used by the setup job that saved the cache, otherwise the restore key will not match (or fail-on-cache-miss will trip).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+    - uses: actions/cache/restore@v4
+      with:
+        path: node_modules
+        key: node-modules-${{ runner.os }}-node${{ inputs.node-version }}-${{ hashFiles('package-lock.json') }}
+        fail-on-cache-miss: true

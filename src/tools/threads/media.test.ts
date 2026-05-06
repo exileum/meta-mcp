@@ -36,6 +36,35 @@ describe("threads_get_posts default fields", () => {
     expect(fields).toContain("gif_url");
     expect(fields).not.toContain("gif_attachment");
   });
+
+  it("respects custom fields parameter", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsMediaTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_posts")!;
+    await handler({ fields: "id,text,permalink" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2].fields).toBe("id,text,permalink");
+  });
+
+  it("falls back to default fields when fields parameter is omitted", async () => {
+    const server = makeMockServer();
+    const client = makeMockClient();
+    registerThreadsMediaTools(server as never, client);
+
+    const handler = server.tools.get("threads_get_posts")!;
+    await handler({});
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    const fields = call[2].fields as string;
+    expect(fields).toContain("media_url");
+    expect(fields).toContain("has_replies");
+    expect(fields).toContain("alt_text");
+    expect(fields).toContain("link_attachment_url");
+    expect(fields).toContain("poll_attachment{");
+  });
 });
 
 describe("threads_get_post default fields", () => {
