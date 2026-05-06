@@ -25,7 +25,7 @@
         },
         {
           "name": "INSTAGRAM_USER_ID",
-          "description": "Instagram Business/Creator account ID",
+          "description": "Instagram Business/Creator account ID (numeric string)",
           "isRequired": false,
           "format": "string",
           "isSecret": false
@@ -39,14 +39,14 @@
         },
         {
           "name": "THREADS_USER_ID",
-          "description": "Threads user ID",
+          "description": "Threads user ID (numeric string)",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
           "name": "META_APP_ID",
-          "description": "Meta App ID for token/webhook tools",
+          "description": "Meta App ID for token/webhook tools (numeric string)",
           "isRequired": false,
           "format": "string",
           "isSecret": false

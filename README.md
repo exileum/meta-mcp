@@ -64,11 +64,13 @@ npm run build
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `INSTAGRAM_ACCESS_TOKEN` | For Instagram | Instagram Graph API access token |
-| `INSTAGRAM_USER_ID` | For Instagram | Instagram Business/Creator account ID |
+| `INSTAGRAM_USER_ID` | For Instagram | Instagram Business/Creator account ID (numeric string) |
 | `THREADS_ACCESS_TOKEN` | For Threads | Threads API access token |
-| `THREADS_USER_ID` | For Threads | Threads user ID |
-| `META_APP_ID` | For token/webhook tools | Meta App ID |
+| `THREADS_USER_ID` | For Threads | Threads user ID (numeric string) |
+| `META_APP_ID` | For token/webhook tools | Meta App ID (numeric string) |
 | `META_APP_SECRET` | For token/webhook tools | Meta App Secret |
+
+The server validates these at startup. Non-numeric values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` cause the process to exit with `Invalid meta-mcp configuration: …`. Setting only one half of a credential pair (e.g., `INSTAGRAM_ACCESS_TOKEN` without `INSTAGRAM_USER_ID`) prints a stderr warning and continues; related tool invocations still fail at call time.
 
 ## Account Requirements
 
