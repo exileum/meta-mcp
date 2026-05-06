@@ -31,8 +31,28 @@ export type FormParams = Record<string, FormParamValue>;
 
 export interface RequestOptions {
   /**
-   * When set, sent as the application/json request body (e.g., Instagram Messaging API).
-   * Replaces the form-encoded body; the access_token is still placed in the query string.
+   * Sends the value as an `application/json` request body instead of the default
+   * `application/x-www-form-urlencoded`. The `access_token` is moved to the query
+   * string (never embedded in the JSON body) and `params` must be omitted —
+   * combining them is rejected at runtime so callers don't accidentally route
+   * data into both transports.
+   *
+   * **When to use:** only when Meta's documentation explicitly requires
+   * `Content-Type: application/json` for the endpoint. Currently the
+   * Instagram Messaging Send API (`POST /{ig-user-id}/messages`, used by
+   * `ig_send_message`) is the only such endpoint — it accepts nested
+   * `recipient` / `message` objects that would be flattened to
+   * `[object Object]` if sent through the form path. See
+   * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
+   *
+   * **When not to use:** every other Graph API endpoint (Threads publish,
+   * Instagram media/comments/collaboration, Meta App Subscriptions, etc.)
+   * accepts form-urlencoded with flat string/number/boolean parameters and
+   * works correctly through the default path. Nested objects required by the
+   * API (`poll_attachment`, `gif_attachment`, `text_attachment`, `user_tags`)
+   * must be `JSON.stringify`-ed by the caller into a single form field — the
+   * runtime guard in `appendFormParams` rejects raw objects/arrays so this
+   * convention is enforced (see #81). Audited in #104.
    */
   jsonBody?: Record<string, unknown>;
 }
