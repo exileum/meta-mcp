@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Patched transitive `ip-address` XSS ([GHSA-v2v4-37r5-5v8g](https://github.com/advisories/GHSA-v2v4-37r5-5v8g) / CVE-2026-42338, moderate)** — added an `overrides` entry pinning `ip-address` to `^10.1.1` so the transitive resolution under `@modelcontextprotocol/sdk@1.29.0 → express-rate-limit@8.3.2` (which still pins the vulnerable `10.1.0`, as does the latest `express-rate-limit@8.5.0`) is replaced with the patched `10.2.0`; the advisory only affects consumers that pass untrusted input through `Address6.group()`/`link()`/`spanAll()` or render `AddressError.parseMessage` as HTML, none of which meta-mcp does — but the override clears the Dependabot alert and protects downstream consumers that vendor the lockfile ([Dependabot #21](https://github.com/exileum/meta-mcp/security/dependabot/21))
+
 ## [5.0.0] — 2026-05-06
 
 ### Added
