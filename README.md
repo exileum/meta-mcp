@@ -224,8 +224,8 @@ npm run build
 
 | Resource URI | Description |
 |-------------|-------------|
-| `instagram://profile` | Instagram account profile data |
-| `threads://profile` | Threads account profile data (includes is_verified) |
+| `meta-mcp://instagram/profile` | Instagram account profile data |
+| `meta-mcp://threads/profile` | Threads account profile data (includes is_verified) |
 
 ## Prompts
 
