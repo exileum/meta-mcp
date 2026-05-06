@@ -80,7 +80,7 @@ npm run build
 
 ## Features
 
-- **57 tools** across Instagram (33), Threads (18), and Meta platform (6)
+- **58 tools** across Instagram (33), Threads (19), and Meta platform (6)
 - **Instagram**: Publish photos/videos/reels/stories/carousels with alt text, manage comments, view insights, search hashtags, handle DMs, manage collaboration invites
 - **Threads**: Publish text/images/videos/carousels with polls, GIFs, topic tags, link attachments, alt text, spoiler flags; manage replies; search posts; delete posts; view insights
 - **Meta**: Token exchange/refresh/debug, webhook management
@@ -187,7 +187,7 @@ npm run build
 
 | Tool | Description |
 |------|-------------|
-| `threads_get_posts` | List published posts (includes topic_tag, poll, GIF fields) |
+| `threads_get_posts` | List published posts (includes topic_tag, poll, GIF fields; optional `fields` param to override the default field list) |
 | `threads_get_post` | Get post details |
 | `threads_search_posts` | Search public posts by keyword or tag (requires `threads_keyword_search` permission) |
 
@@ -206,12 +206,11 @@ npm run build
 |------|-------------|
 | `threads_get_mentions` | List posts where the user was @mentioned (requires `threads_manage_mentions`) |
 
-### Threads — Profile (2)
+### Threads — Profile (1)
 
 | Tool | Description |
 |------|-------------|
 | `threads_get_profile` | Get Threads profile info (includes `is_verified` and `is_eligible_for_geo_gating`) |
-| `threads_get_user_threads` | List user's threads |
 
 ### Threads — Insights (2)
 

@@ -48,7 +48,7 @@ Only set variables for the platforms you use.
 
 Tool failures return `isError: true` and a JSON-encoded body in `content[0].text` with this shape: `{ error: true, error_type: "auth"|"validation"|"rate_limit"|"server"|"network"|"internal", http_status?, code?, subcode?, type?, message, remediation?, fbtrace_id?, raw }`. `remediation` is populated for `auth`, `rate_limit`, `server`, `network`. Categories map from Meta API HTTP status, error code/subcode (e.g., `190`/`OAuthException` → `auth`; `4`/`17`/`80001-80008` → `rate_limit`).
 
-## Tools (59)
+## Tools (58)
 
 ### Meta Platform (6)
 - meta_exchange_token — Exchange short-lived token for long-lived (~60 days). Requires `platform` (instagram or threads)
@@ -116,7 +116,7 @@ Tool failures return `isError: true` and a JSON-encoded body in `content[0].text
 - threads_repost — Repost an existing thread to your profile (requires threads_content_publish)
 
 ### Threads — Media & Search (3)
-- threads_get_posts — List published posts
+- threads_get_posts — List published posts (optional `fields` to override the default field list)
 - threads_get_post — Get post details
 - threads_search_posts — Search public posts by keyword or tag (requires threads_keyword_search permission)
 
@@ -129,9 +129,8 @@ Tool failures return `isError: true` and a JSON-encoded body in `content[0].text
 ### Threads — Mentions (1)
 - threads_get_mentions — Posts where the user was @mentioned (requires threads_manage_mentions)
 
-### Threads — Profile (2)
+### Threads — Profile (1)
 - threads_get_profile — Get Threads profile info (includes is_verified and is_eligible_for_geo_gating)
-- threads_get_user_threads — List user's threads
 
 ### Threads — Insights (2)
 - threads_get_post_insights — Post analytics (views, likes, replies, reposts, quotes, shares)
