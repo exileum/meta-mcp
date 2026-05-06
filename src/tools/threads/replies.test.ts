@@ -248,3 +248,23 @@ describe("threads_reply auto_publish", () => {
     expect(calls[2][1]).toBe("/threads-123/threads_publish");
   });
 });
+
+describe("threads_reply image_url/video_url mutual exclusion", () => {
+  it("rejects providing both image_url and video_url", async () => {
+    const server = makeMockServer();
+    const client = makePublishMockClient();
+    registerThreadsReplyTools(server as never, client);
+
+    const handler = server.tools.get("threads_reply")!;
+    const result = await handler({
+      reply_to_id: "post-42",
+      text: "With both",
+      image_url: "https://example.com/photo.jpg",
+      video_url: "https://example.com/clip.mp4",
+    }) as { content: Array<{ text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("image_url and video_url cannot be combined on a single reply");
+    expect(client.threads).not.toHaveBeenCalled();
+  });
+});

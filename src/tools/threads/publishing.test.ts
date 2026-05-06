@@ -899,6 +899,48 @@ describe("threads_publish_text attachment mutual exclusion", () => {
   });
 });
 
+// ─── alt_text rejection at the Zod schema level (#185 follow-up) ───
+//
+// v5.0.0 (#185) removed alt_text from the threads_publish_text schema and
+// claimed callers would now get a Zod schema error. The raw shape registered
+// without it was fine, but z.object() defaults to .strip() — so unknown keys
+// were silently dropped instead of throwing. This block locks in the explicit
+// rejection: alt_text declared as z.never("…").optional() so omitting passes
+// while passing any value triggers a descriptive Zod issue.
+
+describe("threads_publish_text alt_text rejection at the schema level", () => {
+  let server: ReturnType<typeof makeMockServer>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    registerThreadsPublishingTools(server as never, makeParamMockClient());
+  });
+
+  function getTextSchema(): z.ZodObject<z.ZodRawShape> {
+    const call = (server.tool as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === "threads_publish_text");
+    if (!call) throw new Error("threads_publish_text was not registered");
+    return z.object(call[2] as z.ZodRawShape);
+  }
+
+  it("rejects alt_text with a descriptive message that points to the right tools", () => {
+    const result = getTextSchema().safeParse({ text: "Hello", alt_text: "image description" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["alt_text"]);
+      expect(result.error.issues[0].message).toContain("alt_text is not supported on text-only Threads posts");
+      expect(result.error.issues[0].message).toContain("threads_publish_image");
+    }
+  });
+
+  it("accepts the call when alt_text is omitted", () => {
+    expect(getTextSchema().safeParse({ text: "Hello" }).success).toBe(true);
+  });
+
+  it("accepts the call when alt_text is explicitly undefined", () => {
+    expect(getTextSchema().safeParse({ text: "Hello", alt_text: undefined }).success).toBe(true);
+  });
+});
+
 // ─── text_attachment char→byte offset conversion ────────────────────
 
 describe("threads_publish_text text_attachment byte offset conversion", () => {
