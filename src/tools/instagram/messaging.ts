@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
@@ -42,7 +43,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     "ig_get_messages",
     "Get messages in a specific DM conversation.",
     {
-      conversation_id: z.string().describe("Conversation ID"),
+      conversation_id: metaId.describe("Conversation ID"),
       limit: z.number().optional().describe("Number of messages"),
       after: z.string().optional().describe("Pagination cursor for next page"),
       before: z.string().optional().describe("Pagination cursor for previous page"),
@@ -91,7 +92,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     "ig_get_message",
     "Get details of a specific DM message.",
     {
-      message_id: z.string().describe("Message ID"),
+      message_id: metaId.describe("Message ID"),
       fields: z.string().optional().default(MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${MESSAGE_DEFAULT_FIELDS})`),
     },
     async ({ message_id, fields }) => {

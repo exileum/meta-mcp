@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 export const igBusinessDiscoveryUsernameSchema = z
@@ -121,7 +122,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "ig_respond_collaboration_invite",
     "Accept or decline a collaboration invite by media_id (the IG Media ID of the tagged post; available via the `id` field returned by `ig_get_collaboration_invites`). Pass `accept: true` to accept, `accept: false` to decline. Per the Instagram Collaboration API. Added in December 2025.",
     {
-      media_id: z.string().min(1).describe("IG Media ID of the tagged post (from `ig_get_collaboration_invites` response `id` field)"),
+      media_id: metaId.describe("IG Media ID of the tagged post (from `ig_get_collaboration_invites` response `id` field)"),
       accept: z.boolean().describe("true to accept the invite, false to decline"),
     },
     async ({ media_id, accept }) => {

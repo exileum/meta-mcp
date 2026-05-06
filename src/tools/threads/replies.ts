@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
-import { httpsUrl } from "../../schemas.js";
+import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 
@@ -20,7 +20,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     "threads_get_replies",
     "Get replies for a specific Threads post. By default returns only top-level replies (mode='top_level', endpoint /{post}/replies). Set mode='full_tree' to get the entire conversation flattened — every reply at every nesting level (endpoint /{post}/conversation). Both modes share the same response shape; full_tree additionally populates root_post, replied_to, is_reply so the caller can reconstruct the tree. The default fields differ by mode: top_level requests is_verified and profile_picture_url (always populated for direct replies); full_tree drops them since they are 'Only available on direct replies' per the Threads Replies/Conversations docs and would be undefined for every nested entry. Pass an explicit fields override to re-request them in full_tree if needed.",
     {
-      post_id: z.string().describe("Threads post ID to get replies for"),
+      post_id: metaId.describe("Threads post ID to get replies for"),
       mode: z.enum(["top_level", "full_tree"]).optional().describe("'top_level' (default) returns only direct replies; 'full_tree' returns the full conversation tree flattened"),
       reverse: z.boolean().optional().describe("Reverse chronological order"),
       limit: z.number().optional().describe("Number of replies"),
@@ -108,7 +108,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     "threads_hide_reply",
     "Hide a reply on your Threads post. Hidden replies are still visible if directly accessed.",
     {
-      reply_id: z.string().describe("Reply ID to hide"),
+      reply_id: metaId.describe("Reply ID to hide"),
     },
     async ({ reply_id }) => {
       try {
@@ -125,7 +125,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     "threads_unhide_reply",
     "Unhide a previously hidden reply on your Threads post.",
     {
-      reply_id: z.string().describe("Reply ID to unhide"),
+      reply_id: metaId.describe("Reply ID to unhide"),
     },
     async ({ reply_id }) => {
       try {

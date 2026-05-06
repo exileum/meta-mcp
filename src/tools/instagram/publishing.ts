@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
-import { httpsUrl } from "../../schemas.js";
+import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForIgContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
@@ -229,7 +229,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     "ig_get_container_status",
     "Check the processing status of a media container (useful for videos).",
     {
-      container_id: z.string().describe("Container ID to check"),
+      container_id: metaId.describe("Container ID to check"),
     },
     async ({ container_id }) => {
       try {

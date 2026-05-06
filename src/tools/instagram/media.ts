@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
@@ -37,7 +38,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     "ig_get_media",
     "Get details of a specific Instagram media post.",
     {
-      media_id: z.string().describe("Media ID"),
+      media_id: metaId.describe("Media ID"),
       fields: z.string().optional().default(GET_MEDIA_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MEDIA_DEFAULT_FIELDS})`),
     },
     async ({ media_id, fields }) => {
@@ -55,7 +56,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     "ig_delete_media",
     "Delete an Instagram media post (posts, carousels, reels, stories). This action is irreversible. Requires instagram_manage_contents permission (Facebook Login only — not available with Instagram Login).",
     {
-      media_id: z.string().describe("Media ID to delete"),
+      media_id: metaId.describe("Media ID to delete"),
     },
     async ({ media_id }) => {
       try {
@@ -76,7 +77,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
       "- STORY: views, reach, total_interactions, navigation, replies, profile_activity, profile_visits, follows\n" +
       "Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. See https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/ for the authoritative per-type matrix.",
     {
-      media_id: z.string().describe("Media ID"),
+      media_id: metaId.describe("Media ID"),
       metric: z.string().optional().default(GET_MEDIA_INSIGHTS_DEFAULT_METRIC).describe(`Comma-separated metrics. Default '${GET_MEDIA_INSIGHTS_DEFAULT_METRIC}' is universally supported; override per media type per the tool description.`),
     },
     async ({ media_id, metric }) => {
@@ -94,7 +95,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     "ig_toggle_comments",
     "Enable or disable comments on an Instagram media post.",
     {
-      media_id: z.string().describe("Media ID"),
+      media_id: metaId.describe("Media ID"),
       enabled: z.boolean().describe("true to enable comments, false to disable"),
     },
     async ({ media_id, enabled }) => {

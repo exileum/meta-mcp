@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
@@ -29,7 +30,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     "ig_get_hashtag",
     "Get hashtag information by ID.",
     {
-      hashtag_id: z.string().describe("Hashtag ID (from ig_search_hashtag)"),
+      hashtag_id: metaId.describe("Hashtag ID (from ig_search_hashtag)"),
     },
     async ({ hashtag_id }) => {
       try {
@@ -48,7 +49,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     "ig_get_hashtag_recent",
     "Get recent media tagged with a specific hashtag.",
     {
-      hashtag_id: z.string().describe("Hashtag ID"),
+      hashtag_id: metaId.describe("Hashtag ID"),
       limit: z.number().optional().describe("Number of results"),
       after: z.string().optional().describe("Pagination cursor for next page"),
       before: z.string().optional().describe("Pagination cursor for previous page"),
@@ -75,7 +76,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     "ig_get_hashtag_top",
     "Get top (most popular) media tagged with a specific hashtag.",
     {
-      hashtag_id: z.string().describe("Hashtag ID"),
+      hashtag_id: metaId.describe("Hashtag ID"),
       limit: z.number().optional().describe("Number of results"),
       after: z.string().optional().describe("Pagination cursor for next page"),
       before: z.string().optional().describe("Pagination cursor for previous page"),
