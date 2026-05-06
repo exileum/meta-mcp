@@ -126,6 +126,50 @@ describe("formatErrorResponse — Meta API errors", () => {
     expect(payload.type).toBeUndefined();
     expect(payload.fbtrace_id).toBeUndefined();
   });
+
+  it("categorizes unmatched 4xx (403 Forbidden) as validation, not server", () => {
+    const error = new MetaApiError({
+      message: "Meta API GET /me (403): permission denied",
+      httpStatus: 403,
+      endpoint: "/me",
+      method: "GET",
+    });
+    const payload = parsePayload(formatErrorResponse(error, "X"));
+    expect(payload.error_type).toBe("validation");
+    expect(payload.remediation).toBeUndefined();
+  });
+
+  it("categorizes 404 Not Found as validation", () => {
+    const error = new MetaApiError({
+      message: "Meta API GET /missing (404): not found",
+      httpStatus: 404,
+      endpoint: "/missing",
+      method: "GET",
+    });
+    expect(parsePayload(formatErrorResponse(error, "X")).error_type).toBe("validation");
+  });
+
+  it("categorizes unmatched 5xx (502 Bad Gateway) as server", () => {
+    const error = new MetaApiError({
+      message: "Meta API POST /media (502): bad gateway",
+      httpStatus: 502,
+      endpoint: "/media",
+      method: "POST",
+    });
+    expect(parsePayload(formatErrorResponse(error, "X")).error_type).toBe("server");
+  });
+
+  it("categorizes MetaApiError without httpStatus or recognized code as internal", () => {
+    const error = new MetaApiError({
+      message: "Meta API error: weird error (code 99999)",
+      apiCode: 99999,
+      endpoint: "/me",
+      method: "GET",
+    });
+    const payload = parsePayload(formatErrorResponse(error, "X"));
+    expect(payload.error_type).toBe("internal");
+    expect(payload.remediation).toBeUndefined();
+  });
 });
 
 describe("formatErrorResponse — non-MetaApiError", () => {

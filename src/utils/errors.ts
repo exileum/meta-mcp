@@ -62,16 +62,17 @@ function categorize(error: unknown): ErrorType {
     ) {
       return "rate_limit";
     }
-    if (httpStatus === 400 || (apiCode !== undefined && VALIDATION_CODES.has(apiCode))) {
+    if (apiCode !== undefined && VALIDATION_CODES.has(apiCode)) {
       return "validation";
     }
-    if (
-      (httpStatus !== undefined && httpStatus >= 500) ||
-      (apiCode !== undefined && SERVER_CODES.has(apiCode))
-    ) {
+    if (apiCode !== undefined && SERVER_CODES.has(apiCode)) {
       return "server";
     }
-    return "server";
+    if (httpStatus !== undefined) {
+      if (httpStatus >= 400 && httpStatus < 500) return "validation";
+      if (httpStatus >= 500) return "server";
+    }
+    return "internal";
   }
   if (error instanceof Error) {
     if (error.name === "AbortError" || error.name === "TimeoutError") return "network";
