@@ -76,6 +76,35 @@ describe("formatErrorResponse — Meta API errors", () => {
     expect(parsePayload(formatErrorResponse(error, "X")).error_type).toBe("rate_limit");
   });
 
+  it("categorizes OAuthException with rate-limit code 4 as rate_limit, not auth", () => {
+    // Meta returns "Application request limit reached" as type=OAuthException
+    // with code 4 — must classify as rate_limit, not auth (no token-refresh hint)
+    const error = new MetaApiError({
+      message: "Meta API POST /media (400): Application request limit reached",
+      httpStatus: 400,
+      apiType: "OAuthException",
+      apiCode: 4,
+      endpoint: "/media",
+      method: "POST",
+    });
+    const payload = parsePayload(formatErrorResponse(error, "X"));
+    expect(payload.error_type).toBe("rate_limit");
+    expect(payload.remediation).toContain("backoff");
+    expect(payload.remediation).not.toContain("meta_exchange_token");
+  });
+
+  it("categorizes OAuthException with user rate-limit code 17 as rate_limit", () => {
+    const error = new MetaApiError({
+      message: "Meta API GET /me (400): User request limit reached",
+      httpStatus: 400,
+      apiType: "OAuthException",
+      apiCode: 17,
+      endpoint: "/me",
+      method: "GET",
+    });
+    expect(parsePayload(formatErrorResponse(error, "X")).error_type).toBe("rate_limit");
+  });
+
   it("categorizes 400 with code 100 as validation", () => {
     const error = new MetaApiError({
       message: "Meta API POST /media (400): Invalid parameter",

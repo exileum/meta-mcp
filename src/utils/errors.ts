@@ -48,19 +48,23 @@ function isBusinessUseCaseRateLimit(code?: number): boolean {
 function categorize(error: unknown): ErrorType {
   if (error instanceof MetaApiError) {
     const { httpStatus, apiCode, apiType } = error;
-    if (
-      httpStatus === 401 ||
-      apiType === "OAuthException" ||
-      (apiCode !== undefined && AUTH_CODES.has(apiCode))
-    ) {
-      return "auth";
-    }
+    // Check rate_limit before auth: Meta returns rate-limit errors as
+    // type="OAuthException" with code 4/17 (Application/User request
+    // limit reached). The apiType check below would otherwise route
+    // those to "auth" with a token-refresh remediation hint.
     if (
       httpStatus === 429 ||
       (apiCode !== undefined && RATE_LIMIT_CODES.has(apiCode)) ||
       isBusinessUseCaseRateLimit(apiCode)
     ) {
       return "rate_limit";
+    }
+    if (
+      httpStatus === 401 ||
+      apiType === "OAuthException" ||
+      (apiCode !== undefined && AUTH_CODES.has(apiCode))
+    ) {
+      return "auth";
     }
     if (apiCode !== undefined && VALIDATION_CODES.has(apiCode)) {
       return "validation";
