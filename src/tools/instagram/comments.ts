@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 export function registerIgCommentTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_comments ─────────────────────────────────────────
@@ -23,7 +24,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/comments`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get comments failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get comments");
       }
     }
   );
@@ -42,7 +43,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get comment");
       }
     }
   );
@@ -60,7 +61,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("POST", `/${media_id}/comments`, { message });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Post comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Post comment");
       }
     }
   );
@@ -85,7 +86,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}/replies`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get replies failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get replies");
       }
     }
   );
@@ -103,7 +104,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("POST", `/${comment_id}/replies`, { message });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Reply failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Reply");
       }
     }
   );
@@ -121,7 +122,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("POST", `/${comment_id}`, { hide });
         return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: hide, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Hide comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Hide comment");
       }
     }
   );
@@ -138,7 +139,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("DELETE", `/${comment_id}`);
         return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Delete comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Delete comment");
       }
     }
   );

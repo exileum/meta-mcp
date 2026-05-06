@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { formatErrorResponse } from "../../utils/errors.js";
 
 const THREADS_MEDIA_FIELDS = [
   "id",
@@ -35,18 +36,19 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
   // ─── threads_get_posts ───────────────────────────────────────
   server.tool(
     "threads_get_posts",
-    "Get a list of published Threads posts.",
+    "Get a list of Threads posts published by the authenticated user.",
     {
       limit: z.number().optional().describe("Number of results (default 25)"),
       since: z.string().optional().describe("Start date (ISO 8601 or Unix timestamp)"),
       until: z.string().optional().describe("End date (ISO 8601 or Unix timestamp)"),
       after: z.string().optional().describe("Pagination cursor"),
       before: z.string().optional().describe("Pagination cursor"),
+      fields: z.string().optional().describe("Comma-separated fields (overrides the default field list)"),
     },
-    async ({ limit, since, until, after, before }) => {
+    async ({ limit, since, until, after, before, fields }) => {
       try {
         const params: Record<string, unknown> = {
-          fields: THREADS_MEDIA_FIELDS,
+          fields: fields || THREADS_MEDIA_FIELDS,
         };
         if (limit !== undefined) params.limit = limit;
         if (since) params.since = since;
@@ -56,7 +58,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get posts");
       }
     }
   );
@@ -75,7 +77,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields: f });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Get post failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Get post");
       }
     }
   );
@@ -112,7 +114,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("GET", `/keyword_search`, params);
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: `Search posts failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+        return formatErrorResponse(error, "Search posts");
       }
     }
   );
