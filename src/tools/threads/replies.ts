@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
-import { waitForThreadsContainer, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
+import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 
 const REPLIES_BASE_FIELDS = "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,root_post,replied_to,is_reply,is_quote_post";
@@ -83,8 +83,12 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (useAutoPublish) {
           return { content: [{ type: "text", text: JSON.stringify({ ...createResponse, _rateLimit: createRateLimit }, null, 2) }] };
         }
-        if (video_url) {
-          await waitForThreadsContainer(client, createResponse.id, VIDEO_PROCESSING_TIMEOUT);
+        if (image_url || video_url) {
+          await waitForThreadsContainer(
+            client,
+            createResponse.id,
+            video_url ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT
+          );
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: createResponse.id,

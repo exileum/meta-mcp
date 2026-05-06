@@ -203,7 +203,7 @@ describe("threads_reply auto_publish", () => {
     expect(calls[1][2]).toHaveProperty("creation_id", "container-1");
   });
 
-  it("image reply: ignores auto_publish and always uses the two-step flow", async () => {
+  it("image reply: ignores auto_publish, polls container, then publishes", async () => {
     const server = makeMockServer();
     const client = makePublishMockClient();
     registerThreadsReplyTools(server as never, client);
@@ -216,12 +216,16 @@ describe("threads_reply auto_publish", () => {
     });
 
     const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
-    // Image: create container + publish (no status poll for images in threads_reply)
-    expect(calls).toHaveLength(2);
+    // Image: create container + GET status (FINISHED) + publish.
+    // Polling matches threads_publish_image and prevents the same race
+    // condition #29 fixed there.
+    expect(calls).toHaveLength(3);
     expect(calls[0][2]).not.toHaveProperty("auto_publish_text");
     expect(calls[0][2]).toHaveProperty("media_type", "IMAGE");
     expect(calls[0][2]).toHaveProperty("image_url", "https://example.com/photo.jpg");
-    expect(calls[1][1]).toBe("/threads-123/threads_publish");
+    expect(calls[1][0]).toBe("GET");
+    expect(calls[1][1]).toContain("container-1");
+    expect(calls[2][1]).toBe("/threads-123/threads_publish");
   });
 
   it("video reply: ignores auto_publish, polls container, then publishes", async () => {
@@ -291,7 +295,8 @@ describe("threads_reply video timeout (#49 regression)", () => {
       video_url: "https://example.com/clip.mp4",
     });
 
-    // Advance fake timers to drain the 9 polls × 5s interval = 45s of waiting.
+    // 8 IN_PROGRESS sleeps × 5s = 40s of waiting before the 9th poll
+    // returns FINISHED (no trailing sleep). 60s is generous headroom.
     await vi.advanceTimersByTimeAsync(60_000);
     await promise;
 
