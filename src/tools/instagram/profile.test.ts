@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { registerIgProfileTools } from "./profile.js";
+import { registerIgProfileTools, igBusinessDiscoveryUsernameSchema } from "./profile.js";
 import { MetaClient } from "../../services/meta-client.js";
 
 function makeMockServer() {
@@ -33,8 +33,9 @@ describe("ig_business_discovery field expression syntax", () => {
   });
 
   it("uses canonical business_discovery.username(USERNAME){fields} syntax with default fields", async () => {
-    const handler = server.tools.get("ig_business_discovery")!;
-    await handler({ username: "bluebottle" });
+    const handler = server.tools.get("ig_business_discovery");
+    expect(handler).toBeDefined();
+    await handler!({ username: "bluebottle" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("GET");
@@ -45,8 +46,9 @@ describe("ig_business_discovery field expression syntax", () => {
   });
 
   it("passes caller-provided fields through inside the canonical {fields} braces", async () => {
-    const handler = server.tools.get("ig_business_discovery")!;
-    await handler({ username: "bluebottle", fields: "id,username,followers_count" });
+    const handler = server.tools.get("ig_business_discovery");
+    expect(handler).toBeDefined();
+    await handler!({ username: "bluebottle", fields: "id,username,followers_count" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("GET");
@@ -54,5 +56,72 @@ describe("ig_business_discovery field expression syntax", () => {
     expect(call[2]).toEqual({
       fields: "business_discovery.username(bluebottle){id,username,followers_count}",
     });
+  });
+
+  it("forwards a parsed (normalized) username to the canonical expression unchanged", async () => {
+    const handler = server.tools.get("ig_business_discovery");
+    expect(handler).toBeDefined();
+    const parsed = igBusinessDiscoveryUsernameSchema.parse("  @bluebottle  ");
+    await handler!({ username: parsed });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toEqual({
+      fields: "business_discovery.username(bluebottle){id,username,name,biography,followers_count,follows_count,media_count}",
+    });
+  });
+
+  it("returns an isError result when the underlying client rejects", async () => {
+    (client.ig as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Meta API error: rate limited"));
+    const handler = server.tools.get("ig_business_discovery");
+    expect(handler).toBeDefined();
+    const result = (await handler!({ username: "bluebottle" })) as {
+      isError?: boolean;
+      content: { type: string; text: string }[];
+    };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].type).toBe("text");
+    expect(result.content[0].text).toContain("Business discovery failed");
+    expect(result.content[0].text).toContain("rate limited");
+  });
+});
+
+describe("igBusinessDiscoveryUsernameSchema validation", () => {
+  it("passes a plain username through unchanged", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("bluebottle")).toBe("bluebottle");
+  });
+
+  it("strips a single leading '@'", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("@bluebottle")).toBe("bluebottle");
+  });
+
+  it("strips all consecutive leading '@' characters", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("@@bluebottle")).toBe("bluebottle");
+    expect(igBusinessDiscoveryUsernameSchema.parse("@@@@bluebottle")).toBe("bluebottle");
+  });
+
+  it("preserves '@' that is not at the start", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("user@name")).toBe("user@name");
+  });
+
+  it("trims surrounding whitespace before stripping '@'", () => {
+    expect(igBusinessDiscoveryUsernameSchema.parse("  bluebottle  ")).toBe("bluebottle");
+    expect(igBusinessDiscoveryUsernameSchema.parse("  @bluebottle  ")).toBe("bluebottle");
+  });
+
+  it("rejects an empty string", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("")).toThrow();
+  });
+
+  it("rejects a whitespace-only string", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("   ")).toThrow();
+  });
+
+  it("rejects a single '@' (empty after strip)", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("@")).toThrow();
+  });
+
+  it("rejects multiple '@' only (empty after strip)", () => {
+    expect(() => igBusinessDiscoveryUsernameSchema.parse("@@@@")).toThrow();
   });
 });

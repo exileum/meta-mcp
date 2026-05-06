@@ -2,6 +2,17 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+export const igBusinessDiscoveryUsernameSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/^@+/, ""))
+  .refine((v) => v.length > 0, {
+    message: "Username cannot be empty, only whitespace, or only '@' characters",
+  })
+  .describe(
+    "Instagram username to look up (without @; leading '@' characters and surrounding whitespace are auto-stripped)"
+  );
+
 export function registerIgProfileTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_profile ──────────────────────────────────────────
   server.tool(
@@ -48,7 +59,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "ig_business_discovery",
     "Look up another Instagram Business/Creator account's public info by username.",
     {
-      username: z.string().describe("Instagram username to look up (without @)"),
+      username: igBusinessDiscoveryUsernameSchema,
       fields: z.string().optional().describe("Fields to retrieve (default: id,username,name,biography,followers_count,follows_count,media_count)"),
     },
     async ({ username, fields }) => {
