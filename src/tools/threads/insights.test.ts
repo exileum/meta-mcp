@@ -1,17 +1,26 @@
 import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { registerThreadsInsightTools } from "./insights.js";
 
-// Capture tool registrations from server.tool()
+type ZodShape = Record<string, z.ZodTypeAny>;
 type ToolHandler = (args: Record<string, unknown>) => Promise<{ content: { type: string; text: string }[]; isError?: boolean }>;
-const registeredTools = new Map<string, ToolHandler>();
+type RegisteredTool = { schema: ZodShape; handler: ToolHandler };
+const registeredTools = new Map<string, RegisteredTool>();
 
 const mockServer = {
-  tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: ToolHandler) => {
-    registeredTools.set(name, handler);
+  tool: vi.fn((name: string, _desc: string, schema: ZodShape, handler: ToolHandler) => {
+    registeredTools.set(name, { schema, handler });
   }),
 } as unknown as McpServer;
+
+async function callTool(name: string, args: Record<string, unknown>) {
+  const tool = registeredTools.get(name);
+  if (!tool) throw new Error(`Tool ${name} not registered`);
+  const parsed = z.object(tool.schema).parse(args) as Record<string, unknown>;
+  return tool.handler(parsed);
+}
 
 function makeMockClient(response: unknown = { data: [] }): MetaClient {
   return {
@@ -26,8 +35,7 @@ describe("threads_get_post_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_post_insights")!;
-    await handler({ post_id: "post-456" } as Record<string, unknown>);
+    await callTool("threads_get_post_insights", { post_id: "post-456" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
       metric: "views,likes,replies,reposts,quotes,shares",
@@ -39,8 +47,7 @@ describe("threads_get_post_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_post_insights")!;
-    await handler({ post_id: "post-456", metric: "views,likes" });
+    await callTool("threads_get_post_insights", { post_id: "post-456", metric: "views,likes" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/post-456/insights", {
       metric: "views,likes",
@@ -55,8 +62,7 @@ describe("threads_get_post_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_post_insights")!;
-    const result = await handler({ post_id: "post-456" } as Record<string, unknown>);
+    const result = await callTool("threads_get_post_insights", { post_id: "post-456" });
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Invalid metric");
@@ -69,8 +75,7 @@ describe("threads_get_user_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    await handler({ metric: "views", period: "lifetime", since: undefined, until: undefined });
+    await callTool("threads_get_user_insights", { metric: "views", period: "lifetime" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "views",
@@ -83,8 +88,7 @@ describe("threads_get_user_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    await handler({ metric: "likes" } as Record<string, unknown>);
+    await callTool("threads_get_user_insights", { metric: "likes" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "likes",
@@ -97,8 +101,7 @@ describe("threads_get_user_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    await handler({ metric: "views", period: "day", since: "1712991600", until: "1713078000" });
+    await callTool("threads_get_user_insights", { metric: "views", period: "day", since: "1712991600", until: "1713078000" });
 
     expect(client.threads).toHaveBeenCalledWith("GET", "/user-123/threads_insights", {
       metric: "views",
@@ -116,8 +119,7 @@ describe("threads_get_user_insights", () => {
     registeredTools.clear();
     registerThreadsInsightTools(mockServer, client);
 
-    const handler = registeredTools.get("threads_get_user_insights")!;
-    const result = await handler({ metric: "views", period: "day", since: undefined, until: undefined });
+    const result = await callTool("threads_get_user_insights", { metric: "views", period: "day" });
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("API rate limit");

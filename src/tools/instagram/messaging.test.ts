@@ -1,14 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { z } from "zod";
 import { registerIgMessagingTools } from "./messaging.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+type ZodShape = Record<string, z.ZodTypeAny>;
+type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
+
 function makeMockServer() {
-  const tools = new Map<string, (...args: unknown[]) => unknown>();
+  const tools = new Map<string, { schema: ZodShape; handler: ToolHandler }>();
   return {
     tools,
-    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
-      tools.set(name, handler);
+    tool: vi.fn((name: string, _desc: string, schema: ZodShape, handler: ToolHandler) => {
+      tools.set(name, { schema, handler });
     }),
+    async callTool(name: string, args: Record<string, unknown>) {
+      const tool = tools.get(name);
+      if (!tool) throw new Error(`Tool ${name} not registered`);
+      const parsed = z.object(tool.schema).parse(args) as Record<string, unknown>;
+      return tool.handler(parsed);
+    },
   };
 }
 
@@ -32,9 +42,8 @@ describe("ig_get_conversations fields override", () => {
     registerIgMessagingTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_conversations")!;
-    await handler({});
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_conversations", {});
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/123/conversations");
@@ -45,8 +54,7 @@ describe("ig_get_conversations fields override", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_conversations")!;
-    await handler({ fields: "id,updated_time" });
+    await server.callTool("ig_get_conversations", { fields: "id,updated_time" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({
@@ -66,9 +74,8 @@ describe("ig_get_messages fields override", () => {
     registerIgMessagingTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_messages")!;
-    await handler({ conversation_id: "conv_1" });
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_messages", { conversation_id: "conv_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/conv_1/messages");
@@ -78,8 +85,7 @@ describe("ig_get_messages fields override", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_messages")!;
-    await handler({ conversation_id: "conv_2", fields: "id,message" });
+    await server.callTool("ig_get_messages", { conversation_id: "conv_2", fields: "id,message" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ fields: "id,message" });
@@ -96,9 +102,8 @@ describe("ig_get_message fields override", () => {
     registerIgMessagingTools(server as never, client);
   });
 
-  it("uses hardcoded default fields when fields is omitted", async () => {
-    const handler = server.tools.get("ig_get_message")!;
-    await handler({ message_id: "msg_1" });
+  it("uses schema default fields when fields is omitted", async () => {
+    await server.callTool("ig_get_message", { message_id: "msg_1" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/msg_1");
@@ -108,8 +113,7 @@ describe("ig_get_message fields override", () => {
   });
 
   it("passes through caller-provided fields verbatim", async () => {
-    const handler = server.tools.get("ig_get_message")!;
-    await handler({ message_id: "msg_2", fields: "id,message,reply_to" });
+    await server.callTool("ig_get_message", { message_id: "msg_2", fields: "id,message,reply_to" });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toEqual({ fields: "id,message,reply_to" });

@@ -2,6 +2,10 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}";
+const GET_COMMENT_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,parent_id,media";
+const GET_REPLIES_DEFAULT_FIELDS = "id,text,username,timestamp,like_count";
+
 export function registerIgCommentTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_comments ─────────────────────────────────────────
   server.tool(
@@ -11,13 +15,11 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
       media_id: z.string().describe("Media ID"),
       limit: z.number().optional().describe("Number of comments to return"),
       after: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count,replies{id,text,username,timestamp})"),
+      fields: z.string().optional().default(GET_COMMENTS_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_COMMENTS_DEFAULT_FIELDS})`),
     },
     async ({ media_id, limit, after, fields }) => {
       try {
-        const params: Record<string, unknown> = {
-          fields: fields || "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}",
-        };
+        const params: Record<string, unknown> = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/comments`, params);
@@ -34,12 +36,11 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     "Get details of a specific comment.",
     {
       comment_id: z.string().describe("Comment ID"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count,parent_id,media)"),
+      fields: z.string().optional().default(GET_COMMENT_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_COMMENT_DEFAULT_FIELDS})`),
     },
     async ({ comment_id, fields }) => {
       try {
-        const f = fields || "id,text,username,timestamp,like_count,parent_id,media";
-        const { data, rateLimit } = await client.ig("GET", `/${comment_id}`, { fields: f });
+        const { data, rateLimit } = await client.ig("GET", `/${comment_id}`, { fields });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get comment failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
@@ -73,13 +74,11 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
       comment_id: z.string().describe("Comment ID to get replies for"),
       limit: z.number().optional().describe("Number of replies to return"),
       after: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,text,username,timestamp,like_count)"),
+      fields: z.string().optional().default(GET_REPLIES_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_REPLIES_DEFAULT_FIELDS})`),
     },
     async ({ comment_id, limit, after, fields }) => {
       try {
-        const params: Record<string, unknown> = {
-          fields: fields || "id,text,username,timestamp,like_count",
-        };
+        const params: Record<string, unknown> = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}/replies`, params);

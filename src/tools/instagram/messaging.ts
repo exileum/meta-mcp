@@ -2,6 +2,10 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
+const GET_MESSAGES_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
+const GET_MESSAGE_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
+
 export function registerIgMessagingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_conversations ────────────────────────────────────
   server.tool(
@@ -11,13 +15,13 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       folder: z.enum(["inbox", "spam"]).optional().describe("Folder to retrieve (default: inbox)"),
       limit: z.number().optional().describe("Number of conversations"),
       after: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,updated_time,participants,messages{id,message,from,created_time})"),
+      fields: z.string().optional().default(GET_CONVERSATIONS_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_CONVERSATIONS_DEFAULT_FIELDS})`),
     },
     async ({ folder, limit, after, fields }) => {
       try {
         const params: Record<string, unknown> = {
           platform: "instagram",
-          fields: fields || "id,updated_time,participants,messages{id,message,from,created_time}",
+          fields,
         };
         if (folder) params.folder = folder;
         if (limit !== undefined) params.limit = limit;
@@ -38,13 +42,11 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       conversation_id: z.string().describe("Conversation ID"),
       limit: z.number().optional().describe("Number of messages"),
       after: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
+      fields: z.string().optional().default(GET_MESSAGES_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MESSAGES_DEFAULT_FIELDS})`),
     },
     async ({ conversation_id, limit, after, fields }) => {
       try {
-        const params: Record<string, unknown> = {
-          fields: fields || "id,message,from,created_time,attachments",
-        };
+        const params: Record<string, unknown> = { fields };
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.ig("GET", `/${conversation_id}/messages`, params);
@@ -83,12 +85,11 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     "Get details of a specific DM message.",
     {
       message_id: z.string().describe("Message ID"),
-      fields: z.string().optional().describe("Comma-separated fields (default: id,message,from,created_time,attachments)"),
+      fields: z.string().optional().default(GET_MESSAGE_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MESSAGE_DEFAULT_FIELDS})`),
     },
     async ({ message_id, fields }) => {
       try {
-        const f = fields || "id,message,from,created_time,attachments";
-        const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields: f });
+        const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Get message failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };

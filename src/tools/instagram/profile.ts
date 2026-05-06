@@ -2,6 +2,8 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 
+const BUSINESS_DISCOVERY_DEFAULT_FIELDS = "id,username,name,biography,followers_count,follows_count,media_count";
+
 export function registerIgProfileTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_profile ──────────────────────────────────────────
   server.tool(
@@ -49,13 +51,12 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     "Look up another Instagram Business/Creator account's public info by username.",
     {
       username: z.string().describe("Instagram username to look up (without @)"),
-      fields: z.string().optional().describe("Fields to retrieve (default: id,username,name,biography,followers_count,follows_count,media_count)"),
+      fields: z.string().optional().default(BUSINESS_DISCOVERY_DEFAULT_FIELDS).describe(`Fields to retrieve (default: ${BUSINESS_DISCOVERY_DEFAULT_FIELDS})`),
     },
     async ({ username, fields }) => {
       try {
-        const f = fields || "id,username,name,biography,followers_count,follows_count,media_count";
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
-          fields: `business_discovery.fields(${f}){username=${username}}`,
+          fields: `business_discovery.fields(${fields}){username=${username}}`,
         });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
