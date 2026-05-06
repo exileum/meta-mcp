@@ -44,6 +44,22 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: tsc --noEmit
 
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Fail if setup did not succeed
+        if: needs.setup.result != 'success'
+        run: |
+          echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
+          exit 1
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/restore-deps
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm run lint
+
   test:
     needs: setup
     runs-on: ubuntu-latest
@@ -94,7 +110,7 @@ jobs:
           fi
 
   build:
-    needs: [setup, typecheck, test, audit, version-sync]
+    needs: [setup, typecheck, lint, test, audit, version-sync]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -102,12 +118,13 @@ jobs:
         if: |
           needs.setup.result != 'success' ||
           needs.typecheck.result != 'success' ||
+          needs.lint.result != 'success' ||
           needs.test.result != 'success' ||
           needs.audit.result != 'success' ||
           needs['version-sync'].result != 'success'
         run: |
           echo "::error::An upstream job did not succeed"
-          echo "setup=${{ needs.setup.result }} typecheck=${{ needs.typecheck.result }} test=${{ needs.test.result }} audit=${{ needs.audit.result }} version-sync=${{ needs['version-sync'].result }}"
+          echo "setup=${{ needs.setup.result }} typecheck=${{ needs.typecheck.result }} lint=${{ needs.lint.result }} test=${{ needs.test.result }} audit=${{ needs.audit.result }} version-sync=${{ needs['version-sync'].result }}"
           exit 1
       - uses: actions/checkout@v6
       - uses: ./.github/actions/restore-deps

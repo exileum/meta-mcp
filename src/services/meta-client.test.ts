@@ -155,7 +155,7 @@ describe("MetaClient JSON body mode", () => {
       creation_id: "container-123",
     });
 
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [_url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
 
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/x-www-form-urlencoded");
     const body = new URLSearchParams(init.body as string);
@@ -171,7 +171,7 @@ describe("MetaClient JSON body mode", () => {
       topic_tag: "Pets",
     });
 
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [_url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
 
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/x-www-form-urlencoded");
     const body = new URLSearchParams(init.body as string);
