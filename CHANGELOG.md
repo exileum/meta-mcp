@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - **Patched transitive `ip-address` XSS ([GHSA-v2v4-37r5-5v8g](https://github.com/advisories/GHSA-v2v4-37r5-5v8g) / CVE-2026-42338, moderate)** — added an `overrides` entry pinning `ip-address` to `^10.1.1` so the transitive resolution under `@modelcontextprotocol/sdk@1.29.0 → express-rate-limit@8.3.2` (which still pins the vulnerable `10.1.0`, as does the latest `express-rate-limit@8.5.0`) is replaced with the patched `10.2.0`; the advisory only affects consumers that pass untrusted input through `Address6.group()`/`link()`/`spanAll()` or render `AddressError.parseMessage` as HTML, none of which meta-mcp does — but the override clears the Dependabot alert and protects downstream consumers that vendor the lockfile ([Dependabot #21](https://github.com/exileum/meta-mcp/security/dependabot/21))
 
+### Fixed
+- **`threads_reply` silently accepted both `image_url` and `video_url` on the same reply** — the handler would assign `mediaType = "VIDEO"` (overriding `"IMAGE"`) but still forward both URLs to `POST /{user-id}/threads`, sending Meta an undefined-behavior combination. Added a handler-level validation that fast-fails with a clear error when both are provided. Per the [Threads Posts docs](https://developers.facebook.com/docs/threads/posts), each `media_type` has exactly one required URL field (`image_url` for IMAGE, `video_url` for VIDEO) and the spec doesn't define behavior when both are sent. The tool description and the `image_url` / `video_url` `.describe()` strings now spell out the mutual-exclusion constraint. Same conservative pattern as the [#185](https://github.com/exileum/meta-mcp/issues/185) `threads_publish_text` attachment mutual-exclusion fix ([#59](https://github.com/exileum/meta-mcp/issues/59))
+
 ## [5.0.0] — 2026-05-06
 
 ### Added
