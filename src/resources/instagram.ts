@@ -4,7 +4,7 @@ import { MetaClient } from "../services/meta-client.js";
 export function registerInstagramResources(server: McpServer, client: MetaClient) {
   server.resource(
     "instagram-profile",
-    "instagram://profile",
+    "meta-mcp://instagram/profile",
     { description: "Instagram Business/Creator account profile information", mimeType: "application/json" },
     async () => {
       const { data } = await client.ig("GET", `/${client.igUserId}`, {
@@ -13,7 +13,7 @@ export function registerInstagramResources(server: McpServer, client: MetaClient
       return {
         contents: [
           {
-            uri: "instagram://profile",
+            uri: "meta-mcp://instagram/profile",
             mimeType: "application/json",
             text: JSON.stringify(data, null, 2),
           },
