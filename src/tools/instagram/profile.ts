@@ -24,7 +24,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
   // ─── ig_get_account_insights ─────────────────────────────────
   server.tool(
     "ig_get_account_insights",
-    "Get Instagram account insights. Note: 'impressions', 'email_contacts', 'phone_call_clicks', 'text_message_clicks', 'get_directions_clicks', 'website_clicks', 'profile_views' were deprecated in v22.0. Use 'views', 'reach', 'follower_count', 'reposts' instead.",
+    "Get Instagram account insights. Use the optional `metric_type` to control whether results come back as a single total per metric or as a daily breakdown. Note: 'impressions', 'email_contacts', 'phone_call_clicks', 'text_message_clicks', 'get_directions_clicks', 'website_clicks', 'profile_views' were deprecated in v22.0. Use 'views', 'reach', 'follower_count', 'reposts' instead.",
     {
       metric: z.string().describe(
         "Comma-separated metrics. Time-series metrics (use period=day/week/days_28): " +
@@ -38,12 +38,14 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         "Use 'lifetime' only for follower_count and demographic metrics " +
         "(follower_demographics,engaged_audience_demographics)."
       ),
+      metric_type: z.enum(["total_value", "time_series"]).optional().describe("Aggregation shape: 'total_value' for a single aggregated number per metric, 'time_series' for daily breakdowns. Per the Instagram User Insights docs, only 'reach' supports both; most metrics (views, likes, reposts, accounts_engaged, total_interactions, saves, shares, comments, replies, quotes, profile_links_taps, demographics) support only 'total_value'. Omit to use the API default for each metric."),
       since: z.string().optional().describe("Start date (Unix timestamp or ISO 8601)"),
       until: z.string().optional().describe("End date (Unix timestamp or ISO 8601)"),
     },
-    async ({ metric, period, since, until }) => {
+    async ({ metric, period, metric_type, since, until }) => {
       try {
         const params: Record<string, unknown> = { metric, period };
+        if (metric_type) params.metric_type = metric_type;
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/insights`, params);

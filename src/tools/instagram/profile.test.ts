@@ -126,6 +126,50 @@ describe("ig_get_account_insights handler", () => {
     expect(call[2]).toEqual({ metric: "follower_count", period: "lifetime" });
   });
 
+  it("includes metric_type in the request when provided", async () => {
+    const handler = server.tools.get("ig_get_account_insights")!;
+    await handler({ metric: "reach", period: "day", metric_type: "time_series" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toEqual({ metric: "reach", period: "day", metric_type: "time_series" });
+  });
+
+  it("accepts metric_type='total_value'", async () => {
+    const handler = server.tools.get("ig_get_account_insights")!;
+    await handler({ metric: "views", period: "day", metric_type: "total_value" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toEqual({ metric: "views", period: "day", metric_type: "total_value" });
+  });
+
+  it("omits metric_type from the request when not provided", async () => {
+    const handler = server.tools.get("ig_get_account_insights")!;
+    await handler({ metric: "views", period: "day" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).not.toHaveProperty("metric_type");
+  });
+
+  it("forwards since/until alongside metric_type", async () => {
+    const handler = server.tools.get("ig_get_account_insights")!;
+    await handler({
+      metric: "reach",
+      period: "day",
+      metric_type: "time_series",
+      since: "1712991600",
+      until: "1713078000",
+    });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toEqual({
+      metric: "reach",
+      period: "day",
+      metric_type: "time_series",
+      since: "1712991600",
+      until: "1713078000",
+    });
+  });
+
   it("returns isError=true on API failure", async () => {
     const failingClient = {
       igUserId: "123",
