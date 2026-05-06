@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   registerThreadsReplyTools,
   REPLIES_TOP_LEVEL_DEFAULT_FIELDS,
@@ -246,5 +246,59 @@ describe("threads_reply auto_publish", () => {
     expect(calls[1][1]).toContain("container-1");
     expect(calls[2][0]).toBe("POST");
     expect(calls[2][1]).toBe("/threads-123/threads_publish");
+  });
+});
+
+// ─── threads_reply video timeout regression (#49) ─────────────────────
+// Polling defaults to a 5-second interval, so a 30-second cap allows at most
+// 6 status checks before throwing. A video reply that takes 35+ seconds to
+// FINISHED would have failed under the previous default; with the bug fix
+// the helper waits up to VIDEO_PROCESSING_TIMEOUT (300s).
+
+describe("threads_reply video timeout (#49 regression)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("waits past the 30-second image cap before publishing a video reply", async () => {
+    const server = makeMockServer();
+    const calls: Array<[string, string, Record<string, unknown>?]> = [];
+    let getCount = 0;
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async (method: string, path: string, params?: Record<string, unknown>) => {
+        calls.push([method, path, params]);
+        if (method === "GET") {
+          getCount++;
+          // 8 IN_PROGRESS polls (40s of waiting) — well past the 30s image cap
+          // but inside the 300s video cap. Then return FINISHED.
+          return {
+            data: { status: getCount <= 8 ? "IN_PROGRESS" : "FINISHED" },
+            rateLimit: undefined,
+          };
+        }
+        if (path.endsWith("/threads_publish")) {
+          return { data: { id: "published-1" }, rateLimit: undefined };
+        }
+        return { data: { id: "container-1" }, rateLimit: undefined };
+      }),
+    } as unknown as MetaClient;
+
+    registerThreadsReplyTools(server as never, client);
+    const handler = server.tools.get("threads_reply")!;
+    const promise = handler({
+      reply_to_id: "post-42",
+      text: "With video",
+      video_url: "https://example.com/clip.mp4",
+    });
+
+    // Advance fake timers to drain the 9 polls × 5s interval = 45s of waiting.
+    await vi.advanceTimersByTimeAsync(60_000);
+    await promise;
+
+    const getCalls = calls.filter((c) => c[0] === "GET");
+    expect(getCalls.length).toBe(9);
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall[0]).toBe("POST");
+    expect(lastCall[1]).toBe("/threads-123/threads_publish");
   });
 });
