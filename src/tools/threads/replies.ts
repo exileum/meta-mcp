@@ -66,6 +66,8 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
       annotations: WRITE_TOOL,
     },
     async ({ reply_to_id, text, image_url, video_url, auto_publish }) => {
+      let step = "container creation";
+      let containerId: string | undefined;
       try {
         if (image_url && video_url) {
           return validationError("image_url and video_url cannot be combined on a single reply");
@@ -93,19 +95,22 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (useAutoPublish) {
           return formatResponse(createResponse, createRateLimit);
         }
+        containerId = createResponse.id;
         if (image_url || video_url) {
+          step = "processing";
           await waitForThreadsContainer(
             client,
-            createResponse.id,
+            containerId,
             video_url ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT
           );
         }
+        step = "publishing";
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
-          creation_id: createResponse.id,
+          creation_id: containerId,
         });
         return formatResponse(data, rateLimit);
       } catch (error) {
-        return formatErrorResponse(error, "Reply");
+        return formatErrorResponse(error, "Reply", { step, containerId });
       }
     }
   );

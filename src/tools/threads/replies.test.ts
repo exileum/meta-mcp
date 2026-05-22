@@ -254,14 +254,22 @@ describe("threads_reply auto_publish", () => {
 });
 
 // ─── threads_reply video timeout regression (#49) ─────────────────────
-// Polling defaults to a 5-second interval, so a 30-second cap allows at most
-// 6 status checks before throwing. A video reply that takes 35+ seconds to
-// FINISHED would have failed under the previous default; with the bug fix
-// the helper waits up to VIDEO_PROCESSING_TIMEOUT (300s).
+// Polling uses exponential backoff (5s base, ×1.5, cap 30s, ±500ms jitter).
+// IMAGE_PROCESSING_TIMEOUT = 30s would throw before the 4th sleep finishes
+// (~40s elapsed). A video reply must use VIDEO_PROCESSING_TIMEOUT (300s) to
+// survive 4+ IN_PROGRESS polls and reach FINISHED.
 
 describe("threads_reply video timeout (#49 regression)", () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Pin Math.random so jitter (random() * 500) is zero — keeps the elapsed-
+    // time math below stable across CI runs.
+    vi.spyOn(Math, "random").mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it("waits past the 30-second image cap before publishing a video reply", async () => {
     const server = makeMockServer();
@@ -273,10 +281,11 @@ describe("threads_reply video timeout (#49 regression)", () => {
         calls.push([method, path, params]);
         if (method === "GET") {
           getCount++;
-          // 8 IN_PROGRESS polls (40s of waiting) — well past the 30s image cap
-          // but inside the 300s video cap. Then return FINISHED.
+          // 4 IN_PROGRESS polls → 5th returns FINISHED. With backoff the 5th
+          // poll fires at 5+7.5+11.25+16.875 = 40.625s elapsed, past the 30s
+          // image cap. An image-cap config would have thrown before reaching it.
           return {
-            data: { status: getCount <= 8 ? "IN_PROGRESS" : "FINISHED" },
+            data: { status: getCount <= 4 ? "IN_PROGRESS" : "FINISHED" },
             rateLimit: undefined,
           };
         }
@@ -295,13 +304,11 @@ describe("threads_reply video timeout (#49 regression)", () => {
       video_url: "https://example.com/clip.mp4",
     });
 
-    // 8 IN_PROGRESS sleeps × 5s = 40s of waiting before the 9th poll
-    // returns FINISHED (no trailing sleep). 60s is generous headroom.
     await vi.advanceTimersByTimeAsync(60_000);
     await promise;
 
     const getCalls = calls.filter((c) => c[0] === "GET");
-    expect(getCalls.length).toBe(9);
+    expect(getCalls.length).toBe(5);
     const lastCall = calls[calls.length - 1];
     expect(lastCall[0]).toBe("POST");
     expect(lastCall[1]).toBe("/threads-123/threads_publish");
@@ -325,5 +332,81 @@ describe("threads_reply image_url/video_url mutual exclusion", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("image_url and video_url cannot be combined on a single reply");
     expect(client.threads).not.toHaveBeenCalled();
+  });
+});
+
+// ─── threads_reply error context (#99) ─────────────────────────────────
+
+interface ErrorPayload {
+  error: true;
+  error_type: string;
+  step?: string;
+  container_id?: string;
+  message: string;
+}
+
+function parseErrorPayload(result: unknown): ErrorPayload {
+  const text = (result as { content: { text: string }[] }).content[0].text;
+  return JSON.parse(text) as ErrorPayload;
+}
+
+describe("threads_reply error context", () => {
+  it("reports container creation step on the initial POST failure", async () => {
+    const server = makeMockServer();
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async () => { throw new Error("create POST failed"); }),
+    } as unknown as MetaClient;
+    registerThreadsReplyTools(server as never, client);
+    const handler = server.tools.get("threads_reply")!;
+    const result = await handler({ reply_to_id: "post-42", text: "Hi" });
+    const payload = parseErrorPayload(result);
+    expect(payload.step).toBe("container creation");
+    expect(payload.container_id).toBeUndefined();
+    expect(payload.message).toBe("Reply failed at container creation: create POST failed");
+  });
+
+  it("reports processing step + container_id when polling a media reply fails", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async (method: HttpMethod) => {
+        if (callIndex++ === 0) return { data: { id: "reply-c-1" }, rateLimit: undefined };
+        if (method === "GET") return { data: { status: "ERROR" }, rateLimit: undefined };
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsReplyTools(server as never, client);
+    const handler = server.tools.get("threads_reply")!;
+    const result = await handler({
+      reply_to_id: "post-42",
+      text: "Look",
+      image_url: "https://example.com/a.jpg",
+    });
+    const payload = parseErrorPayload(result);
+    expect(payload.step).toBe("processing");
+    expect(payload.container_id).toBe("reply-c-1");
+    expect(payload.message).toContain("Reply failed at processing (container: reply-c-1)");
+  });
+
+  it("reports publishing step + container_id when the publish POST fails on a text reply with auto_publish=false", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async (method: HttpMethod, path: string) => {
+        if (callIndex++ === 0) return { data: { id: "reply-c-2" }, rateLimit: undefined };
+        if (method === "POST" && path.endsWith("/threads_publish")) throw new Error("publish POST failed");
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsReplyTools(server as never, client);
+    const handler = server.tools.get("threads_reply")!;
+    const result = await handler({ reply_to_id: "post-42", text: "Hi", auto_publish: false });
+    const payload = parseErrorPayload(result);
+    expect(payload.step).toBe("publishing");
+    expect(payload.container_id).toBe("reply-c-2");
+    expect(payload.message).toBe("Reply failed at publishing (container: reply-c-2): publish POST failed");
   });
 });
