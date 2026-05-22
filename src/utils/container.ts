@@ -9,8 +9,8 @@ export const IMAGE_PROCESSING_TIMEOUT = 30;
 export const VIDEO_PROCESSING_TIMEOUT = 300;
 
 // Kept MCP-agnostic so container.ts has no @modelcontextprotocol imports.
-// Implementations must be non-throwing — the poll loop swallows errors but
-// also never awaits the callback.
+// Throwing implementations are safe — the poll loop catches and discards
+// callback errors, and never awaits the callback.
 export type ContainerProgressCallback = (progress: number, total: number, message?: string) => void;
 
 export interface PollContainerOptions {

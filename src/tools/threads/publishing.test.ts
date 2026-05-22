@@ -1674,4 +1674,27 @@ describe("Threads publish progress notifications", () => {
     const handler = server.tools.get("threads_publish_video")!;
     await expect(handler({ video_url: "https://example.com/v.mp4" })).resolves.toBeDefined();
   });
+
+  it("threads_publish_carousel emits strictly increasing progress values via the shared notifier", async () => {
+    const sendNotification = vi.fn(async () => undefined);
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler(
+      {
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg" },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+        ],
+      },
+      { _meta: { progressToken: 99 }, sendNotification }
+    );
+    // 2 child polls + 1 final carousel poll = 3 emissions on the shared token.
+    expect(sendNotification).toHaveBeenCalledTimes(3);
+    const progressValues = sendNotification.mock.calls.map(
+      (call) => (call[0] as { params: { progress: number } }).params.progress
+    );
+    expect(progressValues).toEqual([1, 2, 3]);
+    const firstCall = sendNotification.mock.calls[0][0] as { params: { progressToken: number; total?: number } };
+    expect(firstCall.params.progressToken).toBe(99);
+    expect(firstCall.params.total).toBeUndefined();
+  });
 });

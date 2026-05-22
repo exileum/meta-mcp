@@ -812,4 +812,28 @@ describe("Instagram publish progress notifications", () => {
     const handler = server.tools.get("ig_publish_reel")!;
     await expect(handler({ video_url: "https://example.com/v.mp4" })).resolves.toBeDefined();
   });
+
+  it("ig_publish_carousel emits strictly increasing progress values via the shared notifier", async () => {
+    const sendNotification = vi.fn(async () => undefined);
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler(
+      {
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg" },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+          { type: "IMAGE", url: "https://example.com/c.jpg" },
+        ],
+      },
+      { _meta: { progressToken: "tok-carousel" }, sendNotification }
+    );
+    // 3 child polls + 1 final carousel poll = 4 emissions on the shared token.
+    expect(sendNotification).toHaveBeenCalledTimes(4);
+    const progressValues = sendNotification.mock.calls.map(
+      (call) => (call[0] as { params: { progress: number; progressToken: string } }).params.progress
+    );
+    expect(progressValues).toEqual([1, 2, 3, 4]);
+    const firstCall = sendNotification.mock.calls[0][0] as { params: { progressToken: string; total?: number } };
+    expect(firstCall.params.progressToken).toBe("tok-carousel");
+    expect(firstCall.params.total).toBeUndefined();
+  });
 });
