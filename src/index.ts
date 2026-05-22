@@ -10,8 +10,6 @@ import { MetaClient } from "./services/meta-client.js";
 import { registerAll } from "./register-all.js";
 import { setupFatalErrorHandlers, setupShutdownHandlers } from "./shutdown.js";
 
-setupFatalErrorHandlers();
-
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json") as { version: string };
 
@@ -72,6 +70,7 @@ function isInvokedAsCli(): boolean {
 }
 
 if (isInvokedAsCli()) {
+  setupFatalErrorHandlers();
   main().catch((err) => {
     console.error("Fatal error:", err);
     process.exit(1);
