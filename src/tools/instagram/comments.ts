@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}";
 const GET_COMMENT_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,parent_id,media";
@@ -27,7 +28,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/comments`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get comments");
       }
@@ -45,7 +46,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     async ({ comment_id, fields }) => {
       try {
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}`, { fields });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get comment");
       }
@@ -63,7 +64,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     async ({ media_id, message }) => {
       try {
         const { data, rateLimit } = await client.ig("POST", `/${media_id}/comments`, { message });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Post comment");
       }
@@ -88,7 +89,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}/replies`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get replies");
       }
@@ -106,7 +107,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     async ({ comment_id, message }) => {
       try {
         const { data, rateLimit } = await client.ig("POST", `/${comment_id}/replies`, { message });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Reply");
       }
@@ -124,7 +125,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     async ({ comment_id, hide }) => {
       try {
         const { data, rateLimit } = await client.ig("POST", `/${comment_id}`, { hide });
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: hide, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, hidden: hide, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Hide comment");
       }
@@ -141,7 +142,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     async ({ comment_id }) => {
       try {
         const { data, rateLimit } = await client.ig("DELETE", `/${comment_id}`);
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Delete comment");
       }

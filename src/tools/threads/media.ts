@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 const THREADS_MEDIA_FIELDS = [
   "id",
@@ -55,7 +56,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get posts");
       }
@@ -73,7 +74,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     async ({ post_id, fields }) => {
       try {
         const { data, rateLimit } = await client.threads("GET", `/${post_id}`, { fields });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get post");
       }
@@ -110,7 +111,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
         if (limit !== undefined) params.limit = limit;
         if (after) params.after = after;
         const { data, rateLimit } = await client.threads("GET", `/keyword_search`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Search posts");
       }

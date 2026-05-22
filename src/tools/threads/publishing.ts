@@ -4,6 +4,7 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
@@ -155,12 +156,12 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof createResponse.id !== "string") throw new Error("Container creation did not return a valid id");
         if (useAutoPublish) {
-          return { content: [{ type: "text", text: JSON.stringify({ ...createResponse, _rateLimit: createRateLimit }, null, 2) }] };
+          return formatResponse(createResponse, createRateLimit);
         }
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: createResponse.id,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish text");
       }
@@ -202,7 +203,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish image");
       }
@@ -244,7 +245,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish video");
       }
@@ -305,7 +306,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: carouselId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel");
       }
@@ -322,7 +323,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     async ({ post_id }) => {
       try {
         const { data, rateLimit } = await client.threads("DELETE", `/${post_id}`);
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Delete post");
       }
@@ -341,7 +342,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("GET", `/${container_id}`, {
           fields: "id,status,error_message",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg.includes("nonexisting field")) {
@@ -362,7 +363,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_publishing_limit`, {
           fields: "quota_usage,config",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get publishing limit");
       }
@@ -379,7 +380,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     async ({ post_id }) => {
       try {
         const { data, rateLimit } = await client.threads("POST", `/${post_id}/repost`, {});
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Repost");
       }
@@ -414,7 +415,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (hasLat) params.latitude = latitude;
         if (hasLng) params.longitude = longitude;
         const { data, rateLimit } = await client.threads("GET", "/location_search", params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Search locations");
       }

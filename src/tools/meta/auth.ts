@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 export function registerMetaAuthTools(server: McpServer, client: MetaClient): void {
   // ─── meta_exchange_token ─────────────────────────────────────
@@ -18,7 +19,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = platform === "threads"
           ? await client.threadsExchangeToken(short_lived_token)
           : await client.igExchangeToken(short_lived_token);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Token exchange");
       }
@@ -38,7 +39,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = platform === "threads"
           ? await client.threadsRefreshToken(long_lived_token)
           : await client.igRefreshToken(long_lived_token);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Token refresh");
       }
@@ -55,7 +56,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
     async ({ input_token }) => {
       try {
         const { data, rateLimit } = await client.debugToken(input_token);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Token debug");
       }
@@ -72,7 +73,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = await client.meta("GET", `/app`, {
           fields: "id,name,category,namespace,link,company,description",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get app info");
       }
@@ -97,7 +98,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
           verify_token,
           fields,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Webhook subscribe");
       }
@@ -112,7 +113,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
     async () => {
       try {
         const { data, rateLimit } = await client.meta("GET", `/app/subscriptions`);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get webhooks");
       }

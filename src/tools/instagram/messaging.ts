@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
 // Both /conversations/{id}/messages and /messages/{id} share the same Message resource shape, so they reuse the same default field set.
@@ -31,7 +32,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/conversations`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get conversations");
       }
@@ -56,7 +57,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${conversation_id}/messages`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get messages");
       }
@@ -95,7 +96,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         };
         if (tag !== undefined) jsonBody.tag = tag;
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/messages`, undefined, { jsonBody });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Send message");
       }
@@ -113,7 +114,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     async ({ message_id, fields }) => {
       try {
         const { data, rateLimit } = await client.ig("GET", `/${message_id}`, { fields });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get message");
       }
