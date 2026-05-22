@@ -29,7 +29,7 @@ describe("ig_get_comments fields override", () => {
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/media_1/comments");
     expect(call[2]).toEqual({
-      fields: "id,text,username,timestamp,like_count,hidden,from,replies{id,text,username,timestamp,like_count,hidden}",
+      fields: "id,text,username,timestamp,like_count,hidden,from,replies{id,text,username,timestamp,like_count,hidden,from}",
     });
   });
 

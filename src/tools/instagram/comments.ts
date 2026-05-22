@@ -7,7 +7,7 @@ import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
-const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,hidden,from,replies{id,text,username,timestamp,like_count,hidden}";
+const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,hidden,from,replies{id,text,username,timestamp,like_count,hidden,from}";
 const GET_COMMENT_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,hidden,from,parent_id,media";
 const GET_REPLIES_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,hidden,from";
 
