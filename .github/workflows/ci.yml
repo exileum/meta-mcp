@@ -97,6 +97,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/version-sync
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
   build:
     needs: [setup, typecheck, lint, test, audit, version-sync]

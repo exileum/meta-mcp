@@ -13,9 +13,15 @@ const pkgVersion = pkg.version;
 const serverRootVersion = server.version;
 const serverPackageVersion = server.packages?.[0]?.version;
 
-if (pkgVersion !== serverRootVersion || pkgVersion !== serverPackageVersion) {
+if (
+  !pkgVersion ||
+  !serverRootVersion ||
+  !serverPackageVersion ||
+  pkgVersion !== serverRootVersion ||
+  pkgVersion !== serverPackageVersion
+) {
   console.error(
-    `Version mismatch: package.json=${pkgVersion} server.json(root)=${serverRootVersion} server.json(packages[0])=${serverPackageVersion}`,
+    `Version mismatch or missing field: package.json=${pkgVersion ?? "<missing>"} server.json(root)=${serverRootVersion ?? "<missing>"} server.json(packages[0])=${serverPackageVersion ?? "<missing>"}`,
   );
   process.exit(1);
 }
