@@ -48,7 +48,7 @@ Only set variables for the platforms you use. The server validates these at star
 
 ## Error Responses
 
-Tool failures return `isError: true` and a JSON-encoded body in `content[0].text` with this shape: `{ error: true, error_type: "auth"|"validation"|"rate_limit"|"server"|"network"|"internal", http_status?, code?, subcode?, type?, message, remediation?, fbtrace_id?, raw }`. `remediation` is populated for `auth`, `rate_limit`, `server`, `network`. Categories map from Meta API HTTP status, error code/subcode (e.g., `190`/`OAuthException` → `auth`; `4`/`17`/`80001-80008` → `rate_limit`).
+Tool failures return `isError: true` and a JSON-encoded body in `content[0].text` with this shape: `{ error: true, error_type: "auth"|"validation"|"rate_limit"|"server"|"network"|"internal", http_status?, code?, subcode?, type?, step?, container_id?, message, remediation?, fbtrace_id?, raw }`. `remediation` is populated for `auth`, `rate_limit`, `server`, `network`. Categories map from Meta API HTTP status, error code/subcode (e.g., `190`/`OAuthException` → `auth`; `4`/`17`/`80001-80008` → `rate_limit`). On publish tools (`ig_publish_*`, `threads_publish_*`, `threads_reply`), `step` names the failing phase (`container creation` / `processing` / `publishing`; carousels also use `child …` and `parent …` prefixes) and `container_id` is set once a container has been created — branch on these to decide whether to retry, clean up, or reuse the container.
 
 See [README.md "Troubleshooting"](https://github.com/exileum/meta-mcp#troubleshooting) for setup-time issues (expired tokens, account type, missing scopes, rate limits, "Messaging is not supported", wrong user-ID format).
 

@@ -153,10 +153,17 @@ interface ErrorPayload {
   code?: number;
   subcode?: number;
   type?: string;
+  step?: string;
+  container_id?: string;
   message: string;
   remediation?: string;
   fbtrace_id?: string;
   raw?: string;
+}
+
+export interface ErrorContext {
+  step?: string;
+  containerId?: string;
 }
 
 export interface McpErrorResult {
@@ -173,17 +180,21 @@ function assignMetaApiFields(target: Record<string, unknown>, error: MetaApiErro
   if (error.fbtraceId) target.fbtrace_id = error.fbtraceId;
 }
 
-export function formatErrorResponse(error: unknown, label: string): McpErrorResult {
+export function formatErrorResponse(error: unknown, label: string, context?: ErrorContext): McpErrorResult {
   const errorType = categorize(error);
   const original = error instanceof Error ? error.message : String(error);
+  const stepSuffix = context?.step ? ` at ${context.step}` : "";
+  const containerSuffix = context?.containerId ? ` (container: ${context.containerId})` : "";
   const payload: ErrorPayload = {
     error: true,
     error_type: errorType,
-    message: `${label} failed: ${original}`,
+    message: `${label} failed${stepSuffix}${containerSuffix}: ${original}`,
   };
   if (error instanceof MetaApiError) {
     assignMetaApiFields(payload as unknown as Record<string, unknown>, error);
   }
+  if (context?.step) payload.step = context.step;
+  if (context?.containerId) payload.container_id = context.containerId;
   const remediation = REMEDIATION[errorType];
   if (remediation) payload.remediation = remediation;
   payload.raw = sanitizeRaw(original);

@@ -341,7 +341,9 @@ Check token status anytime with `meta_debug_token`.
 
 ## Troubleshooting
 
-Tool failures return `isError: true` with a JSON body in `content[0].text` matching the envelope documented in [`CHANGELOG.md`](./CHANGELOG.md): `{ error: true, error_type, http_status, code, subcode, type, message, remediation, fbtrace_id, raw }`. The fastest path to a fix is to read `error_type` and the Meta API `code`, then jump to the matching subsection below. The full code reference is the [Meta Graph API error handling guide](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
+Tool failures return `isError: true` with a JSON body in `content[0].text` matching the envelope documented in [`CHANGELOG.md`](./CHANGELOG.md): `{ error: true, error_type, http_status, code, subcode, type, step, container_id, message, remediation, fbtrace_id, raw }`. The fastest path to a fix is to read `error_type` and the Meta API `code`, then jump to the matching subsection below. The full code reference is the [Meta Graph API error handling guide](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
+
+On the publish tools (`ig_publish_*`, `threads_publish_*`, `threads_reply`), errors also include `step` (`container creation` / `processing` / `publishing`, plus `child container creation` / `child processing` / `parent container creation` / `parent processing` on carousels) and `container_id` when one was created. The `message` mirrors them: `"Publish photo failed at processing (container: 17889615324): Container processing timed out after 30s"`. Use these to decide whether to retry the publish, clean up an orphaned container, or treat the existing container as still reusable.
 
 ### `error_type: "auth"` — expired, revoked, or under-scoped token
 

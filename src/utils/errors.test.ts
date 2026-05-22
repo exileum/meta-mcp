@@ -9,6 +9,8 @@ interface ErrorPayload {
   code?: number;
   subcode?: number;
   type?: string;
+  step?: string;
+  container_id?: string;
   message: string;
   remediation?: string;
   fbtrace_id?: string;
@@ -347,6 +349,66 @@ describe("formatErrorResponse — non-MetaApiError", () => {
     const payload = parsePayload(formatErrorResponse("string thrown", "X"));
     expect(payload.error_type).toBe("internal");
     expect(payload.message).toBe("X failed: string thrown");
+  });
+});
+
+describe("formatErrorResponse — context (step / containerId)", () => {
+  it("omits step and container_id when no context is passed (back-compat)", () => {
+    const payload = parsePayload(formatErrorResponse(new Error("boom"), "Publish photo"));
+    expect(payload.message).toBe("Publish photo failed: boom");
+    expect(payload.step).toBeUndefined();
+    expect(payload.container_id).toBeUndefined();
+  });
+
+  it("adds 'at <step>' suffix to message and exposes payload.step", () => {
+    const payload = parsePayload(
+      formatErrorResponse(new Error("boom"), "Publish photo", { step: "processing" })
+    );
+    expect(payload.message).toBe("Publish photo failed at processing: boom");
+    expect(payload.step).toBe("processing");
+    expect(payload.container_id).toBeUndefined();
+  });
+
+  it("adds '(container: <id>)' suffix to message and exposes payload.container_id", () => {
+    const payload = parsePayload(
+      formatErrorResponse(new Error("boom"), "Publish photo", { containerId: "17889615324" })
+    );
+    expect(payload.message).toBe("Publish photo failed (container: 17889615324): boom");
+    expect(payload.step).toBeUndefined();
+    expect(payload.container_id).toBe("17889615324");
+  });
+
+  it("combines step + containerId in message and exposes both payload fields", () => {
+    const payload = parsePayload(
+      formatErrorResponse(
+        new Error("Container processing timed out after 30s"),
+        "Publish photo",
+        { step: "processing", containerId: "17889615324" }
+      )
+    );
+    expect(payload.message).toBe(
+      "Publish photo failed at processing (container: 17889615324): Container processing timed out after 30s"
+    );
+    expect(payload.step).toBe("processing");
+    expect(payload.container_id).toBe("17889615324");
+  });
+
+  it("preserves MetaApiError categorization when context is supplied", () => {
+    const error = new MetaApiError({
+      message: "Meta API POST /media_publish (400): bad request",
+      httpStatus: 400,
+      apiCode: 100,
+      endpoint: "/123/media_publish",
+      method: "POST",
+    });
+    const payload = parsePayload(
+      formatErrorResponse(error, "Publish photo", { step: "publishing", containerId: "abc" })
+    );
+    expect(payload.error_type).toBe("validation");
+    expect(payload.http_status).toBe(400);
+    expect(payload.code).toBe(100);
+    expect(payload.step).toBe("publishing");
+    expect(payload.container_id).toBe("abc");
   });
 });
 

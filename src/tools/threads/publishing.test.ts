@@ -1698,3 +1698,166 @@ describe("Threads publish progress notifications", () => {
     expect(firstCall.params.total).toBeUndefined();
   });
 });
+
+// ─── error context tracking (#99) ─────────────────────────────────────
+
+interface ErrorPayload {
+  error: true;
+  error_type: string;
+  step?: string;
+  container_id?: string;
+  message: string;
+}
+
+function parsePayload(result: unknown): ErrorPayload {
+  const text = (result as { content: { text: string }[] }).content[0].text;
+  return JSON.parse(text) as ErrorPayload;
+}
+
+describe("threads_publish_image error context", () => {
+  it("reports container creation step when the initial POST fails", async () => {
+    const server = makeMockServer();
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async () => { throw new Error("create POST failed"); }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_image")!;
+    const result = await handler({ image_url: "https://example.com/a.jpg" });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("container creation");
+    expect(payload.container_id).toBeUndefined();
+    expect(payload.message).toBe("Publish image failed at container creation: create POST failed");
+  });
+
+  it("reports processing step + container_id when the poll fails", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async (method: HttpMethod) => {
+        if (callIndex++ === 0) return { data: { id: "t-c-1" }, rateLimit: undefined };
+        if (method === "GET") return { data: { status: "ERROR" }, rateLimit: undefined };
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_image")!;
+    const result = await handler({ image_url: "https://example.com/a.jpg" });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("processing");
+    expect(payload.container_id).toBe("t-c-1");
+    expect(payload.message).toContain("Publish image failed at processing (container: t-c-1)");
+  });
+
+  it("reports publishing step + container_id when the publish POST fails", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async (method: HttpMethod, path: string) => {
+        if (callIndex++ === 0) return { data: { id: "t-c-1" }, rateLimit: undefined };
+        if (method === "GET") return { data: { status: "FINISHED" }, rateLimit: undefined };
+        if (path.endsWith("/threads_publish")) throw new Error("publish POST failed");
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_image")!;
+    const result = await handler({ image_url: "https://example.com/a.jpg" });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("publishing");
+    expect(payload.container_id).toBe("t-c-1");
+    expect(payload.message).toBe("Publish image failed at publishing (container: t-c-1): publish POST failed");
+  });
+});
+
+describe("threads_publish_carousel error context", () => {
+  it("reports first-failing child step when a child poll throws", async () => {
+    const server = makeMockServer();
+    let postIndex = 0;
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async (method: HttpMethod) => {
+        if (method === "POST") {
+          postIndex++;
+          return { data: { id: `child-${postIndex}` }, rateLimit: undefined };
+        }
+        // GET (child poll) returns ERROR for the first child
+        return { data: { status: "ERROR" }, rateLimit: undefined };
+      }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_carousel")!;
+    const result = await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg" },
+        { type: "IMAGE", url: "https://example.com/b.jpg" },
+      ],
+    });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("child processing");
+    // first-rejecting child gets recorded; both children created so id is present
+    expect(payload.container_id).toMatch(/^child-[12]$/);
+    expect(payload.message).toContain("Publish carousel failed at child processing");
+  });
+});
+
+describe("threads_publish_text error context", () => {
+  it("reports container creation step on auto_publish failure (single API call)", async () => {
+    const server = makeMockServer();
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async () => { throw new Error("create POST failed"); }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello" });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("container creation");
+    expect(payload.container_id).toBeUndefined();
+    expect(payload.message).toBe("Publish text failed at container creation: create POST failed");
+  });
+
+  it("reports publishing step + container_id when auto_publish=false and the publish POST fails", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async (method: HttpMethod, path: string) => {
+        if (callIndex++ === 0) return { data: { id: "tc-1" }, rateLimit: undefined };
+        if (method === "POST" && path.endsWith("/threads_publish")) throw new Error("publish POST failed");
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_text")!;
+    const result = await handler({ text: "Hello", auto_publish: false });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("publishing");
+    expect(payload.container_id).toBe("tc-1");
+    expect(payload.message).toBe("Publish text failed at publishing (container: tc-1): publish POST failed");
+  });
+});
+
+describe("threads_publish_video error context", () => {
+  it("reports processing step + container_id when video poll fails", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async (method: HttpMethod) => {
+        if (callIndex++ === 0) return { data: { id: "vid-c-1" }, rateLimit: undefined };
+        if (method === "GET") return { data: { status: "ERROR" }, rateLimit: undefined };
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_video")!;
+    const result = await handler({ video_url: "https://example.com/v.mp4" });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("processing");
+    expect(payload.container_id).toBe("vid-c-1");
+    expect(payload.message).toContain("Publish video failed at processing (container: vid-c-1)");
+  });
+});

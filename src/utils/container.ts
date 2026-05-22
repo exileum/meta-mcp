@@ -8,6 +8,12 @@ type ApiCallFn = (method: HttpMethod, path: string, params?: FormParams) => Prom
 export const IMAGE_PROCESSING_TIMEOUT = 30;
 export const VIDEO_PROCESSING_TIMEOUT = 300;
 
+// Backoff caps polls at ~11 over a 300s video budget (down from ~60 fixed-5s)
+// and jitter spreads concurrent carousel-child polls (#48) off the same tick.
+export const POLL_BACKOFF_FACTOR = 1.5;
+export const MAX_POLL_INTERVAL_MS = 30_000;
+export const POLL_JITTER_MS = 500;
+
 // Kept MCP-agnostic so container.ts has no @modelcontextprotocol imports.
 // Throwing implementations are safe — the poll loop catches and discards
 // callback errors, and never awaits the callback.
@@ -19,6 +25,10 @@ export interface PollContainerOptions {
   label: string;
   maxWait?: number;
   interval?: number;
+  maxInterval?: number;
+  backoffFactor?: number;
+  jitterMs?: number;
+  random?: () => number;
   onProgress?: ContainerProgressCallback;
 }
 
@@ -28,10 +38,26 @@ export interface ContainerWaitOptions {
 
 /** Poll container status until FINISHED or terminal status */
 export async function pollContainerStatus(containerId: string, options: PollContainerOptions): Promise<void> {
-  const { apiCall, statusField, label, maxWait = IMAGE_PROCESSING_TIMEOUT, interval = 5000, onProgress } = options;
+  const {
+    apiCall,
+    statusField,
+    label,
+    maxWait = IMAGE_PROCESSING_TIMEOUT,
+    interval = 5000,
+    maxInterval = MAX_POLL_INTERVAL_MS,
+    backoffFactor = POLL_BACKOFF_FACTOR,
+    jitterMs = POLL_JITTER_MS,
+    random = Math.random,
+    onProgress,
+  } = options;
+  // Upper-bound denominator for `onProgress` — the fixed-interval count. Real
+  // attempts trend much lower under backoff, so a determinate progress bar
+  // completes early; harmless and avoids changing the callback signature.
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
+  const deadline = Date.now() + maxWait * 1000;
   let lastStatus: string | undefined;
-  for (let i = 0; i < maxAttempts; i++) {
+  let attempt = 0;
+  while (true) {
     const { data } = await apiCall("GET", `/${containerId}`, { fields: statusField });
     const status = data[statusField] as string | undefined;
     lastStatus = status;
@@ -39,7 +65,7 @@ export async function pollContainerStatus(containerId: string, options: PollCont
     // the MCP requirement that progress increases monotonically per token.
     if (onProgress) {
       try {
-        onProgress(i + 1, maxAttempts, status ? `${label} status: ${status}` : undefined);
+        onProgress(attempt + 1, maxAttempts, status ? `${label} status: ${status}` : undefined);
       } catch {
         // Callback failures must not break polling.
       }
@@ -50,9 +76,17 @@ export async function pollContainerStatus(containerId: string, options: PollCont
     if (status === "PUBLISHED") throw new Error(`${label} already published`);
     if (!status) throw new Error(`${label} status field missing from API response`);
     if (status !== "IN_PROGRESS") throw new Error(`Unexpected ${label.toLowerCase()} status: ${status}`);
-    await new Promise((r) => setTimeout(r, interval));
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new Error(`${label} processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
+    }
+    const baseDelay = Math.min(interval * Math.pow(backoffFactor, attempt), maxInterval);
+    const delay = baseDelay + random() * jitterMs;
+    // Clamp the sleep to the remaining budget so the next poll fires AT the
+    // deadline rather than aborting early when the next backoff would overrun.
+    await new Promise((r) => setTimeout(r, Math.min(delay, remaining)));
+    attempt++;
   }
-  throw new Error(`${label} processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
 }
 
 /** Instagram container polling — uses client.ig() and status_code field */
