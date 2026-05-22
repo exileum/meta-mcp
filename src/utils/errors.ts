@@ -46,25 +46,29 @@ interface MetaNetworkErrorInit {
   endpoint: string;
   method: HttpMethod;
   cause: unknown;
+  timeoutMs: number;
 }
 
 export class MetaNetworkError extends Error {
   readonly kind: NetworkErrorKind;
   readonly endpoint: string;
   readonly method: HttpMethod;
+  readonly timeoutMs: number;
 
   constructor(init: MetaNetworkErrorInit) {
     const causeMessage =
       init.cause instanceof Error ? init.cause.message : String(init.cause);
+    const timeoutSeconds = init.timeoutMs / 1000;
     const message =
       init.kind === "timeout"
-        ? `Meta API ${init.method} ${init.endpoint}: request timed out after 30s`
+        ? `Meta API ${init.method} ${init.endpoint}: request timed out after ${timeoutSeconds}s`
         : `Meta API ${init.method} ${init.endpoint}: network error — ${causeMessage}`;
     super(message, { cause: init.cause });
     this.name = "MetaNetworkError";
     this.kind = init.kind;
     this.endpoint = init.endpoint;
     this.method = init.method;
+    this.timeoutMs = init.timeoutMs;
   }
 }
 

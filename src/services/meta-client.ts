@@ -31,6 +31,7 @@ export const DEFAULT_MAX_RETRIES = 3;
 export const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
 // Cap so a malformed `Retry-After: 999999` (≈11 days) can't hang a tool.
 export const MAX_RETRY_DELAY_MS = 60_000;
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * Parse a `Retry-After` response header value (RFC 7231 §7.1.3) into
@@ -377,7 +378,7 @@ export class MetaClient {
       await this.maybeThrottle();
       // Arm the 30s abort timer *after* the throttle sleep so a backoff at
       // high x-app-usage doesn't eat into the actual network window (#60 review).
-      const init: RequestInit = { ...baseInit, signal: AbortSignal.timeout(30_000) };
+      const init: RequestInit = { ...baseInit, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) };
 
       let res: Response;
       try {
@@ -388,7 +389,10 @@ export class MetaClient {
           continue;
         }
         // AbortSignal.timeout per WHATWG throws name="TimeoutError"; "AbortError"
-        // is defensive cover for environments using the older spelling (#72).
+        // is defensive cover for environments using the older spelling, safe
+        // today because AbortSignal.timeout is the only abort source in this
+        // file — revisit if a caller-controlled AbortController is ever wired
+        // in, since user-aborted signals would then be misclassified (#72).
         const isTimeout =
           err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
         throw new MetaNetworkError({
@@ -396,6 +400,7 @@ export class MetaClient {
           endpoint: path,
           method,
           cause: err,
+          timeoutMs: REQUEST_TIMEOUT_MS,
         });
       }
 

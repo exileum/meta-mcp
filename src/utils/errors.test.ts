@@ -203,15 +203,34 @@ describe("formatErrorResponse — Meta API errors", () => {
 });
 
 describe("MetaNetworkError", () => {
-  it("builds the timeout message with endpoint and method", () => {
+  it("builds the timeout message with endpoint, method, and configured timeout", () => {
     const cause = new Error("The operation was aborted");
     cause.name = "TimeoutError";
-    const err = new MetaNetworkError({ kind: "timeout", endpoint: "/me", method: "GET", cause });
+    const err = new MetaNetworkError({
+      kind: "timeout",
+      endpoint: "/me",
+      method: "GET",
+      cause,
+      timeoutMs: 30000,
+    });
     expect(err.message).toBe("Meta API GET /me: request timed out after 30s");
     expect(err.name).toBe("MetaNetworkError");
     expect(err.kind).toBe("timeout");
     expect(err.endpoint).toBe("/me");
     expect(err.method).toBe("GET");
+    expect(err.timeoutMs).toBe(30000);
+  });
+
+  it("derives the timeout seconds from the configured timeoutMs (not a hardcoded 30s)", () => {
+    const err = new MetaNetworkError({
+      kind: "timeout",
+      endpoint: "/me",
+      method: "GET",
+      cause: new Error("aborted"),
+      timeoutMs: 60_000,
+    });
+    expect(err.message).toBe("Meta API GET /me: request timed out after 60s");
+    expect(err.timeoutMs).toBe(60_000);
   });
 
   it("builds the network message with cause.message included", () => {
@@ -221,6 +240,7 @@ describe("MetaNetworkError", () => {
       endpoint: "/123/media",
       method: "POST",
       cause,
+      timeoutMs: 30000,
     });
     expect(err.message).toBe("Meta API POST /123/media: network error — fetch failed");
     expect(err.kind).toBe("network");
@@ -228,7 +248,13 @@ describe("MetaNetworkError", () => {
 
   it("preserves the original error on .cause", () => {
     const cause = new TypeError("fetch failed");
-    const err = new MetaNetworkError({ kind: "network", endpoint: "/x", method: "GET", cause });
+    const err = new MetaNetworkError({
+      kind: "network",
+      endpoint: "/x",
+      method: "GET",
+      cause,
+      timeoutMs: 30000,
+    });
     expect(err.cause).toBe(cause);
   });
 
@@ -238,6 +264,7 @@ describe("MetaNetworkError", () => {
       endpoint: "/x",
       method: "GET",
       cause: "raw string failure",
+      timeoutMs: 30000,
     });
     expect(err.message).toBe("Meta API GET /x: network error — raw string failure");
     expect(err.cause).toBe("raw string failure");
@@ -249,6 +276,7 @@ describe("MetaNetworkError", () => {
       endpoint: "/x",
       method: "GET",
       cause: new Error("boom"),
+      timeoutMs: 30000,
     });
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(MetaNetworkError);
@@ -281,6 +309,7 @@ describe("formatErrorResponse — non-MetaApiError", () => {
       endpoint: "/123/media",
       method: "POST",
       cause,
+      timeoutMs: 30000,
     });
     const payload = parsePayload(formatErrorResponse(error, "Publish photo"));
     expect(payload.error_type).toBe("network");
@@ -297,6 +326,7 @@ describe("formatErrorResponse — non-MetaApiError", () => {
       endpoint: "/me",
       method: "GET",
       cause,
+      timeoutMs: 30000,
     });
     const payload = parsePayload(formatErrorResponse(error, "Get profile"));
     expect(payload.error_type).toBe("network");
@@ -389,6 +419,24 @@ describe("toMcpResourceError", () => {
     const data = toMcpResourceError(error, "X").data as Record<string, unknown>;
     expect(data.error_type).toBe("rate_limit");
     expect(data.remediation).toContain("backoff");
+  });
+
+  it("categorizes MetaNetworkError as network with the normalized message preserved", () => {
+    const cause = new TypeError("fetch failed");
+    const error = new MetaNetworkError({
+      kind: "network",
+      endpoint: "/me",
+      method: "GET",
+      cause,
+      timeoutMs: 30000,
+    });
+    const result = toMcpResourceError(error, "Get Instagram profile");
+    const data = result.data as Record<string, unknown>;
+    expect(data.error_type).toBe("network");
+    expect(data.remediation).toContain("Retry");
+    expect(result.message).toContain(
+      "Get Instagram profile failed: Meta API GET /me: network error — fetch failed"
+    );
   });
 
   it("categorizes plain Error as internal and omits MetaApiError-only fields", () => {
