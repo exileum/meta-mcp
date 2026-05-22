@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Migrated the remaining resource and prompt registrations off the deprecated `server.resource()` / `server.prompt()` overloads** — `@modelcontextprotocol/sdk@1.29.0` marks the positional-argument forms of both methods as `@deprecated` in favor of the config-object `server.registerResource()` / `server.registerPrompt()` form (see `node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.d.ts` lines 80, 85, 160, 165 for the deprecation tags and the new signatures). The 57 tool registrations were already migrated in [#37](https://github.com/exileum/meta-mcp/issues/37) (`CHANGELOG.md` v7.0.0 — "Migrated all tool registrations from the deprecated `server.tool()` overload to `server.registerTool()`"), so this PR finishes the remaining 4 sites: `instagram-profile` and `threads-profile` in `src/resources/{instagram,threads}.ts`, plus `content_publish` and `analytics_report` in `src/prompts/index.ts`. Resources are a pure method rename — the `(name, uri, metadata, callback)` argument shape is identical between `resource()` and `registerResource()`. Prompts move the description into the config object: `server.prompt(name, description, {}, cb)` → `server.registerPrompt(name, { description }, cb)`. The handler bodies, resource URIs, prompt messages, and MCP-client-visible behavior are byte-identical to before — only the SDK registration wrapper differs. Test mocks in `src/resources/instagram.test.ts`, `src/resources/threads.test.ts`, and `src/register-all.test.ts` were updated to spy on `registerResource`/`registerPrompt` instead of `resource`/`prompt`; the captured-array assertions in `src/register-all.test.ts` and the per-resource handler tests are unchanged. Closes [#79](https://github.com/exileum/meta-mcp/issues/79)
+
 ## [7.0.0] — 2026-05-22
 
 ### Added
