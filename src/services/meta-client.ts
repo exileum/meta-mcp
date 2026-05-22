@@ -21,9 +21,11 @@ const API_VERSION_PATTERN = /^v\d+\.\d+$/;
 const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
 
-// Retry policy for transient Meta API failures (#61). 429/500/502/503/504 are
-// the statuses Meta's infrastructure recovers from on retry; every other 4xx
-// is a permanent caller-side error (auth, validation) and fails fast.
+// Retry policy for transient Meta API failures (#61). 429 is the explicit
+// rate-limit signal; 502/503/504 are canonical gateway/availability errors;
+// 500 is included because Meta's infrastructure routinely returns transient
+// 500s during brief overloads alongside the more canonical 5xx codes. Every
+// other 4xx is a permanent caller-side error (auth, validation) and fails fast.
 const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 export const DEFAULT_MAX_RETRIES = 3;
 export const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
@@ -109,15 +111,15 @@ export interface MetaClientOptions {
    */
   retryBaseDelayMs?: number;
   /**
-   * Injection point for the sleep primitive used between retries. Defaults to
-   * a `setTimeout`-backed `Promise`. Tests can swap in a spyable async
-   * function to assert the delays without actually waiting.
+   * @internal — testing-only seam, not part of the stable API. Injection point
+   * for the sleep primitive used between retries. Defaults to a
+   * `setTimeout`-backed `Promise`.
    */
   sleep?: (ms: number) => Promise<void>;
   /**
-   * Injection point for the current-time source used when parsing an HTTP-date
-   * form of the `Retry-After` header. Defaults to `Date.now`. Tests pass a
-   * fixed function so HTTP-date delta calculations are deterministic.
+   * @internal — testing-only seam, not part of the stable API. Injection point
+   * for the current-time source used when parsing the HTTP-date form of the
+   * `Retry-After` header. Defaults to `Date.now`.
    */
   now?: () => number;
 }
@@ -235,8 +237,16 @@ export class MetaClient {
     this.igBase = `https://graph.instagram.com/${metaVersion}`;
     this.fbBase = `https://graph.facebook.com/${metaVersion}`;
     this.threadsBase = `https://graph.threads.net/${threadsVersion}`;
-    this.maxRetries = Math.max(0, options?.maxRetries ?? DEFAULT_MAX_RETRIES);
-    this.retryBaseDelayMs = Math.max(0, options?.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS);
+    // `Math.max(0, Infinity)` is `Infinity` (infinite loop) and `0 <= NaN` is
+    // `false` (loop body never runs); reject non-finite values and fall back.
+    const rawMaxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.maxRetries = Number.isFinite(rawMaxRetries)
+      ? Math.max(0, rawMaxRetries)
+      : DEFAULT_MAX_RETRIES;
+    const rawBaseDelay = options?.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
+    this.retryBaseDelayMs = Number.isFinite(rawBaseDelay)
+      ? Math.max(0, rawBaseDelay)
+      : DEFAULT_RETRY_BASE_DELAY_MS;
     this.sleep = options?.sleep ?? defaultSleep;
     this.now = options?.now ?? Date.now;
   }
@@ -354,8 +364,11 @@ export class MetaClient {
       url += (url.includes("?") ? "&" : "?") + qs.toString();
     }
 
-    // Retry loop (#61): total request count is `maxRetries + 1`. The trailing
-    // `throw` after the loop is for TS control-flow narrowing only.
+    // Retry loop (#61): total request count is `maxRetries + 1`. `attempt` is
+    // 0-based — `attempt = 0` is the initial request, `attempt = N` is the Nth
+    // retry. `computeBackoffDelay(attempt, …)` therefore produces the correct
+    // 1s / 2s / 4s schedule on attempts 0 / 1 / 2 before retries 1 / 2 / 3.
+    // The trailing `throw` after the loop is for TS control-flow narrowing.
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       // Pre-request throttle from #60 — runs before every attempt so a retry
       // after a 429 still consults the most recent x-app-usage snapshot.

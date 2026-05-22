@@ -1258,6 +1258,51 @@ describe("MetaClient retry logic (#61)", () => {
     });
   });
 
+  describe("non-finite option values fall back to defaults", () => {
+    it.each([
+      ["Infinity", Number.POSITIVE_INFINITY],
+      ["NaN", Number.NaN],
+    ])("treats maxRetries: %s as the default (%s would be a footgun)", async (_label, badValue) => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy.mockImplementation(() => Promise.resolve(errorResponse(503)));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: badValue,
+        retryBaseDelayMs: 0,
+        sleep,
+      });
+
+      await expect(client.ig("GET", "/me")).rejects.toBeInstanceOf(MetaApiError);
+
+      // Falls back to DEFAULT_MAX_RETRIES = 3 → 4 fetches total.
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it.each([
+      ["Infinity", Number.POSITIVE_INFINITY],
+      ["NaN", Number.NaN],
+    ])("treats retryBaseDelayMs: %s as the default", async (_label, badValue) => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(errorResponse(503))
+        .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: 1,
+        retryBaseDelayMs: badValue,
+        sleep,
+      });
+      await client.ig("GET", "/me");
+
+      // Falls back to DEFAULT_RETRY_BASE_DELAY_MS = 1000 → 1s base, no jitter
+      // guarantee → 1000 <= delay <= 1250.
+      const [delay] = (sleep.mock.calls[0] ?? []) as [number];
+      expect(delay).toBeGreaterThanOrEqual(1000);
+      expect(delay).toBeLessThanOrEqual(1250);
+    });
+  });
+
   describe("maxRetries: 0 disables retries", () => {
     it("makes a single fetch call on a retryable 503 and throws immediately", async () => {
       const fetchSpy = vi.spyOn(globalThis, "fetch");
