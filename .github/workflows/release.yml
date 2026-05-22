@@ -20,12 +20,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: ./.github/actions/version-sync
+
       - name: Check version
         id: version
         run: |
           version=$(node -p "require('./package.json').version")
           tag="v${version}"
           if gh release view "$tag" &>/dev/null; then
+            echo "GitHub release ${tag} already exists; skipping publish."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          elif npm view "@exileum/meta-mcp@${version}" version --registry https://registry.npmjs.org &>/dev/null; then
+            echo "npm @exileum/meta-mcp@${version} already published; skipping."
             echo "released=false" >> "$GITHUB_OUTPUT"
           else
             echo "released=true" >> "$GITHUB_OUTPUT"

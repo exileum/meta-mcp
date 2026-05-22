@@ -1,0 +1,11 @@
+name: Verify version sync
+description: Runs scripts/check-versions.mjs to assert that package.json, server.json (root) and server.json (packages[0]) all share the same version string. Caller must run actions/checkout before this action.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version: '22'
+    - shell: bash
+      run: node scripts/check-versions.mjs
