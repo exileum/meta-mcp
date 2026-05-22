@@ -237,6 +237,7 @@ describe("ig_send_message messaging_type and tag", () => {
     });
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[3].jsonBody.messaging_type).toBe("MESSAGE_TAG");
     expect(call[3].jsonBody.tag).toBe(tag);
   });
 
@@ -254,10 +255,25 @@ describe("ig_send_message messaging_type and tag", () => {
     expect(client.ig).not.toHaveBeenCalled();
   });
 
-  it("rejects tag when messaging_type is not MESSAGE_TAG", async () => {
+  it("rejects tag when messaging_type defaults to RESPONSE", async () => {
     const result = await server.callTool("ig_send_message", {
       recipient_id: "user_1",
       message: "stray tag",
+      tag: "HUMAN_AGENT",
+    }) as { isError?: boolean; content: { text: string }[] };
+
+    expect(result.isError).toBe(true);
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.error_type).toBe("validation");
+    expect(payload.message).toMatch(/tag is only valid when messaging_type=MESSAGE_TAG/);
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects tag when messaging_type is explicit UPDATE", async () => {
+    const result = await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "stray tag with UPDATE",
+      messaging_type: "UPDATE",
       tag: "HUMAN_AGENT",
     }) as { isError?: boolean; content: { text: string }[] };
 
