@@ -103,9 +103,10 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           if (text_attachment_styling.length > 1) {
             const sorted = [...text_attachment_styling].sort((a, b) => a.offset - b.offset);
             for (let i = 1; i < sorted.length; i++) {
-              const prev = sorted[i - 1];
-              if (sorted[i].offset < prev.offset + prev.length) {
-                return validationError(`text_attachment_styling ranges must not overlap: range at offset ${sorted[i].offset} overlaps with range at offset ${prev.offset}`);
+              const prev = sorted[i - 1]!;
+              const curr = sorted[i]!;
+              if (curr.offset < prev.offset + prev.length) {
+                return validationError(`text_attachment_styling ranges must not overlap: range at offset ${curr.offset} overlaps with range at offset ${prev.offset}`);
               }
             }
           }
