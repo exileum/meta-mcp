@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
 import { registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema, textAttachmentStylingSchema, allowlistedCountryCodesSchema } from "./publishing.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, HttpMethod } from "../../services/meta-client.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
 const gifProviderSchema = z.enum(["GIPHY"]).optional();
@@ -181,7 +181,7 @@ describe("threads_publish_carousel waits for carousel container", () => {
     const calls: Array<[string, string, Record<string, unknown>?]> = [];
     const client = {
       threadsUserId: "threads-123",
-      threads: vi.fn(async (method: string, path: string, params?: Record<string, unknown>) => {
+      threads: vi.fn(async (method: HttpMethod, path: string, params?: Record<string, unknown>) => {
         calls.push([method, path, params]);
         // Child container creation or carousel container creation → return id
         if (method === "POST" && path.includes("/threads") && !path.includes("threads_publish")) {

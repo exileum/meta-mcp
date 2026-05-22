@@ -147,6 +147,8 @@ export interface ClientResponse {
   rateLimit?: RateLimit;
 }
 
+export type HttpMethod = "GET" | "POST" | "DELETE";
+
 /**
  * Allowed value types for form-encoded query string and request body parameters.
  * Non-primitive values (arrays, objects) must be serialized by the caller (JSON.stringify, .join(",") etc.)
@@ -324,7 +326,7 @@ export class MetaClient {
   private async request(
     baseUrl: string,
     token: string,
-    method: string,
+    method: HttpMethod,
     path: string,
     params?: FormParams,
     options?: RequestOptions
@@ -460,7 +462,7 @@ export class MetaClient {
   }
 
   async ig(
-    method: string,
+    method: HttpMethod,
     path: string,
     params?: FormParams,
     options?: RequestOptions
@@ -472,7 +474,7 @@ export class MetaClient {
   }
 
   async threads(
-    method: string,
+    method: HttpMethod,
     path: string,
     params?: FormParams,
     options?: RequestOptions
@@ -484,7 +486,7 @@ export class MetaClient {
   }
 
   async meta(
-    method: string,
+    method: HttpMethod,
     path: string,
     params?: FormParams,
     options?: RequestOptions

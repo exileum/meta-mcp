@@ -1,4 +1,5 @@
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import type { HttpMethod } from "../services/meta-client.js";
 
 export type ErrorType = "auth" | "validation" | "rate_limit" | "server" | "network" | "internal";
 
@@ -10,7 +11,7 @@ interface MetaApiErrorInit {
   apiType?: string;
   fbtraceId?: string;
   endpoint: string;
-  method: string;
+  method: HttpMethod;
   body?: string;
 }
 
@@ -21,7 +22,7 @@ export class MetaApiError extends Error {
   readonly apiType?: string;
   readonly fbtraceId?: string;
   readonly endpoint: string;
-  readonly method: string;
+  readonly method: HttpMethod;
   readonly body?: string;
 
   constructor(init: MetaApiErrorInit) {
