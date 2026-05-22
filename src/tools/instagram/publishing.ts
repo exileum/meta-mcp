@@ -6,6 +6,7 @@ import { waitForIgContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT 
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
+import { makeProgressNotifier, ProgressExtra } from "../../utils/progress.js";
 import { READ_ONLY_TOOL, WRITE_TOOL } from "../annotations.js";
 
 // Counts code points (the spread iterator yields one entry per code point) rather
@@ -55,7 +56,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       },
       annotations: WRITE_TOOL,
     },
-    async ({ image_url, caption, location_id, user_tags, alt_text, collaborators }) => {
+    async ({ image_url, caption, location_id, user_tags, alt_text, collaborators }, extra?: ProgressExtra) => {
       try {
         const params = buildParams(
           { image_url },
@@ -72,7 +73,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
         // Step 2: Wait for container to be ready
-        await waitForIgContainer(client, containerId);
+        await waitForIgContainer(client, containerId, IMAGE_PROCESSING_TIMEOUT, { onProgress: makeProgressNotifier(extra) });
         // Step 3: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
@@ -98,7 +99,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       },
       annotations: WRITE_TOOL,
     },
-    async ({ video_url, caption, thumb_offset, location_id, collaborators }) => {
+    async ({ video_url, caption, thumb_offset, location_id, collaborators }, extra?: ProgressExtra) => {
       try {
         // share_to_feed: true preserves the legacy feed placement of the deprecated
         // VIDEO media_type — without it, REELS containers default to the Reels tab only.
@@ -114,7 +115,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT);
+        await waitForIgContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT, { onProgress: makeProgressNotifier(extra) });
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
@@ -148,8 +149,11 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       },
       annotations: WRITE_TOOL,
     },
-    async ({ items, caption, location_id, collaborators }) => {
+    async ({ items, caption, location_id, collaborators }, extra?: ProgressExtra) => {
       try {
+        // Parallel child polls below would otherwise emit non-monotonic
+        // `progress` values across the shared progressToken.
+        const onProgress = makeProgressNotifier(extra, "shared");
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
         const childIds = await Promise.all(items.map(async (item) => {
@@ -165,7 +169,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
-          await waitForIgContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
+          await waitForIgContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT, { onProgress });
           return childId;
         }));
         // Step 2: Create carousel container
@@ -181,7 +185,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
         // Step 3: Wait for carousel container to be ready
-        await waitForIgContainer(client, carouselId);
+        await waitForIgContainer(client, carouselId, IMAGE_PROCESSING_TIMEOUT, { onProgress });
         // Step 4: Publish
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: carouselId,
@@ -208,7 +212,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       },
       annotations: WRITE_TOOL,
     },
-    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, collaborators }) => {
+    async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, collaborators }, extra?: ProgressExtra) => {
       try {
         const params = buildParams(
           { video_url, media_type: "REELS" },
@@ -223,7 +227,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT);
+        await waitForIgContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT, { onProgress: makeProgressNotifier(extra) });
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
@@ -245,7 +249,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       },
       annotations: WRITE_TOOL,
     },
-    async ({ media_type, media_url }) => {
+    async ({ media_type, media_url }, extra?: ProgressExtra) => {
       try {
         const params = buildParams(
           { media_type: "STORIES" },
@@ -257,7 +261,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForIgContainer(client, containerId, media_type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
+        await waitForIgContainer(client, containerId, media_type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT, { onProgress: makeProgressNotifier(extra) });
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });

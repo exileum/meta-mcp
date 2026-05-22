@@ -8,23 +8,42 @@ type ApiCallFn = (method: HttpMethod, path: string, params?: FormParams) => Prom
 export const IMAGE_PROCESSING_TIMEOUT = 30;
 export const VIDEO_PROCESSING_TIMEOUT = 300;
 
+// Kept MCP-agnostic so container.ts has no @modelcontextprotocol imports.
+// Implementations must be non-throwing — the poll loop swallows errors but
+// also never awaits the callback.
+export type ContainerProgressCallback = (progress: number, total: number, message?: string) => void;
+
 export interface PollContainerOptions {
   apiCall: ApiCallFn;
   statusField: "status" | "status_code";
   label: string;
   maxWait?: number;
   interval?: number;
+  onProgress?: ContainerProgressCallback;
+}
+
+export interface ContainerWaitOptions {
+  onProgress?: ContainerProgressCallback;
 }
 
 /** Poll container status until FINISHED or terminal status */
 export async function pollContainerStatus(containerId: string, options: PollContainerOptions): Promise<void> {
-  const { apiCall, statusField, label, maxWait = IMAGE_PROCESSING_TIMEOUT, interval = 5000 } = options;
+  const { apiCall, statusField, label, maxWait = IMAGE_PROCESSING_TIMEOUT, interval = 5000, onProgress } = options;
   const maxAttempts = Math.ceil((maxWait * 1000) / interval);
   let lastStatus: string | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     const { data } = await apiCall("GET", `/${containerId}`, { fields: statusField });
     const status = data[statusField] as string | undefined;
     lastStatus = status;
+    // 1-based so the very first emission is already strictly > 0, satisfying
+    // the MCP requirement that progress increases monotonically per token.
+    if (onProgress) {
+      try {
+        onProgress(i + 1, maxAttempts, status ? `${label} status: ${status}` : undefined);
+      } catch {
+        // Callback failures must not break polling.
+      }
+    }
     if (status === "FINISHED") return;
     if (status === "ERROR") throw new Error(`${label} processing failed (ERROR status)`);
     if (status === "EXPIRED") throw new Error(`${label} expired — it was not published within 24 hours and must be recreated`);
@@ -37,21 +56,23 @@ export async function pollContainerStatus(containerId: string, options: PollCont
 }
 
 /** Instagram container polling — uses client.ig() and status_code field */
-export async function waitForIgContainer(client: MetaClient, containerId: string, maxWait = IMAGE_PROCESSING_TIMEOUT): Promise<void> {
+export async function waitForIgContainer(client: MetaClient, containerId: string, maxWait = IMAGE_PROCESSING_TIMEOUT, options: ContainerWaitOptions = {}): Promise<void> {
   return pollContainerStatus(containerId, {
     apiCall: client.ig.bind(client),
     statusField: "status_code",
     label: "Container",
     maxWait,
+    onProgress: options.onProgress,
   });
 }
 
 /** Threads container polling — uses client.threads() and status field */
-export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = IMAGE_PROCESSING_TIMEOUT): Promise<void> {
+export async function waitForThreadsContainer(client: MetaClient, containerId: string, maxWait = IMAGE_PROCESSING_TIMEOUT, options: ContainerWaitOptions = {}): Promise<void> {
   return pollContainerStatus(containerId, {
     apiCall: client.threads.bind(client),
     statusField: "status",
     label: "Threads container",
     maxWait,
+    onProgress: options.onProgress,
   });
 }
