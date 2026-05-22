@@ -59,3 +59,28 @@ export function setupShutdownHandlers(
     });
   }
 }
+
+export interface FatalErrorOptions {
+  exit?: (code: number) => never;
+  log?: (msg: string) => void;
+}
+
+export function setupFatalErrorHandlers(options: FatalErrorOptions = {}): void {
+  const exit = options.exit ?? ((code) => process.exit(code));
+  const log = options.log ?? ((msg) => console.error(msg));
+
+  process.on("unhandledRejection", (reason) => {
+    const detail = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
+    log(`[meta-mcp] Unhandled promise rejection — ${detail}`);
+    exit(1);
+  });
+
+  process.on("uncaughtException", (err, origin) => {
+    const prefix =
+      origin === "unhandledRejection"
+        ? "Unhandled promise rejection (via uncaughtException)"
+        : "Uncaught exception";
+    log(`[meta-mcp] ${prefix} — ${err.stack ?? err.message}`);
+    exit(1);
+  });
+}

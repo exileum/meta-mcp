@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setupShutdownHandlers, SHUTDOWN_SIGNALS, type ShutdownSignal } from "./shutdown.js";
+import {
+  setupFatalErrorHandlers,
+  setupShutdownHandlers,
+  SHUTDOWN_SIGNALS,
+  type ShutdownSignal,
+} from "./shutdown.js";
 
 type SignalListener = (signal: ShutdownSignal) => void;
 
@@ -122,5 +127,118 @@ describe("setupShutdownHandlers", () => {
     expect(harness.log).toHaveBeenCalledWith(
       "[meta-mcp] Error during shutdown: shutdown timed out after 10ms"
     );
+  });
+});
+
+type FatalEvent = "unhandledRejection" | "uncaughtException";
+type FatalListener = (...args: unknown[]) => void;
+
+const FATAL_EVENTS: readonly FatalEvent[] = ["unhandledRejection", "uncaughtException"];
+
+interface FatalHarness {
+  events: Map<FatalEvent, FatalListener>;
+  exit: ReturnType<typeof vi.fn>;
+  log: ReturnType<typeof vi.fn>;
+  fire: (event: FatalEvent, ...args: unknown[]) => void;
+}
+
+function setupFatalHarness(): FatalHarness {
+  const events = new Map<FatalEvent, FatalListener>();
+
+  const processOnSpy = vi.spyOn(process, "on");
+  processOnSpy.mockImplementation(((event: string | symbol, listener: FatalListener) => {
+    if (FATAL_EVENTS.includes(event as FatalEvent)) {
+      events.set(event as FatalEvent, listener);
+    }
+    return process;
+  }) as typeof process.on);
+
+  const exit = vi.fn();
+  const log = vi.fn();
+
+  setupFatalErrorHandlers({ exit: exit as never, log });
+
+  const fire = (event: FatalEvent, ...args: unknown[]): void => {
+    const listener = events.get(event);
+    if (!listener) {
+      throw new Error(`No listener registered for ${event}`);
+    }
+    listener(...args);
+  };
+
+  return { events, exit, log, fire };
+}
+
+describe("setupFatalErrorHandlers", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("registers handlers for unhandledRejection and uncaughtException", () => {
+    const { events } = setupFatalHarness();
+    expect([...events.keys()].sort()).toEqual(["uncaughtException", "unhandledRejection"]);
+  });
+
+  it("logs the Error stack and exits 1 on unhandledRejection", () => {
+    const harness = setupFatalHarness();
+    harness.fire("unhandledRejection", new Error("boom"));
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledTimes(1);
+    expect(harness.log).toHaveBeenCalledWith(
+      expect.stringContaining("[meta-mcp] Unhandled promise rejection — ")
+    );
+    expect(harness.log).toHaveBeenCalledWith(expect.stringContaining("boom"));
+  });
+
+  it("stringifies non-Error rejection reasons", () => {
+    const harness = setupFatalHarness();
+    harness.fire("unhandledRejection", "string-reason");
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledWith(
+      "[meta-mcp] Unhandled promise rejection — string-reason"
+    );
+  });
+
+  it("falls back to reason.message when reason.stack is undefined", () => {
+    const harness = setupFatalHarness();
+    const sparseReason = new Error("sparse-reason");
+    sparseReason.stack = undefined;
+    harness.fire("unhandledRejection", sparseReason);
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledWith(
+      "[meta-mcp] Unhandled promise rejection — sparse-reason"
+    );
+  });
+
+  it("logs the Error stack and exits 1 on uncaughtException", () => {
+    const harness = setupFatalHarness();
+    harness.fire("uncaughtException", new Error("crash"), "uncaughtException");
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledTimes(1);
+    expect(harness.log).toHaveBeenCalledWith(
+      expect.stringContaining("[meta-mcp] Uncaught exception — ")
+    );
+    expect(harness.log).toHaveBeenCalledWith(expect.stringContaining("crash"));
+  });
+
+  it("falls back to err.message when err.stack is undefined", () => {
+    const harness = setupFatalHarness();
+    const sparseErr = new Error("sparse");
+    sparseErr.stack = undefined;
+    harness.fire("uncaughtException", sparseErr, "uncaughtException");
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledWith("[meta-mcp] Uncaught exception — sparse");
+  });
+
+  it("flags unhandledRejection-via-uncaughtException origin distinctly", () => {
+    const harness = setupFatalHarness();
+    harness.fire("uncaughtException", new Error("late-reject"), "unhandledRejection");
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "[meta-mcp] Unhandled promise rejection (via uncaughtException) — "
+      )
+    );
+    expect(harness.log).toHaveBeenCalledWith(expect.stringContaining("late-reject"));
   });
 });

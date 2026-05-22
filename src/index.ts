@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { loadConfig, MetaConfig } from "./config.js";
 import { MetaClient } from "./services/meta-client.js";
 import { registerAll } from "./register-all.js";
-import { setupShutdownHandlers } from "./shutdown.js";
+import { setupFatalErrorHandlers, setupShutdownHandlers } from "./shutdown.js";
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json") as { version: string };
@@ -70,6 +70,7 @@ function isInvokedAsCli(): boolean {
 }
 
 if (isInvokedAsCli()) {
+  setupFatalErrorHandlers();
   main().catch((err) => {
     console.error("Fatal error:", err);
     process.exit(1);
