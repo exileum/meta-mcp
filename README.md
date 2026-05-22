@@ -234,10 +234,10 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 
 ## Prompts
 
-| Prompt | Description |
-|--------|-------------|
-| `content_publish` | Cross-post content to Instagram and Threads |
-| `analytics_report` | Generate combined analytics report |
+| Prompt | Description | Arguments (all optional) |
+|--------|-------------|--------------------------|
+| `content_publish` | Cross-post content to Instagram and Threads | `platform` (`instagram` \| `threads` \| `both`), `content_type` (`text` \| `image` \| `video` \| `carousel`), `media_url`, `caption` |
+| `analytics_report` | Generate combined analytics report | `platform` (`instagram` \| `threads` \| `both`), `time_range` (`7d` \| `30d` \| `90d`), `focus` (`engagement` \| `growth` \| `content`) |
 
 ## Setup Guide
 
