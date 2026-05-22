@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Consolidated tool/resource/prompt registration into a single `registerAll()` helper** — `src/index.ts` previously listed the same 17 registration calls (14 tool registrars, 2 resource registrars, 1 prompt registrar) twice: once for the production stdio server and once inside `createSandboxServer()` for the Smithery sandbox. Adding a new tool module required editing both blocks, and forgetting to update the sandbox copy caused silent divergence — the Smithery sandbox would omit the new tool until somebody noticed. Extracted the sequence into a new module `src/register-all.ts` exporting `registerAll(server, client)`; both `src/index.ts` and `createSandboxServer()` now delegate to it. Registration order is preserved exactly, so the registered tool/resource/prompt sequence is byte-identical to before. Added `src/register-all.test.ts`, a snapshot test that asserts every expected tool name, resource URI, and prompt name in registration order — a future tool module wired up to only one of the two paths is now impossible because there is only one path. No public-API or behavior change: `createSandboxServer()` keeps the same signature and return type ([#47](https://github.com/exileum/meta-mcp/issues/47))
+
 ## [6.0.0] — 2026-05-07
 
 ### Added
