@@ -96,18 +96,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/version-sync
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Check server.json version matches package.json
-        run: |
-          PKG=$(node -p "require('./package.json').version")
-          SRV_ROOT=$(node -p "require('./server.json').version")
-          SRV_PKG=$(node -p "require('./server.json').packages[0].version")
-          if [ "$PKG" != "$SRV_ROOT" ] || [ "$PKG" != "$SRV_PKG" ]; then
-            echo "::error::Version mismatch: package.json=$PKG server.json(root)=$SRV_ROOT server.json(packages)=$SRV_PKG"
-            exit 1
-          fi
 
   build:
     needs: [setup, typecheck, lint, test, audit, version-sync]
