@@ -197,6 +197,52 @@ describe("registerPrompts", () => {
       );
     });
 
+    it("when platform=instagram and content_type=text, returns an error-only message", () => {
+      const { byName } = captureRegistrations();
+      const text = renderPrompt(byName.get("content_publish"), {
+        platform: "instagram",
+        content_type: "text",
+      });
+
+      expect(text).toContain("Instagram cannot publish text-only posts");
+      expect(text).not.toContain("Please follow these steps");
+      expect(text).not.toContain("Tips:");
+    });
+
+    it("when caption is provided alone, skips the 'ask for text' step", () => {
+      const { byName } = captureRegistrations();
+      const text = renderPrompt(byName.get("content_publish"), {
+        content_type: "text",
+        caption: "Hi from Threads!",
+      });
+
+      expect(text).toContain("Hi from Threads!");
+      expect(text).not.toContain("Ask me what text I want to post");
+    });
+
+    it("when caption is provided with media content, narrows the ask to URL only", () => {
+      const { byName } = captureRegistrations();
+      const text = renderPrompt(byName.get("content_publish"), {
+        caption: "look at this",
+      });
+
+      expect(text).toContain("image or video URL");
+      expect(text).not.toContain("text, image URL, or video URL");
+    });
+
+    it("singularizes 'Report back the permalink' when only one platform is targeted", () => {
+      const { byName } = captureRegistrations();
+      const igText = renderPrompt(byName.get("content_publish"), {
+        platform: "instagram",
+      });
+      const threadsText = renderPrompt(byName.get("content_publish"), {
+        platform: "threads",
+      });
+
+      expect(igText).toContain("Report back the permalink on Instagram");
+      expect(threadsText).toContain("Report back the permalink on Threads");
+    });
+
     it("rejects platform='facebook' via Zod", () => {
       const parse = z
         .object(contentPublishArgsSchema)
@@ -225,6 +271,19 @@ describe("registerPrompts", () => {
       expect(text).toContain(PROMPT_TOOL_NAMES.THREADS_GET_USER_INSIGHTS);
       expect(text).toContain(PROMPT_TOOL_NAMES.THREADS_GET_POSTS);
       expect(text).toContain("the last 7 days");
+    });
+
+    it("when platform=instagram, omits Threads tools and keeps the v22 metric note", () => {
+      const { byName } = captureRegistrations();
+      const text = renderPrompt(byName.get("analytics_report"), {
+        platform: "instagram",
+      });
+
+      expect(text).toContain(PROMPT_TOOL_NAMES.IG_GET_PROFILE);
+      expect(text).toContain(PROMPT_TOOL_NAMES.IG_GET_ACCOUNT_INSIGHTS);
+      expect(text).not.toContain(PROMPT_TOOL_NAMES.THREADS_GET_PROFILE);
+      expect(text).not.toContain(PROMPT_TOOL_NAMES.THREADS_GET_USER_INSIGHTS);
+      expect(text).toContain("Graph API v22.0");
     });
 
     it("when platform=threads, omits Instagram tools and the v22 metric note", () => {

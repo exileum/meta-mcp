@@ -148,12 +148,13 @@ function buildContentPublishText(args: {
     lines.push(`${step}. Use the provided media URL: ${args.media_url}`);
     step++;
   } else if (contentType === "text") {
-    lines.push(`${step}. Ask me what text I want to post`);
-    step++;
+    if (!args.caption) {
+      lines.push(`${step}. Ask me what text I want to post`);
+      step++;
+    }
   } else {
-    lines.push(
-      `${step}. Ask me what content I want to post (text, image URL, video URL)`,
-    );
+    const hint = args.caption ? "image or video URL" : "text, image URL, or video URL";
+    lines.push(`${step}. Ask me what content I want to post (${hint})`);
     step++;
   }
 
@@ -176,7 +177,9 @@ function buildContentPublishText(args: {
       step++;
     }
   }
-  lines.push(`${step}. Report back the permalink for each platform`);
+  const permalinkScope =
+    wantIg && wantThreads ? "for each platform" : wantIg ? "on Instagram" : "on Threads";
+  lines.push(`${step}. Report back the permalink ${permalinkScope}`);
 
   lines.push("");
   lines.push("Tips:");
@@ -205,10 +208,12 @@ function buildContentPublishText(args: {
   }
   if (wantIg) {
     const collabTools = pickIgPublishTools(contentType);
-    const collabVerb = collabTools.length > 1 ? "accept" : "accepts";
-    lines.push(
-      `- On Instagram, ${joinTools(collabTools)} ${collabVerb} an optional \`collaborators\` array of up to 3 usernames; Stories do not support collaborators`,
-    );
+    if (collabTools.length > 0) {
+      const collabVerb = collabTools.length > 1 ? "accept" : "accepts";
+      lines.push(
+        `- On Instagram, ${joinTools(collabTools)} ${collabVerb} an optional \`collaborators\` array of up to 3 usernames; Stories do not support collaborators`,
+      );
+    }
   }
   if (wantThreads) {
     lines.push(
