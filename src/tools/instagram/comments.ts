@@ -65,7 +65,10 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
       description: "Post a top-level comment on a media post.",
       inputSchema: {
         media_id: metaId.describe("Media ID to comment on"),
-        message: z.string().min(1).max(2200).describe("Comment text (max 2200 chars per Meta's Instagram caption/comment limit)"),
+        message: z.string()
+          .min(1)
+          .refine((s) => [...s].length <= 2200, { message: "Comment text must be 2200 characters or fewer" })
+          .describe("Comment text (max 2200 chars per Meta's Instagram caption/comment limit)"),
       },
       annotations: WRITE_TOOL,
     },
@@ -111,7 +114,10 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
       description: "Reply to a specific comment.",
       inputSchema: {
         comment_id: metaId.describe("Comment ID to reply to"),
-        message: z.string().min(1).max(2200).describe("Reply text (max 2200 chars per Meta's Instagram caption/comment limit)"),
+        message: z.string()
+          .min(1)
+          .refine((s) => [...s].length <= 2200, { message: "Reply text must be 2200 characters or fewer" })
+          .describe("Reply text (max 2200 chars per Meta's Instagram caption/comment limit)"),
       },
       annotations: WRITE_TOOL,
     },

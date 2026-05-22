@@ -192,6 +192,15 @@ describe("ig_post_comment message length validation", () => {
       server.callTool("ig_post_comment", { media_id: "m_1", message: "" })
     ).rejects.toThrow();
   });
+
+  it("accepts 2200 emoji code points (UTF-16 length 4400)", async () => {
+    const emojiComment = "😀".repeat(2200);
+    expect(emojiComment.length).toBe(4400);
+    expect([...emojiComment].length).toBe(2200);
+    await expect(
+      server.callTool("ig_post_comment", { media_id: "m_1", message: emojiComment })
+    ).resolves.toBeDefined();
+  });
 });
 
 describe("ig_reply_to_comment message length validation", () => {

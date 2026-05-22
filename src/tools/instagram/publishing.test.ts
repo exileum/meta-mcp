@@ -710,6 +710,24 @@ describe("Instagram publishing text-field length validation", () => {
       const schema = getSchema(toolName);
       expect(schema.safeParse({ ...base, caption: "a".repeat(2201) }).success).toBe(false);
     });
+
+    it("counts emoji as single code points, not UTF-16 surrogate pairs", () => {
+      const schema = getSchema("ig_publish_photo");
+      // 2200 emoji = 2200 code points (4400 UTF-16 units). A UTF-16-based
+      // .max(2200) would falsely reject this; the code-point refine accepts it.
+      const emojiCaption = "😀".repeat(2200);
+      expect(emojiCaption.length).toBe(4400);
+      expect([...emojiCaption].length).toBe(2200);
+      expect(schema.safeParse({ image_url: "https://example.com/a.jpg", caption: emojiCaption }).success).toBe(true);
+    });
+
+    it("rejects a caption with 2201 emoji code points", () => {
+      const schema = getSchema("ig_publish_photo");
+      expect(schema.safeParse({
+        image_url: "https://example.com/a.jpg",
+        caption: "😀".repeat(2201),
+      }).success).toBe(false);
+    });
   });
 
   describe("alt_text (max 1000 chars)", () => {
@@ -747,6 +765,15 @@ describe("Instagram publishing text-field length validation", () => {
           { type: "IMAGE", url: "https://example.com/b.jpg" },
         ],
       }).success).toBe(false);
+    });
+
+    it("counts emoji alt_text as code points, not UTF-16 units", () => {
+      const schema = getSchema("ig_publish_photo");
+      // 1000 emoji code points = 2000 UTF-16 units; passes the code-point refine.
+      expect(schema.safeParse({
+        image_url: "https://example.com/a.jpg",
+        alt_text: "😀".repeat(1000),
+      }).success).toBe(true);
     });
   });
 });
