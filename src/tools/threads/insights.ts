@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
 const POST_INSIGHTS_DEFAULT_METRICS = "views,likes,replies,reposts,quotes,shares";
@@ -45,9 +46,7 @@ export function registerThreadsInsightTools(server: McpServer, client: MetaClien
     },
     async ({ metric, period, since, until }) => {
       try {
-        const params: FormParams = { metric, period };
-        if (since) params.since = since;
-        if (until) params.until = until;
+        const params = buildParams({ metric, period }, { since, until });
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads_insights`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

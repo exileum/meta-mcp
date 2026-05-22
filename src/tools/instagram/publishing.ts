@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForIgContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, WRITE_TOOL } from "../annotations.js";
 
 const collaboratorUsername = z
@@ -45,12 +46,16 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ image_url, caption, location_id, user_tags, alt_text, collaborators }) => {
       try {
-        const params: FormParams = { image_url };
-        if (caption) params.caption = caption;
-        if (location_id) params.location_id = location_id;
-        if (user_tags) params.user_tags = user_tags;
-        if (alt_text) params.alt_text = alt_text;
-        if (collaborators?.length) params.collaborators = JSON.stringify(collaborators);
+        const params = buildParams(
+          { image_url },
+          {
+            caption,
+            location_id,
+            user_tags,
+            alt_text,
+            collaborators: collaborators?.length ? JSON.stringify(collaborators) : undefined,
+          }
+        );
         // Step 1: Create container
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
@@ -86,11 +91,15 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       try {
         // share_to_feed: true preserves the legacy feed placement of the deprecated
         // VIDEO media_type — without it, REELS containers default to the Reels tab only.
-        const params: FormParams = { video_url, media_type: "REELS", share_to_feed: true };
-        if (caption) params.caption = caption;
-        if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
-        if (location_id) params.location_id = location_id;
-        if (collaborators?.length) params.collaborators = JSON.stringify(collaborators);
+        const params = buildParams(
+          { video_url, media_type: "REELS", share_to_feed: true },
+          {
+            caption,
+            thumb_offset,
+            location_id,
+            collaborators: collaborators?.length ? JSON.stringify(collaborators) : undefined,
+          }
+        );
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -133,14 +142,15 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
         const childIds = await Promise.all(items.map(async (item) => {
-          const params: FormParams = { is_carousel_item: true };
-          if (item.type === "IMAGE") {
-            params.image_url = item.url;
-            if (item.alt_text) params.alt_text = item.alt_text;
-          } else {
-            params.video_url = item.url;
-            params.media_type = "VIDEO";
-          }
+          const params = buildParams(
+            { is_carousel_item: true },
+            {
+              image_url: item.type === "IMAGE" ? item.url : undefined,
+              video_url: item.type === "VIDEO" ? item.url : undefined,
+              media_type: item.type === "VIDEO" ? "VIDEO" : undefined,
+              alt_text: item.type === "IMAGE" ? item.alt_text : undefined,
+            }
+          );
           const { data: child } = await client.ig("POST", `/${client.igUserId}/media`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
@@ -148,13 +158,14 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           return childId;
         }));
         // Step 2: Create carousel container
-        const carouselParams: FormParams = {
-          media_type: "CAROUSEL",
-          children: childIds.join(","),
-        };
-        if (caption) carouselParams.caption = caption;
-        if (location_id) carouselParams.location_id = location_id;
-        if (collaborators?.length) carouselParams.collaborators = JSON.stringify(collaborators);
+        const carouselParams = buildParams(
+          { media_type: "CAROUSEL", children: childIds.join(",") },
+          {
+            caption,
+            location_id,
+            collaborators: collaborators?.length ? JSON.stringify(collaborators) : undefined,
+          }
+        );
         const { data: carousel } = await client.ig("POST", `/${client.igUserId}/media`, carouselParams);
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
@@ -188,12 +199,16 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, collaborators }) => {
       try {
-        const params: FormParams = { video_url, media_type: "REELS" };
-        if (caption) params.caption = caption;
-        if (cover_url) params.cover_url = cover_url;
-        if (share_to_feed !== undefined) params.share_to_feed = share_to_feed;
-        if (thumb_offset !== undefined) params.thumb_offset = thumb_offset;
-        if (collaborators?.length) params.collaborators = JSON.stringify(collaborators);
+        const params = buildParams(
+          { video_url, media_type: "REELS" },
+          {
+            caption,
+            cover_url,
+            share_to_feed,
+            thumb_offset,
+            collaborators: collaborators?.length ? JSON.stringify(collaborators) : undefined,
+          }
+        );
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -221,12 +236,13 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ media_type, media_url }) => {
       try {
-        const params: FormParams = { media_type: "STORIES" };
-        if (media_type === "IMAGE") {
-          params.image_url = media_url;
-        } else {
-          params.video_url = media_url;
-        }
+        const params = buildParams(
+          { media_type: "STORIES" },
+          {
+            image_url: media_type === "IMAGE" ? media_url : undefined,
+            video_url: media_type === "VIDEO" ? media_url : undefined,
+          }
+        );
         const { data: container } = await client.ig("POST", `/${client.igUserId}/media`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;

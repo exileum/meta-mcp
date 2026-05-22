@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, WRITE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 const REPLIES_BASE_FIELDS = "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,root_post,replied_to,is_reply,is_quote_post";
@@ -37,12 +38,10 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const defaultFields = mode === "full_tree"
           ? REPLIES_FULL_TREE_DEFAULT_FIELDS
           : REPLIES_TOP_LEVEL_DEFAULT_FIELDS;
-        const params: FormParams = {
-          fields: fields || defaultFields,
-        };
-        if (reverse !== undefined) params.reverse = reverse;
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
+        const params = buildParams(
+          { fields: fields || defaultFields },
+          { reverse, limit, after }
+        );
         const edge = mode === "full_tree" ? "conversation" : "replies";
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/${edge}`, params);
         return formatResponse(data, rateLimit);
@@ -79,14 +78,14 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         // if a caller bypasses Zod's schema-level default. Only an explicit `false`
         // forces the legacy two-step flow for text replies.
         const useAutoPublish = isTextOnly && auto_publish !== false;
-        const params: FormParams = {
-          media_type: mediaType,
-          text,
-          reply_to_id,
-        };
-        if (image_url) params.image_url = image_url;
-        if (video_url) params.video_url = video_url;
-        if (useAutoPublish) params.auto_publish_text = true;
+        const params = buildParams(
+          { media_type: mediaType, text, reply_to_id },
+          {
+            image_url,
+            video_url,
+            auto_publish_text: useAutoPublish ? true : undefined,
+          }
+        );
         // `createResponse.id` is the published post id when useAutoPublish is true,
         // and the unpublished container id otherwise.
         const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);

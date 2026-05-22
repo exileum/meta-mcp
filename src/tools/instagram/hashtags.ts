@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
@@ -67,13 +68,13 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     },
     async ({ hashtag_id, limit, after, before }) => {
       try {
-        const params: FormParams = {
-          user_id: client.igUserId,
-          fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
-        };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams(
+          {
+            user_id: client.igUserId,
+            fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
+          },
+          { limit, after, before }
+        );
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/recent_media`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {
@@ -97,13 +98,13 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     },
     async ({ hashtag_id, limit, after, before }) => {
       try {
-        const params: FormParams = {
-          user_id: client.igUserId,
-          fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
-        };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams(
+          {
+            user_id: client.igUserId,
+            fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
+          },
+          { limit, after, before }
+        );
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/top_media`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

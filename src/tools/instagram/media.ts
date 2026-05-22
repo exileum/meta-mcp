@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
@@ -24,12 +25,12 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     },
     async ({ limit, after, before }) => {
       try {
-        const params: FormParams = {
-          fields: "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count",
-        };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams(
+          {
+            fields: "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count",
+          },
+          { limit, after, before }
+        );
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/media`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

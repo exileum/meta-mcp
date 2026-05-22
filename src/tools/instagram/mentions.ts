@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
 const MENTIONED_COMMENT_DEFAULT_FIELDS = "id,text,timestamp,username,media{id,media_url,media_type}";
@@ -49,10 +50,7 @@ export function registerIgMentionTools(server: McpServer, client: MetaClient): v
     },
     async ({ limit, after, before, fields }) => {
       try {
-        const params: FormParams = { fields };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams({ fields }, { limit, after, before });
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/tags`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
 export function registerThreadsMentionsTools(server: McpServer, client: MetaClient): void {
@@ -21,13 +22,12 @@ export function registerThreadsMentionsTools(server: McpServer, client: MetaClie
     },
     async ({ limit, since, until, after }) => {
       try {
-        const params: FormParams = {
-          fields: "id,media_product_type,media_type,media_url,text,permalink,timestamp,username,shortcode,is_quote_post,topic_tag,has_replies,is_verified,profile_picture_url",
-        };
-        if (limit !== undefined) params.limit = limit;
-        if (since) params.since = since;
-        if (until) params.until = until;
-        if (after) params.after = after;
+        const params = buildParams(
+          {
+            fields: "id,media_product_type,media_type,media_url,text,permalink,timestamp,username,shortcode,is_quote_post,topic_tag,has_replies,is_verified,profile_picture_url",
+          },
+          { limit, since, until, after }
+        );
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/mentions`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

@@ -5,6 +5,7 @@ import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_TOOL } from "../annotations.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
@@ -116,23 +117,19 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           return validationError("GIF attachment cannot be combined with text_attachment, poll_options, or link_attachment");
         }
 
-        const params: FormParams = { media_type: "TEXT", text };
-        if (reply_control) params.reply_control = reply_control;
-        if (link_attachment) params.link_attachment = link_attachment;
-        if (topic_tag) params.topic_tag = topic_tag;
-        if (quote_post_id) params.quote_post_id = quote_post_id;
+        let pollAttachment: string | undefined;
         if (poll_options) {
           const pollObj: Record<string, string> = {};
           poll_options.forEach((opt, i) => {
             const key = POLL_OPTION_KEYS[i];
             if (key) pollObj[key] = opt;
           });
-          params.poll_attachment = JSON.stringify(pollObj);
+          pollAttachment = JSON.stringify(pollObj);
         }
-        if (gif_id && gif_provider) {
-          params.gif_attachment = JSON.stringify({ gif_id, provider: gif_provider });
-        }
-        if (is_spoiler) params.is_spoiler_media = true;
+        const gifAttachment = gif_id && gif_provider
+          ? JSON.stringify({ gif_id, provider: gif_provider })
+          : undefined;
+        let textAttachmentJson: string | undefined;
         if (text_attachment) {
           const obj: Record<string, unknown> = { plaintext: text_attachment };
           if (text_attachment_link) obj.link_attachment_url = text_attachment_link;
@@ -145,16 +142,29 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
               styling_info: s.styles,
             }));
           }
-          params.text_attachment = JSON.stringify(obj);
+          textAttachmentJson = JSON.stringify(obj);
         }
-        applyShareToIgStory(params, share_to_ig_story);
-        applyAllowlistedCountryCodes(params, allowlisted_country_codes);
-        if (location_id) params.location_id = location_id;
         // Treat `undefined` as the default (true) so the behavior is stable even
         // if a caller bypasses Zod's schema-level default (e.g., direct handler
         // invocation in tests). Only an explicit `false` takes the legacy path.
         const useAutoPublish = auto_publish !== false;
-        if (useAutoPublish) params.auto_publish_text = true;
+        const params = buildParams(
+          { media_type: "TEXT", text },
+          {
+            reply_control,
+            link_attachment,
+            topic_tag,
+            quote_post_id,
+            poll_attachment: pollAttachment,
+            gif_attachment: gifAttachment,
+            is_spoiler_media: is_spoiler ? true : undefined,
+            text_attachment: textAttachmentJson,
+            location_id,
+            auto_publish_text: useAutoPublish ? true : undefined,
+          }
+        );
+        applyShareToIgStory(params, share_to_ig_story);
+        applyAllowlistedCountryCodes(params, allowlisted_country_codes);
         // `createResponse.id` is the published post id when useAutoPublish is true,
         // and the unpublished container id otherwise.
         const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
@@ -193,16 +203,20 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     },
     async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }) => {
       try {
-        const params: FormParams = { media_type: "IMAGE", image_url };
-        if (text) params.text = text;
-        if (reply_control) params.reply_control = reply_control;
-        if (topic_tag) params.topic_tag = topic_tag;
-        if (quote_post_id) params.quote_post_id = quote_post_id;
-        if (alt_text) params.alt_text = alt_text;
-        if (is_spoiler) params.is_spoiler_media = true;
+        const params = buildParams(
+          { media_type: "IMAGE", image_url },
+          {
+            text,
+            reply_control,
+            topic_tag,
+            quote_post_id,
+            alt_text,
+            is_spoiler_media: is_spoiler ? true : undefined,
+            location_id,
+          }
+        );
         applyShareToIgStory(params, share_to_ig_story);
         applyAllowlistedCountryCodes(params, allowlisted_country_codes);
-        if (location_id) params.location_id = location_id;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -238,16 +252,20 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     },
     async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }) => {
       try {
-        const params: FormParams = { media_type: "VIDEO", video_url };
-        if (text) params.text = text;
-        if (reply_control) params.reply_control = reply_control;
-        if (topic_tag) params.topic_tag = topic_tag;
-        if (quote_post_id) params.quote_post_id = quote_post_id;
-        if (alt_text) params.alt_text = alt_text;
-        if (is_spoiler) params.is_spoiler_media = true;
+        const params = buildParams(
+          { media_type: "VIDEO", video_url },
+          {
+            text,
+            reply_control,
+            topic_tag,
+            quote_post_id,
+            alt_text,
+            is_spoiler_media: is_spoiler ? true : undefined,
+            location_id,
+          }
+        );
         applyShareToIgStory(params, share_to_ig_story);
         applyAllowlistedCountryCodes(params, allowlisted_country_codes);
-        if (location_id) params.location_id = location_id;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -288,30 +306,26 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
         const childIds = await Promise.all(items.map(async (item) => {
-          const params: FormParams = { media_type: item.type, is_carousel_item: true };
-          if (item.type === "IMAGE") {
-            params.image_url = item.url;
-          } else {
-            params.video_url = item.url;
-          }
-          if (item.alt_text) params.alt_text = item.alt_text;
+          const params = buildParams(
+            { media_type: item.type, is_carousel_item: true },
+            {
+              image_url: item.type === "IMAGE" ? item.url : undefined,
+              video_url: item.type === "VIDEO" ? item.url : undefined,
+              alt_text: item.alt_text,
+            }
+          );
           const { data: child } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
           await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
           return childId;
         }));
-        const carouselParams: FormParams = {
-          media_type: "CAROUSEL",
-          children: childIds.join(","),
-        };
-        if (text) carouselParams.text = text;
-        if (reply_control) carouselParams.reply_control = reply_control;
-        if (topic_tag) carouselParams.topic_tag = topic_tag;
-        if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
+        const carouselParams = buildParams(
+          { media_type: "CAROUSEL", children: childIds.join(",") },
+          { text, reply_control, topic_tag, quote_post_id, location_id }
+        );
         applyShareToIgStory(carouselParams, share_to_ig_story);
         applyAllowlistedCountryCodes(carouselParams, allowlisted_country_codes);
-        if (location_id) carouselParams.location_id = location_id;
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
@@ -438,10 +452,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (hasCoords && !(hasLat && hasLng)) {
           return validationError("threads_search_locations requires both latitude and longitude when searching by coordinates.");
         }
-        const params: FormParams = {};
-        if (q !== undefined) params.q = q;
-        if (hasLat) params.latitude = latitude;
-        if (hasLng) params.longitude = longitude;
+        const params = buildParams({}, { q, latitude, longitude });
         const { data, rateLimit } = await client.threads("GET", "/location_search", params);
         return formatResponse(data, rateLimit);
       } catch (error) {
