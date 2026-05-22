@@ -90,7 +90,7 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 - **Meta**: Token exchange/refresh/debug, webhook management
 - **2 resources**: Instagram profile, Threads profile
 - **2 prompts**: Cross-platform content publishing, analytics report
-- Rate limit tracking via `x-app-usage` header
+- Rate limit tracking via `x-app-usage` header — and **automatic client-side throttling** at 80% (1s slowdown) / 90% (5s backoff) so a burst of tool calls stays under Meta's per-app quota
 - **Structured error responses** with `error_type` (`auth`, `validation`, `rate_limit`, `server`, `network`, `internal`), HTTP status, Meta API code/subcode/type, and a `remediation` hint where actionable — see [`CHANGELOG.md`](./CHANGELOG.md) for the JSON shape
 
 ## Tools
@@ -359,8 +359,8 @@ Triggered by Meta API codes `4`, `17`, `32`, `341`, `613`, the business-use-case
 
 What to do:
 
-1. Inspect the `_rateLimit` field on prior successful tool responses. `callCount`, `totalCpuTime`, and `totalTime` come from Meta's `x-app-usage` header; when `callCount` approaches `100` you are near the per-app threshold.
-2. Back off with exponential delay; reduce request volume; cache profile metadata between calls.
+1. Inspect the `_rateLimit` field on prior successful tool responses. `callCount`, `totalCpuTime`, and `totalTime` come from Meta's `x-app-usage` header; when any approaches `100` you are near the per-app threshold.
+2. meta-mcp already self-throttles once `max(callCount, totalCpuTime, totalTime)` crosses 80% (1s slowdown) or 90% (5s backoff) — see the `[meta-mcp] x-app-usage at N%…` lines on stderr. If you are still hitting `rate_limit` errors despite that, reduce request volume further and cache profile metadata between calls.
 3. Threads has hard daily quotas (250 publishes, 100 deletes) — query the remaining quota with `threads_get_publishing_limit` before bulk operations.
 
 ### `error_type: "validation"` — bad parameter, wrong ID, or unsupported field
