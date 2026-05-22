@@ -6,12 +6,38 @@ import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { READ_ONLY_TOOL, WRITE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
+type TokenPlatform = "instagram" | "threads";
+type TokenSource = "meta_exchange_token" | "meta_refresh_token";
+
+function applyTokenIfPresent(
+  client: MetaClient,
+  platform: TokenPlatform,
+  data: Record<string, unknown>,
+  source: TokenSource,
+): void {
+  // Guard against malformed/empty responses — overwriting a working token with
+  // `undefined` or `""` would silently brick the running session (#65).
+  const newToken = typeof data.access_token === "string" && data.access_token
+    ? data.access_token
+    : undefined;
+  if (!newToken) return;
+  client.updateConfig(
+    platform === "threads"
+      ? { threadsAccessToken: newToken }
+      : { instagramAccessToken: newToken }
+  );
+  const platformLabel = platform === "threads" ? "Threads" : "Instagram";
+  console.error(
+    `[meta-mcp] ${platformLabel} access token updated in-memory after ${source}; subsequent tool calls will use the new token (no restart required).`
+  );
+}
+
 export function registerMetaAuthTools(server: McpServer, client: MetaClient): void {
   // ─── meta_exchange_token ─────────────────────────────────────
   server.registerTool(
     "meta_exchange_token",
     {
-      description: "Exchange a short-lived token for a long-lived token (valid ~60 days). Uses platform-specific endpoints: Instagram (graph.instagram.com) or Threads (graph.threads.net). Requires META_APP_SECRET.",
+      description: "Exchange a short-lived token for a long-lived token (valid ~60 days). Uses platform-specific endpoints: Instagram (graph.instagram.com) or Threads (graph.threads.net). Requires META_APP_SECRET. On success the new token is also applied in-memory to the running server, so subsequent tool calls use it immediately — no restart required (#65).",
       inputSchema: {
         short_lived_token: z.string().describe("Short-lived access token to exchange"),
         platform: z.enum(["instagram", "threads"]).describe("Target platform: 'instagram' or 'threads'"),
@@ -23,6 +49,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = platform === "threads"
           ? await client.threadsExchangeToken(short_lived_token)
           : await client.igExchangeToken(short_lived_token);
+        applyTokenIfPresent(client, platform, data, "meta_exchange_token");
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Token exchange");
@@ -34,7 +61,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
   server.registerTool(
     "meta_refresh_token",
     {
-      description: "Refresh a long-lived token before it expires (must be at least 24h old). Uses platform-specific endpoints: Instagram (graph.instagram.com) or Threads (graph.threads.net). Returns a new long-lived token valid for 60 days.",
+      description: "Refresh a long-lived token before it expires (must be at least 24h old). Uses platform-specific endpoints: Instagram (graph.instagram.com) or Threads (graph.threads.net). Returns a new long-lived token valid for 60 days. On success the new token is also applied in-memory to the running server, so subsequent tool calls use it immediately — no restart required (#65).",
       inputSchema: {
         long_lived_token: z.string().describe("Current long-lived access token to refresh"),
         platform: z.enum(["instagram", "threads"]).describe("Target platform: 'instagram' or 'threads'"),
@@ -46,6 +73,7 @@ export function registerMetaAuthTools(server: McpServer, client: MetaClient): vo
         const { data, rateLimit } = platform === "threads"
           ? await client.threadsRefreshToken(long_lived_token)
           : await client.igRefreshToken(long_lived_token);
+        applyTokenIfPresent(client, platform, data, "meta_refresh_token");
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Token refresh");

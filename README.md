@@ -333,6 +333,8 @@ Access tokens expire after ~60 days. Refresh before expiration (token must be at
     &access_token=CURRENT_LONG_LIVED_TOKEN
   ```
 
+When you rotate a token through `meta_refresh_token` or `meta_exchange_token`, the new token is **automatically applied in-memory** to the running MCP server — subsequent tool calls use it immediately, no server restart needed. The new token is still returned in the response so you can persist it in your environment for the next process restart. A single `[meta-mcp] <Platform> access token updated in-memory after <tool>…` line is logged to stderr when this happens.
+
 Check token status anytime with `meta_debug_token`.
 
 ## Troubleshooting

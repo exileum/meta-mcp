@@ -572,4 +572,11 @@ export class MetaClient {
     }
     return this.config.threadsUserId;
   }
+
+  // Request methods re-read `this.config.<field>` per call, so mutating
+  // `this.config` is enough for runtime token rotation — no URL or token
+  // cache needs invalidation (#65).
+  updateConfig(partial: Partial<MetaConfig>): void {
+    this.config = { ...this.config, ...partial };
+  }
 }
