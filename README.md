@@ -91,6 +91,7 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 - **2 resources**: Instagram profile, Threads profile
 - **2 prompts**: Cross-platform content publishing, analytics report
 - Rate limit tracking via `x-app-usage` header — and **automatic client-side throttling** at 80% (1s slowdown) / 90% (5s backoff) so a burst of tool calls stays under Meta's per-app quota
+- **Automatic retry** for transient Meta API failures (HTTP `429`/`500`/`502`/`503`/`504`, network errors, `fetch` timeouts) with exponential backoff and `Retry-After` honoring; tunable via `MetaClient`'s `maxRetries` option (default 3, set to 0 to disable)
 - **Structured error responses** with `error_type` (`auth`, `validation`, `rate_limit`, `server`, `network`, `internal`), HTTP status, Meta API code/subcode/type, and a `remediation` hint where actionable — see [`CHANGELOG.md`](./CHANGELOG.md) for the JSON shape
 
 ## Tools
@@ -355,7 +356,7 @@ What to do:
 
 ### `error_type: "rate_limit"` — application or user quota exhausted
 
-Triggered by Meta API codes `4`, `17`, `32`, `341`, `613`, the business-use-case range `80001`–`80008`, or HTTP `429`. Includes any `OAuthException` with code `4` / `17` (these are surfaced as `error_type: "rate_limit"`, **not** `"auth"`, despite the type field).
+Triggered by Meta API codes `4`, `17`, `32`, `341`, `613`, the business-use-case range `80001`–`80008`, or HTTP `429`. Includes any `OAuthException` with code `4` / `17` (these are surfaced as `error_type: "rate_limit"`, **not** `"auth"`, despite the type field). `MetaClient` automatically retries HTTP `429` up to 3 times with exponential backoff and honors any `Retry-After` header — a `rate_limit` error reaching the caller means the retry budget was exhausted.
 
 What to do:
 
@@ -375,8 +376,8 @@ Triggered by Meta API codes `100`, `200`, `803`, or any unmapped 4xx HTTP status
 
 ### Other categories
 
-- `error_type: "server"` (codes `1`, `2`, HTTP 5xx) — transient Meta outage; retry with exponential backoff. Check [metastatus.com](https://metastatus.com/) if it persists.
-- `error_type: "network"` — `fetch` timed out or failed before reaching Meta. Verify outbound connectivity and retry.
+- `error_type: "server"` (codes `1`, `2`, HTTP 5xx) — transient Meta outage. `MetaClient` already retried `500`/`502`/`503`/`504` up to 3 times with exponential backoff before surfacing this; check [metastatus.com](https://metastatus.com/) if it persists.
+- `error_type: "network"` — `fetch` timed out or failed before reaching Meta. `MetaClient` already retried thrown network errors up to 3 times; verify outbound connectivity if the error keeps reappearing.
 - `error_type: "internal"` — unexpected condition that did not map to a Meta error code. The `raw` field carries the sanitized original message; `access_token`, `client_secret`, and `input_token` values are scrubbed to `***` before reporting.
 
 ## API Stability

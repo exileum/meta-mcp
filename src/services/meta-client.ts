@@ -21,6 +21,55 @@ const API_VERSION_PATTERN = /^v\d+\.\d+$/;
 const IG_TOKEN_BASE = "https://graph.instagram.com";
 const THREADS_TOKEN_BASE = "https://graph.threads.net";
 
+// Retry policy for transient Meta API failures (#61). 429/500/502/503/504 are
+// the statuses Meta's infrastructure recovers from on retry; every other 4xx
+// is a permanent caller-side error (auth, validation) and fails fast.
+const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+export const DEFAULT_MAX_RETRIES = 3;
+export const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
+// Cap so a malformed `Retry-After: 999999` (≈11 days) can't hang a tool.
+export const MAX_RETRY_DELAY_MS = 60_000;
+
+/**
+ * Parse a `Retry-After` response header value (RFC 7231 §7.1.3) into
+ * milliseconds. Returns `undefined` for missing or unparseable values so the
+ * caller falls back to the exponential-backoff schedule. Past dates and
+ * negative seconds clamp to `0` to absorb server time skew.
+ */
+export function parseRetryAfter(value: string | null, nowMs: number): number | undefined {
+  if (value === null) return undefined;
+  const trimmed = value.trim();
+  if (trimmed === "") return undefined;
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  }
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isNaN(dateMs)) {
+    return Math.max(0, dateMs - nowMs);
+  }
+  return undefined;
+}
+
+/**
+ * Exponential backoff `base * 2^attempt` with 0–25% jitter to spread
+ * concurrent clients and avoid thundering-herd reconnects. Capped at
+ * {@link MAX_RETRY_DELAY_MS}. `rand` is injectable for deterministic tests.
+ */
+export function computeBackoffDelay(
+  attempt: number,
+  baseDelayMs: number,
+  rand: () => number = Math.random
+): number {
+  const exponential = baseDelayMs * Math.pow(2, attempt);
+  const jitter = exponential * 0.25 * rand();
+  return Math.min(exponential + jitter, MAX_RETRY_DELAY_MS);
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function resolveApiVersion(
   envName: string,
   fallback: string,
@@ -45,6 +94,32 @@ function resolveApiVersion(
 export interface MetaClientOptions {
   metaApiVersion?: string;
   threadsApiVersion?: string;
+  /**
+   * Maximum number of retry attempts after the initial request fails with a
+   * transient error (HTTP 429/500/502/503/504 or a thrown network error).
+   * Total request count is `maxRetries + 1`. Set to `0` to disable retries
+   * entirely (matches pre-#61 behavior). Defaults to {@link DEFAULT_MAX_RETRIES}.
+   */
+  maxRetries?: number;
+  /**
+   * Base delay (ms) used by the exponential-backoff schedule between retries.
+   * Attempt N waits `baseDelayMs * 2^N` plus 0–25% jitter (capped at
+   * {@link MAX_RETRY_DELAY_MS}). Defaults to {@link DEFAULT_RETRY_BASE_DELAY_MS}.
+   * Tests pass `0` to make retries fire immediately without real waiting.
+   */
+  retryBaseDelayMs?: number;
+  /**
+   * Injection point for the sleep primitive used between retries. Defaults to
+   * a `setTimeout`-backed `Promise`. Tests can swap in a spyable async
+   * function to assert the delays without actually waiting.
+   */
+  sleep?: (ms: number) => Promise<void>;
+  /**
+   * Injection point for the current-time source used when parsing an HTTP-date
+   * form of the `Retry-After` header. Defaults to `Date.now`. Tests pass a
+   * fixed function so HTTP-date delta calculations are deterministic.
+   */
+  now?: () => number;
 }
 
 export interface RateLimit {
@@ -140,6 +215,10 @@ export class MetaClient {
   private threadsBase: string;
   private lastRateLimit?: RateLimit;
   private lastRateLimitAt?: number;
+  private maxRetries: number;
+  private retryBaseDelayMs: number;
+  private sleep: (ms: number) => Promise<void>;
+  private now: () => number;
 
   constructor(config: MetaConfig, options?: MetaClientOptions) {
     this.config = config;
@@ -156,6 +235,10 @@ export class MetaClient {
     this.igBase = `https://graph.instagram.com/${metaVersion}`;
     this.fbBase = `https://graph.facebook.com/${metaVersion}`;
     this.threadsBase = `https://graph.threads.net/${threadsVersion}`;
+    this.maxRetries = Math.max(0, options?.maxRetries ?? DEFAULT_MAX_RETRIES);
+    this.retryBaseDelayMs = Math.max(0, options?.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS);
+    this.sleep = options?.sleep ?? defaultSleep;
+    this.now = options?.now ?? Date.now;
   }
 
   private parseRateLimit(headers: Headers): RateLimit | undefined {
@@ -237,7 +320,6 @@ export class MetaClient {
     options?: RequestOptions
   ): Promise<ClientResponse> {
     let url = `${baseUrl}${path}`;
-    const init: RequestInit = { method };
 
     const isWrite = method !== "GET" && method !== "DELETE";
     const useJson = isWrite && options?.jsonBody !== undefined;
@@ -257,73 +339,111 @@ export class MetaClient {
     qs.set("access_token", token);
     if (params) this.appendFormParams(qs, params);
 
+    // Body/headers are stable strings reusable across retry attempts; only
+    // `signal` must be fresh per attempt — sharing an exhausted
+    // `AbortSignal.timeout` would silently abort every subsequent retry.
+    const baseInit: Omit<RequestInit, "signal"> = { method };
     if (useJson) {
       url += (url.includes("?") ? "&" : "?") + qs.toString();
-      init.headers = { "Content-Type": "application/json" };
-      init.body = JSON.stringify(options!.jsonBody);
+      baseInit.headers = { "Content-Type": "application/json" };
+      baseInit.body = JSON.stringify(options!.jsonBody);
     } else if (isWrite) {
-      init.headers = { "Content-Type": "application/x-www-form-urlencoded" };
-      init.body = qs.toString();
+      baseInit.headers = { "Content-Type": "application/x-www-form-urlencoded" };
+      baseInit.body = qs.toString();
     } else {
       url += (url.includes("?") ? "&" : "?") + qs.toString();
     }
 
-    await this.maybeThrottle();
-    // Arm the 30s abort timer *after* the throttle sleep so a backoff at high
-    // x-app-usage doesn't eat into the actual network window (#60 review).
-    init.signal = AbortSignal.timeout(30_000);
-    const res = await fetch(url, init);
+    // Retry loop (#61): total request count is `maxRetries + 1`. The trailing
+    // `throw` after the loop is for TS control-flow narrowing only.
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      // Pre-request throttle from #60 — runs before every attempt so a retry
+      // after a 429 still consults the most recent x-app-usage snapshot.
+      await this.maybeThrottle();
+      // Arm the 30s abort timer *after* the throttle sleep so a backoff at
+      // high x-app-usage doesn't eat into the actual network window (#60 review).
+      const init: RequestInit = { ...baseInit, signal: AbortSignal.timeout(30_000) };
 
-    // Parse rate-limit on every response (a 429 still carries `x-app-usage`);
-    // header-less responses (OAuth token endpoints) leave state intact.
-    const rateLimit = this.parseRateLimit(res.headers);
-    if (rateLimit) {
-      this.lastRateLimit = rateLimit;
-      this.lastRateLimitAt = Date.now();
-    }
+      let res: Response;
+      try {
+        res = await fetch(url, init);
+      } catch (err) {
+        if (attempt < this.maxRetries) {
+          await this.sleep(computeBackoffDelay(attempt, this.retryBaseDelayMs));
+          continue;
+        }
+        throw err;
+      }
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      const parsed = parseMetaErrorBody(text);
-      const detail = parsed?.message ?? text;
-      throw new MetaApiError({
-        message: `Meta API ${method} ${path} (${res.status}): ${detail}`,
-        httpStatus: res.status,
-        apiCode: parsed?.code,
-        apiSubcode: parsed?.subcode,
-        apiType: parsed?.type,
-        fbtraceId: parsed?.fbtraceId,
-        endpoint: path,
-        method,
-        body: text,
-      });
-    }
+      // Parse rate-limit on every response (a 429 still carries `x-app-usage`);
+      // header-less responses (OAuth token endpoints) leave state intact.
+      const rateLimit = this.parseRateLimit(res.headers);
+      if (rateLimit) {
+        this.lastRateLimit = rateLimit;
+        this.lastRateLimitAt = Date.now();
+      }
 
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      const data = (await res.json()) as Record<string, unknown>;
-      if (data.error) {
-        const err = data.error as Record<string, unknown>;
-        const apiCode = typeof err.code === "number" ? err.code : undefined;
-        const apiSubcode = typeof err.error_subcode === "number" ? err.error_subcode : undefined;
-        const apiType = typeof err.type === "string" ? err.type : undefined;
-        const apiMessage = typeof err.message === "string" ? err.message : String(err.message ?? "");
-        const fbtraceId = typeof err.fbtrace_id === "string" ? err.fbtrace_id : undefined;
+      if (
+        !res.ok &&
+        RETRYABLE_HTTP_STATUSES.has(res.status) &&
+        attempt < this.maxRetries
+      ) {
+        const retryAfterMs = parseRetryAfter(res.headers.get("retry-after"), this.now());
+        const delay =
+          retryAfterMs !== undefined
+            ? Math.min(retryAfterMs, MAX_RETRY_DELAY_MS)
+            : computeBackoffDelay(attempt, this.retryBaseDelayMs);
+        // Release the connection — `cancel()` rejects on already-consumed bodies.
+        res.body?.cancel().catch(() => {});
+        await this.sleep(delay);
+        continue;
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        const parsed = parseMetaErrorBody(text);
+        const detail = parsed?.message ?? text;
         throw new MetaApiError({
-          message: `Meta API error: ${apiMessage} (code ${apiCode ?? "?"})`,
-          apiCode,
-          apiSubcode,
-          apiType,
-          fbtraceId,
+          message: `Meta API ${method} ${path} (${res.status}): ${detail}`,
+          httpStatus: res.status,
+          apiCode: parsed?.code,
+          apiSubcode: parsed?.subcode,
+          apiType: parsed?.type,
+          fbtraceId: parsed?.fbtraceId,
           endpoint: path,
           method,
-          body: JSON.stringify(err),
+          body: text,
         });
       }
-      return { data, rateLimit };
+
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const data = (await res.json()) as Record<string, unknown>;
+        if (data.error) {
+          const err = data.error as Record<string, unknown>;
+          const apiCode = typeof err.code === "number" ? err.code : undefined;
+          const apiSubcode = typeof err.error_subcode === "number" ? err.error_subcode : undefined;
+          const apiType = typeof err.type === "string" ? err.type : undefined;
+          const apiMessage = typeof err.message === "string" ? err.message : String(err.message ?? "");
+          const fbtraceId = typeof err.fbtrace_id === "string" ? err.fbtrace_id : undefined;
+          throw new MetaApiError({
+            message: `Meta API error: ${apiMessage} (code ${apiCode ?? "?"})`,
+            apiCode,
+            apiSubcode,
+            apiType,
+            fbtraceId,
+            endpoint: path,
+            method,
+            body: JSON.stringify(err),
+          });
+        }
+        return { data, rateLimit };
+      }
+      const text = await res.text();
+      return { data: { raw: text, success: true }, rateLimit };
     }
-    const text = await res.text();
-    return { data: { raw: text, success: true }, rateLimit };
+
+    throw new Error("MetaClient: retry loop exited without resolution (unreachable)");
   }
 
   async ig(

@@ -8,9 +8,12 @@ import {
   RATE_LIMIT_SLOWDOWN_MS,
   RATE_LIMIT_BACKOFF_MS,
   RATE_LIMIT_SNAPSHOT_TTL_MS,
+  MAX_RETRY_DELAY_MS,
+  parseRetryAfter,
+  computeBackoffDelay,
 } from "./meta-client.js";
 import { MetaConfig } from "../config.js";
-import { MetaApiError } from "../utils/errors.js";
+import { MetaApiError, formatErrorResponse } from "../utils/errors.js";
 
 function mockConfig(overrides: Partial<MetaConfig> = {}): MetaConfig {
   return {
@@ -933,7 +936,11 @@ describe("MetaClient throws MetaApiError on failures", () => {
       })
     );
 
-    const client = new MetaClient(mockConfig());
+    // `maxRetries: 0` isolates this test to the error-parsing path. 500 is
+    // a retryable status (#61), so without disabling retries the cached
+    // mock Response would be re-read across retry attempts and its body
+    // would be consumed before the final throw.
+    const client = new MetaClient(mockConfig(), { maxRetries: 0 });
     let thrown: unknown;
     try {
       await client.ig("GET", "/me");
@@ -989,5 +996,447 @@ describe("MetaClient throws MetaApiError on failures", () => {
     const client = new MetaClient(mockConfig());
 
     await expect(client.threads("GET", "/123456")).rejects.toThrow(/nonexisting field/);
+  });
+});
+
+// Regression guards for #61 — `MetaClient.request()` used to make a single
+// `fetch()` attempt; transient 429/5xx and network errors surfaced as
+// permanent failures. The retry loop now attempts up to `maxRetries + 1`
+// times with exponential backoff and honors a `Retry-After` header.
+describe("MetaClient retry logic (#61)", () => {
+  function freshJsonResponse(body: object, headers: Record<string, string> = {}): Response {
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json", ...headers },
+    });
+  }
+
+  function errorResponse(status: number, headers: Record<string, string> = {}): Response {
+    return new Response("upstream failure", {
+      status,
+      headers: { "content-type": "text/plain", ...headers },
+    });
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("retries on transient failures", () => {
+    it("does not retry when the first attempt succeeds", async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(() => Promise.resolve(freshJsonResponse({ ok: true })));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      await client.ig("GET", "/me");
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(sleep).not.toHaveBeenCalled();
+    });
+
+    it("retries a 503 once and returns the second response's body", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockResolvedValueOnce(errorResponse(503))
+        .mockResolvedValueOnce(freshJsonResponse({ id: "after-retry" }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      const result = await client.ig("GET", "/me");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(sleep).toHaveBeenCalledOnce();
+      expect(result.data).toEqual({ id: "after-retry" });
+    });
+
+    it("retries a 429 the same way as a 5xx", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockResolvedValueOnce(errorResponse(429))
+        .mockResolvedValueOnce(freshJsonResponse({ id: "after-rate-limit" }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      const result = await client.ig("GET", "/me");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(result.data).toEqual({ id: "after-rate-limit" });
+    });
+
+    it.each([500, 502, 503, 504])(
+      "retries HTTP %i (retryable transient status)",
+      async (status) => {
+        const fetchSpy = vi.spyOn(globalThis, "fetch");
+        fetchSpy
+          .mockResolvedValueOnce(errorResponse(status))
+          .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+        const sleep = vi.fn().mockResolvedValue(undefined);
+
+        const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+        await client.ig("GET", "/me");
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+      }
+    );
+
+    it("retries when fetch itself throws a network error", async () => {
+      const networkErr = new TypeError("fetch failed");
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockRejectedValueOnce(networkErr)
+        .mockImplementation(() => Promise.resolve(freshJsonResponse({ id: "recovered" })));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      const result = await client.ig("GET", "/me");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(sleep).toHaveBeenCalledOnce();
+      expect(result.data).toEqual({ id: "recovered" });
+    });
+
+    it("retries an AbortError (signal timeout) and recovers", async () => {
+      const abort = new Error("The operation was aborted");
+      abort.name = "AbortError";
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockRejectedValueOnce(abort)
+        .mockImplementation(() => Promise.resolve(freshJsonResponse({ ok: true })));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      await client.ig("GET", "/me");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("does not retry permanent failures", () => {
+    it.each([400, 401, 403, 404, 422])(
+      "does not retry HTTP %i (permanent caller-side error)",
+      async (status) => {
+        const fetchSpy = vi.spyOn(globalThis, "fetch");
+        fetchSpy.mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: { message: "nope", code: 100 } }), {
+            status,
+            headers: { "content-type": "application/json" },
+          })
+        );
+
+        const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0 });
+        await expect(client.ig("GET", "/me")).rejects.toBeInstanceOf(MetaApiError);
+
+        expect(fetchSpy).toHaveBeenCalledOnce();
+      }
+    );
+  });
+
+  describe("exhausts the retry budget", () => {
+    it("makes maxRetries + 1 requests then throws the last MetaApiError", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy.mockImplementation(() => Promise.resolve(errorResponse(503)));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: 3,
+        retryBaseDelayMs: 0,
+        sleep,
+      });
+
+      await expect(client.ig("GET", "/me")).rejects.toMatchObject({
+        name: "MetaApiError",
+        httpStatus: 503,
+      });
+
+      // Initial attempt + 3 retries = 4 fetches, 3 sleeps between them.
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(sleep).toHaveBeenCalledTimes(3);
+    });
+
+    it("rethrows the last network error after exhausted retries", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const finalErr = new TypeError("fetch failed");
+      fetchSpy
+        .mockRejectedValueOnce(new TypeError("fetch failed"))
+        .mockRejectedValueOnce(new TypeError("fetch failed"))
+        .mockRejectedValueOnce(new TypeError("fetch failed"))
+        .mockRejectedValueOnce(finalErr);
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: 3,
+        retryBaseDelayMs: 0,
+        sleep,
+      });
+
+      let thrown: unknown;
+      try {
+        await client.ig("GET", "/me");
+      } catch (e) {
+        thrown = e;
+      }
+
+      expect(thrown).toBe(finalErr);
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(sleep).toHaveBeenCalledTimes(3);
+    });
+
+    it("post-retry MetaApiError still categorizes as server via formatErrorResponse", async () => {
+      vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(errorResponse(503))
+      );
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: 2,
+        retryBaseDelayMs: 0,
+        sleep,
+      });
+
+      let caught: unknown;
+      try {
+        await client.ig("GET", "/me");
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(MetaApiError);
+
+      const formatted = formatErrorResponse(caught, "Get profile");
+      const payload = JSON.parse(formatted.content[0].text) as Record<string, unknown>;
+      expect(payload.error_type).toBe("server");
+      expect(payload.remediation).toEqual(expect.stringContaining("retry"));
+    });
+
+    it("post-retry rate-limit MetaApiError still categorizes as rate_limit", async () => {
+      vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(errorResponse(429))
+      );
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: 2,
+        retryBaseDelayMs: 0,
+        sleep,
+      });
+
+      let caught: unknown;
+      try {
+        await client.ig("GET", "/me");
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(MetaApiError);
+
+      const formatted = formatErrorResponse(caught, "Get profile");
+      const payload = JSON.parse(formatted.content[0].text) as Record<string, unknown>;
+      expect(payload.error_type).toBe("rate_limit");
+    });
+
+    it("post-retry network error still categorizes as network", async () => {
+      vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        maxRetries: 2,
+        retryBaseDelayMs: 0,
+        sleep,
+      });
+
+      let caught: unknown;
+      try {
+        await client.ig("GET", "/me");
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(TypeError);
+
+      const formatted = formatErrorResponse(caught, "Get profile");
+      const payload = JSON.parse(formatted.content[0].text) as Record<string, unknown>;
+      expect(payload.error_type).toBe("network");
+    });
+  });
+
+  describe("maxRetries: 0 disables retries", () => {
+    it("makes a single fetch call on a retryable 503 and throws immediately", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy.mockResolvedValueOnce(errorResponse(503));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { maxRetries: 0, sleep });
+      await expect(client.ig("GET", "/me")).rejects.toBeInstanceOf(MetaApiError);
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(sleep).not.toHaveBeenCalled();
+    });
+
+    it("makes a single fetch call on a network error and rethrows immediately", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const err = new TypeError("fetch failed");
+      fetchSpy.mockRejectedValueOnce(err);
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { maxRetries: 0, sleep });
+      await expect(client.ig("GET", "/me")).rejects.toBe(err);
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(sleep).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Retry-After header is honored", () => {
+    it("uses the seconds form when present (Retry-After: 2)", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(errorResponse(429, { "Retry-After": "2" }))
+        .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      await client.ig("GET", "/me");
+
+      expect(sleep).toHaveBeenCalledWith(2000);
+    });
+
+    it("uses an HTTP-date form when present and computes the delta from the injected now()", async () => {
+      const fixedNow = 1_700_000_000_000;
+      const retryAt = new Date(fixedNow + 4000).toUTCString();
+
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(errorResponse(503, { "Retry-After": retryAt }))
+        .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), {
+        retryBaseDelayMs: 0,
+        sleep,
+        now: () => fixedNow,
+      });
+      await client.ig("GET", "/me");
+
+      // HTTP-date precision is 1 second, so allow a 1000 ms tolerance.
+      const [delay] = (sleep.mock.calls[0] ?? []) as [number];
+      expect(delay).toBeGreaterThanOrEqual(3000);
+      expect(delay).toBeLessThanOrEqual(4000);
+    });
+
+    it("caps an oversized Retry-After at MAX_RETRY_DELAY_MS (60s)", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(errorResponse(503, { "Retry-After": "999999" }))
+        .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      await client.ig("GET", "/me");
+
+      expect(sleep).toHaveBeenCalledWith(MAX_RETRY_DELAY_MS);
+    });
+
+    it("falls back to exponential backoff when Retry-After is unparseable", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(errorResponse(503, { "Retry-After": "definitely-not-a-date" }))
+        .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      await client.ig("GET", "/me");
+
+      // With retryBaseDelayMs=0, exponential is 0 — but sleep was still called.
+      expect(sleep).toHaveBeenCalledOnce();
+      expect(sleep).toHaveBeenCalledWith(0);
+    });
+  });
+
+  describe("AbortSignal is fresh per attempt", () => {
+    it("each fetch call receives a different AbortSignal", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      fetchSpy
+        .mockResolvedValueOnce(errorResponse(503))
+        .mockResolvedValueOnce(errorResponse(503))
+        .mockResolvedValueOnce(freshJsonResponse({ ok: true }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+      await client.ig("GET", "/me");
+
+      const signals = fetchSpy.mock.calls.map((call) => (call[1] as RequestInit).signal);
+      expect(signals).toHaveLength(3);
+      // All three signals must be distinct objects — sharing a single signal
+      // would mean the AbortSignal.timeout from attempt 0 leaks into attempt
+      // 1 and silently aborts subsequent retries.
+      expect(signals[0]).not.toBe(signals[1]);
+      expect(signals[1]).not.toBe(signals[2]);
+      expect(signals[0]).not.toBe(signals[2]);
+    });
+  });
+});
+
+describe("parseRetryAfter", () => {
+  it("returns undefined for a null or empty header value", () => {
+    expect(parseRetryAfter(null, 0)).toBeUndefined();
+    expect(parseRetryAfter("", 0)).toBeUndefined();
+    expect(parseRetryAfter("   ", 0)).toBeUndefined();
+  });
+
+  it("parses integer seconds form", () => {
+    expect(parseRetryAfter("5", 0)).toBe(5000);
+    expect(parseRetryAfter("0", 0)).toBe(0);
+    expect(parseRetryAfter("60", 0)).toBe(60_000);
+  });
+
+  it("parses fractional seconds form", () => {
+    expect(parseRetryAfter("1.5", 0)).toBe(1500);
+  });
+
+  it("clamps negative seconds to zero (server time skew)", () => {
+    expect(parseRetryAfter("-5", 0)).toBe(0);
+  });
+
+  it("parses HTTP-date form and returns the delta from nowMs", () => {
+    const now = 1_700_000_000_000;
+    const future = new Date(now + 5_000).toUTCString();
+    const result = parseRetryAfter(future, now);
+    // HTTP-date precision is 1 second, allow tolerance.
+    expect(result).toBeGreaterThanOrEqual(4000);
+    expect(result).toBeLessThanOrEqual(5000);
+  });
+
+  it("clamps past HTTP-date to zero", () => {
+    const now = 1_700_000_000_000;
+    const past = new Date(now - 10_000).toUTCString();
+    expect(parseRetryAfter(past, now)).toBe(0);
+  });
+
+  it("returns undefined for unparseable values", () => {
+    expect(parseRetryAfter("nope", 0)).toBeUndefined();
+    expect(parseRetryAfter("abc123", 0)).toBeUndefined();
+  });
+});
+
+describe("computeBackoffDelay", () => {
+  it("returns base delay for attempt 0 with zero jitter", () => {
+    expect(computeBackoffDelay(0, 1000, () => 0)).toBe(1000);
+  });
+
+  it("doubles per attempt (exponential growth)", () => {
+    expect(computeBackoffDelay(0, 1000, () => 0)).toBe(1000);
+    expect(computeBackoffDelay(1, 1000, () => 0)).toBe(2000);
+    expect(computeBackoffDelay(2, 1000, () => 0)).toBe(4000);
+    expect(computeBackoffDelay(3, 1000, () => 0)).toBe(8000);
+  });
+
+  it("applies up to 25% jitter (upper bound)", () => {
+    expect(computeBackoffDelay(0, 1000, () => 1)).toBe(1250);
+    expect(computeBackoffDelay(2, 1000, () => 1)).toBe(5000); // 4000 + 1000
+  });
+
+  it("caps at MAX_RETRY_DELAY_MS", () => {
+    expect(computeBackoffDelay(20, 1000, () => 0)).toBe(MAX_RETRY_DELAY_MS);
+    expect(computeBackoffDelay(20, 1000, () => 1)).toBe(MAX_RETRY_DELAY_MS);
+  });
+
+  it("returns 0 when baseDelayMs is 0 (test fast path)", () => {
+    expect(computeBackoffDelay(0, 0, () => 0)).toBe(0);
+    expect(computeBackoffDelay(5, 0, () => 1)).toBe(0);
   });
 });
