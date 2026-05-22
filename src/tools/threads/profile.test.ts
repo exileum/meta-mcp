@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   registerThreadsProfileTools,
-  THREADS_PROFILE_FIELDS,
   threadsProfileCacheKey,
   THREADS_PROFILE_CACHE_PREFIX,
 } from "./profile.js";
 import { MetaClient, PROFILE_CACHE_TTL_MS } from "../../services/meta-client.js";
+import { THREADS_PROFILE_FIELDS } from "../../constants/fields.js";
 import { makeMockCache } from "../test-utils.js";
 
 function makeMockServer() {

@@ -152,4 +152,15 @@ describe("ig_search_hashtag cache (#90)", () => {
 
     expect((client.ig as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(2);
   });
+
+  // Meta's hashtag search resolves `"Puppies"` and `"puppies"` to the same ID;
+  // a case-sensitive cache key would burn two slots from the 30-per-7d quota.
+  it("treats mixed-case queries as a single cache entry", async () => {
+    const handler = server.tools.get("ig_search_hashtag")!;
+    await handler({ q: "Puppies" });
+    await handler({ q: "puppies" });
+    await handler({ q: "PUPPIES" });
+
+    expect((client.ig as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+  });
 });

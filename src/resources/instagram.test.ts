@@ -4,6 +4,7 @@ import { registerInstagramResources } from "./instagram.js";
 import { MetaClient } from "../services/meta-client.js";
 import { MetaApiError } from "../utils/errors.js";
 import { makeMockCache } from "../tools/test-utils.js";
+import { IG_PROFILE_FIELDS } from "../constants/fields.js";
 
 type ResourceCall = {
   name: string;
@@ -64,7 +65,7 @@ describe("instagram-profile resource", () => {
     expect(server.resources[0].metadata.mimeType).toBe("application/json");
   });
 
-  it("handler calls GET /{igUserId} with profile fields", async () => {
+  it("handler calls GET /{igUserId} with the shared IG_PROFILE_FIELDS list", async () => {
     const server = makeMockServer();
     const client = makeMockClient();
     registerInstagramResources(server as never, client);
@@ -74,11 +75,7 @@ describe("instagram-profile resource", () => {
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("GET");
     expect(call[1]).toBe("/ig-123");
-    const fields = call[2].fields as string;
-    expect(fields).toContain("id");
-    expect(fields).toContain("username");
-    expect(fields).toContain("biography");
-    expect(fields).toContain("followers_count");
+    expect(call[2].fields).toBe(IG_PROFILE_FIELDS);
   });
 
   it("handler returns content with the namespaced meta-mcp:// URI", async () => {

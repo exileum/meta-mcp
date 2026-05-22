@@ -8,7 +8,11 @@ import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
-export const igHashtagCacheKey = (userId: string, q: string): string => `ig:hashtag:${userId}:${q}`;
+// Meta's hashtag search is case-insensitive — `"Puppies"` and `"puppies"`
+// resolve to the same hashtag ID. Lowercase the query so both spellings share
+// one cache slot against the 30-unique-per-7-days quota.
+export const igHashtagCacheKey = (userId: string, q: string): string =>
+  `ig:hashtag:${userId}:${q.toLowerCase()}`;
 
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
   // ─── ig_search_hashtag ───────────────────────────────────────
