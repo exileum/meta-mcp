@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setupShutdownHandlers, SHUTDOWN_SIGNALS, type ShutdownSignal } from "./shutdown.js";
 
 type SignalListener = (signal: ShutdownSignal) => void;
@@ -11,7 +11,10 @@ interface Harness {
   fire: (signal: ShutdownSignal) => Promise<void>;
 }
 
-function setupHarness(closeBehavior: () => Promise<void> = () => Promise.resolve()): Harness {
+function setupHarness(
+  closeBehavior: () => Promise<void> = () => Promise.resolve(),
+  timeoutMs?: number
+): Harness {
   const listeners = new Map<ShutdownSignal, SignalListener>();
 
   const processOnSpy = vi.spyOn(process, "on");
@@ -26,7 +29,7 @@ function setupHarness(closeBehavior: () => Promise<void> = () => Promise.resolve
   const exit = vi.fn();
   const log = vi.fn();
 
-  setupShutdownHandlers({ close }, { exit: exit as never, log });
+  setupShutdownHandlers({ close }, { exit: exit as never, log, timeoutMs });
 
   const fire = async (signal: ShutdownSignal): Promise<void> => {
     const listener = listeners.get(signal);
@@ -42,10 +45,6 @@ function setupHarness(closeBehavior: () => Promise<void> = () => Promise.resolve
 
 describe("setupShutdownHandlers", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
     vi.restoreAllMocks();
   });
 
@@ -110,5 +109,18 @@ describe("setupShutdownHandlers", () => {
     await new Promise<void>((resolve) => setImmediate(resolve));
 
     expect(harness.exit).toHaveBeenCalledWith(0);
+  });
+
+  it("exits with code 1 when server.close() exceeds the shutdown deadline", async () => {
+    const harness = setupHarness(() => new Promise<void>(() => undefined), 10);
+    await harness.fire("SIGTERM");
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(harness.close).toHaveBeenCalledTimes(1);
+    expect(harness.exit).toHaveBeenCalledWith(1);
+    expect(harness.log).toHaveBeenCalledWith(
+      "[meta-mcp] Error during shutdown: shutdown timed out after 10ms"
+    );
   });
 });
