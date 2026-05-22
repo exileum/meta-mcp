@@ -150,10 +150,10 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       annotations: WRITE_TOOL,
     },
     async ({ items, caption, location_id, collaborators }, extra?: ProgressExtra) => {
+      // Parallel child polls below would otherwise emit non-monotonic
+      // `progress` values across the shared progressToken.
+      const onProgress = makeProgressNotifier(extra, "shared");
       try {
-        // Parallel child polls below would otherwise emit non-monotonic
-        // `progress` values across the shared progressToken.
-        const onProgress = makeProgressNotifier(extra, "shared");
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
         const childIds = await Promise.all(items.map(async (item) => {
@@ -193,6 +193,11 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel");
+      } finally {
+        // Once Promise.all has rejected and we've returned an error, the still-
+        // running sibling polls must not emit any more notifications for this
+        // progressToken — MCP forbids progress after request completion.
+        onProgress?.stop();
       }
     }
   );

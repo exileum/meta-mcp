@@ -68,4 +68,24 @@ describe("makeProgressNotifier", () => {
     await Promise.resolve();
     expect(extra.sendNotification).toHaveBeenCalledTimes(1);
   });
+
+  it("stop() makes subsequent emissions no-ops without throwing", async () => {
+    const extra = makeExtra("tok-stop");
+    const notify = makeProgressNotifier(extra, "shared")!;
+    notify(1, 3);
+    notify.stop();
+    notify(2, 3);
+    notify(3, 3);
+    await Promise.resolve();
+    // Only the pre-stop emission is forwarded.
+    expect(extra.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("stop() is idempotent", () => {
+    const extra = makeExtra("tok-idem");
+    const notify = makeProgressNotifier(extra, "single")!;
+    expect(() => { notify.stop(); notify.stop(); }).not.toThrow();
+    notify(99, 100);
+    expect(extra.sendNotification).not.toHaveBeenCalled();
+  });
 });

@@ -304,10 +304,10 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       annotations: WRITE_TOOL,
     },
     async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes, location_id }, extra?: ProgressExtra) => {
+      // See ig_publish_carousel — shared notifier keeps progress monotonic
+      // across parallel child polls.
+      const onProgress = makeProgressNotifier(extra, "shared");
       try {
-        // See ig_publish_carousel — shared notifier keeps progress monotonic
-        // across parallel child polls.
-        const onProgress = makeProgressNotifier(extra, "shared");
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
         const childIds = await Promise.all(items.map(async (item) => {
@@ -341,6 +341,10 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel");
+      } finally {
+        // Sibling polls still in-flight after a Promise.all rejection must
+        // not keep emitting progress for the now-completed request.
+        onProgress?.stop();
       }
     }
   );
