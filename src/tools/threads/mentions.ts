@@ -3,17 +3,21 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL } from "../annotations.js";
 
 export function registerThreadsMentionsTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_mentions ────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "threads_get_mentions",
-    "List Threads posts where the authenticated user has been @mentioned. Requires the threads_manage_mentions permission. Posts from private profiles are excluded by the API. Without advanced access approval, only mentions from designated app testers are returned.",
     {
-      limit: z.number().optional().describe("Number of results"),
-      since: z.string().optional().describe("Start Unix timestamp (must be >= 1688540400)"),
-      until: z.string().optional().describe("End Unix timestamp (must be <= now)"),
-      after: z.string().optional().describe("Pagination cursor"),
+      description: "List Threads posts where the authenticated user has been @mentioned. Requires the threads_manage_mentions permission. Posts from private profiles are excluded by the API. Without advanced access approval, only mentions from designated app testers are returned.",
+      inputSchema: {
+        limit: z.number().optional().describe("Number of results"),
+        since: z.string().optional().describe("Start Unix timestamp (must be >= 1688540400)"),
+        until: z.string().optional().describe("End Unix timestamp (must be <= now)"),
+        after: z.string().optional().describe("Pagination cursor"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ limit, since, until, after }) => {
       try {

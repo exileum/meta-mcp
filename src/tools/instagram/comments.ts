@@ -4,6 +4,7 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}";
 const GET_COMMENT_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,parent_id,media";
@@ -11,15 +12,18 @@ const GET_REPLIES_DEFAULT_FIELDS = "id,text,username,timestamp,like_count";
 
 export function registerIgCommentTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_comments ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_comments",
-    "Get comments on a specific Instagram media post.",
     {
-      media_id: metaId.describe("Media ID"),
-      limit: z.number().optional().describe("Number of comments to return"),
-      after: z.string().optional().describe("Pagination cursor for next page"),
-      before: z.string().optional().describe("Pagination cursor for previous page"),
-      fields: z.string().optional().default(GET_COMMENTS_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_COMMENTS_DEFAULT_FIELDS})`),
+      description: "Get comments on a specific Instagram media post.",
+      inputSchema: {
+        media_id: metaId.describe("Media ID"),
+        limit: z.number().optional().describe("Number of comments to return"),
+        after: z.string().optional().describe("Pagination cursor for next page"),
+        before: z.string().optional().describe("Pagination cursor for previous page"),
+        fields: z.string().optional().default(GET_COMMENTS_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_COMMENTS_DEFAULT_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ media_id, limit, after, before, fields }) => {
       try {
@@ -36,12 +40,15 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_comment ──────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_comment",
-    "Get details of a specific comment.",
     {
-      comment_id: metaId.describe("Comment ID"),
-      fields: z.string().optional().default(GET_COMMENT_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_COMMENT_DEFAULT_FIELDS})`),
+      description: "Get details of a specific comment.",
+      inputSchema: {
+        comment_id: metaId.describe("Comment ID"),
+        fields: z.string().optional().default(GET_COMMENT_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_COMMENT_DEFAULT_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ comment_id, fields }) => {
       try {
@@ -54,12 +61,15 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_post_comment ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_post_comment",
-    "Post a top-level comment on a media post.",
     {
-      media_id: metaId.describe("Media ID to comment on"),
-      message: z.string().describe("Comment text"),
+      description: "Post a top-level comment on a media post.",
+      inputSchema: {
+        media_id: metaId.describe("Media ID to comment on"),
+        message: z.string().describe("Comment text"),
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ media_id, message }) => {
       try {
@@ -72,15 +82,18 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_replies ──────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_replies",
-    "Get replies to a specific comment.",
     {
-      comment_id: metaId.describe("Comment ID to get replies for"),
-      limit: z.number().optional().describe("Number of replies to return"),
-      after: z.string().optional().describe("Pagination cursor for next page"),
-      before: z.string().optional().describe("Pagination cursor for previous page"),
-      fields: z.string().optional().default(GET_REPLIES_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_REPLIES_DEFAULT_FIELDS})`),
+      description: "Get replies to a specific comment.",
+      inputSchema: {
+        comment_id: metaId.describe("Comment ID to get replies for"),
+        limit: z.number().optional().describe("Number of replies to return"),
+        after: z.string().optional().describe("Pagination cursor for next page"),
+        before: z.string().optional().describe("Pagination cursor for previous page"),
+        fields: z.string().optional().default(GET_REPLIES_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_REPLIES_DEFAULT_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ comment_id, limit, after, before, fields }) => {
       try {
@@ -97,12 +110,15 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_reply_to_comment ─────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_reply_to_comment",
-    "Reply to a specific comment.",
     {
-      comment_id: metaId.describe("Comment ID to reply to"),
-      message: z.string().describe("Reply text"),
+      description: "Reply to a specific comment.",
+      inputSchema: {
+        comment_id: metaId.describe("Comment ID to reply to"),
+        message: z.string().describe("Reply text"),
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ comment_id, message }) => {
       try {
@@ -115,12 +131,15 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_hide_comment ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_hide_comment",
-    "Hide or unhide a comment on your post.",
     {
-      comment_id: metaId.describe("Comment ID"),
-      hide: z.boolean().describe("true to hide, false to unhide"),
+      description: "Hide or unhide a comment on your post.",
+      inputSchema: {
+        comment_id: metaId.describe("Comment ID"),
+        hide: z.boolean().describe("true to hide, false to unhide"),
+      },
+      annotations: WRITE_IDEMPOTENT_TOOL,
     },
     async ({ comment_id, hide }) => {
       try {
@@ -133,11 +152,14 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_delete_comment ───────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_delete_comment",
-    "Delete a comment from your media post. This action is irreversible.",
     {
-      comment_id: metaId.describe("Comment ID to delete"),
+      description: "Delete a comment from your media post. This action is irreversible.",
+      inputSchema: {
+        comment_id: metaId.describe("Comment ID to delete"),
+      },
+      annotations: DESTRUCTIVE_TOOL,
     },
     async ({ comment_id }) => {
       try {

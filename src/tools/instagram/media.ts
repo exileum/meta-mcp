@@ -4,19 +4,23 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
 const GET_MEDIA_INSIGHTS_DEFAULT_METRIC = "views,reach";
 
 export function registerIgMediaTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_media_list ───────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_media_list",
-    "Get list of media published on the Instagram account.",
     {
-      limit: z.number().optional().describe("Number of results (max 100, default 25)"),
-      after: z.string().optional().describe("Pagination cursor for next page"),
-      before: z.string().optional().describe("Pagination cursor for previous page"),
+      description: "Get list of media published on the Instagram account.",
+      inputSchema: {
+        limit: z.number().optional().describe("Number of results (max 100, default 25)"),
+        after: z.string().optional().describe("Pagination cursor for next page"),
+        before: z.string().optional().describe("Pagination cursor for previous page"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ limit, after, before }) => {
       try {
@@ -35,12 +39,15 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   );
 
   // ─── ig_get_media ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_media",
-    "Get details of a specific Instagram media post.",
     {
-      media_id: metaId.describe("Media ID"),
-      fields: z.string().optional().default(GET_MEDIA_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MEDIA_DEFAULT_FIELDS})`),
+      description: "Get details of a specific Instagram media post.",
+      inputSchema: {
+        media_id: metaId.describe("Media ID"),
+        fields: z.string().optional().default(GET_MEDIA_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MEDIA_DEFAULT_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ media_id, fields }) => {
       try {
@@ -53,11 +60,14 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   );
 
   // ─── ig_delete_media ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_delete_media",
-    "Delete an Instagram media post (posts, carousels, reels, stories). This action is irreversible. Requires instagram_manage_contents permission (Facebook Login only — not available with Instagram Login).",
     {
-      media_id: metaId.describe("Media ID to delete"),
+      description: "Delete an Instagram media post (posts, carousels, reels, stories). This action is irreversible. Requires instagram_manage_contents permission (Facebook Login only — not available with Instagram Login).",
+      inputSchema: {
+        media_id: metaId.describe("Media ID to delete"),
+      },
+      annotations: DESTRUCTIVE_TOOL,
     },
     async ({ media_id }) => {
       try {
@@ -70,16 +80,19 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   );
 
   // ─── ig_get_media_insights ───────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_media_insights",
-    "Get insights/analytics for a specific media post. Default metrics 'views,reach' are safe for every media type. Metric availability differs by media type — request more selectively to avoid (#100) errors:\n" +
-      "- IMAGE / VIDEO / CAROUSEL: views, reach, saved, total_interactions, likes, comments (note: 'shares' may return (#100) on IMAGE — test before relying on it)\n" +
-      "- REEL: views, reach, saved, total_interactions, likes, comments, shares, reposts, reels_skip_rate\n" +
-      "- STORY: views, reach, total_interactions, navigation, replies, profile_activity, profile_visits, follows\n" +
-      "Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. See https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/ for the authoritative per-type matrix.",
     {
-      media_id: metaId.describe("Media ID"),
-      metric: z.string().optional().default(GET_MEDIA_INSIGHTS_DEFAULT_METRIC).describe(`Comma-separated metrics. Default '${GET_MEDIA_INSIGHTS_DEFAULT_METRIC}' is universally supported; override per media type per the tool description.`),
+      description: "Get insights/analytics for a specific media post. Default metrics 'views,reach' are safe for every media type. Metric availability differs by media type — request more selectively to avoid (#100) errors:\n" +
+        "- IMAGE / VIDEO / CAROUSEL: views, reach, saved, total_interactions, likes, comments (note: 'shares' may return (#100) on IMAGE — test before relying on it)\n" +
+        "- REEL: views, reach, saved, total_interactions, likes, comments, shares, reposts, reels_skip_rate\n" +
+        "- STORY: views, reach, total_interactions, navigation, replies, profile_activity, profile_visits, follows\n" +
+        "Note: 'impressions' and 'video_views' were deprecated in v22.0 — use 'views' instead. See https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/ for the authoritative per-type matrix.",
+      inputSchema: {
+        media_id: metaId.describe("Media ID"),
+        metric: z.string().optional().default(GET_MEDIA_INSIGHTS_DEFAULT_METRIC).describe(`Comma-separated metrics. Default '${GET_MEDIA_INSIGHTS_DEFAULT_METRIC}' is universally supported; override per media type per the tool description.`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ media_id, metric }) => {
       try {
@@ -92,12 +105,15 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
   );
 
   // ─── ig_toggle_comments ──────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_toggle_comments",
-    "Enable or disable comments on an Instagram media post.",
     {
-      media_id: metaId.describe("Media ID"),
-      enabled: z.boolean().describe("true to enable comments, false to disable"),
+      description: "Enable or disable comments on an Instagram media post.",
+      inputSchema: {
+        media_id: metaId.describe("Media ID"),
+        enabled: z.boolean().describe("true to enable comments, false to disable"),
+      },
+      annotations: WRITE_IDEMPOTENT_TOOL,
     },
     async ({ media_id, enabled }) => {
       try {

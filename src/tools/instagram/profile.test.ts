@@ -9,7 +9,8 @@ function makeMockServer() {
   return {
     tools,
     schemas,
-    tool: vi.fn((name: string, _desc: string, schema: z.ZodRawShape, handler: (...args: unknown[]) => unknown) => {
+    registerTool: vi.fn((name: string, config: { inputSchema?: z.ZodRawShape }, handler: (...args: unknown[]) => unknown) => {
+      const schema = config.inputSchema ?? {};
       const parsed = z.object(schema);
       tools.set(name, async (args: Record<string, unknown> = {}) => handler(parsed.parse(args)));
       schemas.set(name, schema);
