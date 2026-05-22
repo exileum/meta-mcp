@@ -75,8 +75,12 @@ export function setupFatalErrorHandlers(options: FatalErrorOptions = {}): void {
     exit(1);
   });
 
-  process.on("uncaughtException", (err) => {
-    log(`[meta-mcp] Uncaught exception — ${err.stack ?? err.message}`);
+  process.on("uncaughtException", (err, origin) => {
+    const prefix =
+      origin === "unhandledRejection"
+        ? "Unhandled promise rejection (via uncaughtException)"
+        : "Uncaught exception";
+    log(`[meta-mcp] ${prefix} — ${err.stack ?? err.message}`);
     exit(1);
   });
 }
