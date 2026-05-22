@@ -72,7 +72,12 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
       description: "Send a DM to a user. Requires 'instagram_business_manage_messages' permission. The recipient must have messaged the account first. Messaging window depends on messaging_type: RESPONSE/UPDATE allow replies within 24 hours of the user's last message; MESSAGE_TAG with tag=HUMAN_AGENT extends the window to 7 days (human-sent support replies only — the HUMAN_AGENT feature requires App Review and forbids automated use, per https://developers.facebook.com/docs/features-reference/human-agent). Other tag values are Messenger-oriented; HUMAN_AGENT is the documented reliable choice on Instagram.",
       inputSchema: {
         recipient_id: z.string().describe("Instagram-scoped user ID of the recipient"),
-        message: z.string().describe("Message text to send"),
+        message: z.string()
+          .min(1)
+          .refine((s) => new TextEncoder().encode(s).length <= 1000, {
+            message: "Message text must be 1000 UTF-8 bytes or less",
+          })
+          .describe("Message text to send (max 1000 UTF-8 bytes per Meta's Instagram Messaging API)"),
         messaging_type: z
           .enum(["RESPONSE", "UPDATE", "MESSAGE_TAG"])
           .optional()

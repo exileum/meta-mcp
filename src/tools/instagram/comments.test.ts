@@ -164,3 +164,61 @@ describe("ig_get_replies pagination cursors", () => {
     expect(call[2]).toMatchObject({ after: "cursor-next", before: "cursor-prev" });
   });
 });
+
+describe("ig_post_comment message length validation", () => {
+  let server: MockServer;
+  let client: MetaClient;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgCommentTools(server as never, client);
+  });
+
+  it("accepts a comment at the 2200-char boundary", async () => {
+    await expect(
+      server.callTool("ig_post_comment", { media_id: "m_1", message: "a".repeat(2200) })
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects a comment exceeding 2200 chars", async () => {
+    await expect(
+      server.callTool("ig_post_comment", { media_id: "m_1", message: "a".repeat(2201) })
+    ).rejects.toThrow();
+  });
+
+  it("rejects an empty comment", async () => {
+    await expect(
+      server.callTool("ig_post_comment", { media_id: "m_1", message: "" })
+    ).rejects.toThrow();
+  });
+});
+
+describe("ig_reply_to_comment message length validation", () => {
+  let server: MockServer;
+  let client: MetaClient;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgCommentTools(server as never, client);
+  });
+
+  it("accepts a reply at the 2200-char boundary", async () => {
+    await expect(
+      server.callTool("ig_reply_to_comment", { comment_id: "c_1", message: "a".repeat(2200) })
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects a reply exceeding 2200 chars", async () => {
+    await expect(
+      server.callTool("ig_reply_to_comment", { comment_id: "c_1", message: "a".repeat(2201) })
+    ).rejects.toThrow();
+  });
+
+  it("rejects an empty reply", async () => {
+    await expect(
+      server.callTool("ig_reply_to_comment", { comment_id: "c_1", message: "" })
+    ).rejects.toThrow();
+  });
+});

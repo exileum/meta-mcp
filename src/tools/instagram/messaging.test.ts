@@ -296,3 +296,55 @@ describe("ig_send_message messaging_type and tag", () => {
     expect(client.ig).not.toHaveBeenCalled();
   });
 });
+
+describe("ig_send_message message length validation", () => {
+  let server: MockServer;
+  let client: MetaClient;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgMessagingTools(server as never, client);
+  });
+
+  it("accepts an ASCII message at the 1000-byte boundary", async () => {
+    await expect(
+      server.callTool("ig_send_message", { recipient_id: "u_1", message: "a".repeat(1000) })
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects an ASCII message exceeding 1000 bytes", async () => {
+    await expect(
+      server.callTool("ig_send_message", { recipient_id: "u_1", message: "a".repeat(1001) })
+    ).rejects.toThrow();
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty message", async () => {
+    await expect(
+      server.callTool("ig_send_message", { recipient_id: "u_1", message: "" })
+    ).rejects.toThrow();
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects a multibyte string under 1000 chars but over 1000 bytes", async () => {
+    // "😀" encodes to 4 UTF-8 bytes; 251 copies = 1004 bytes from only 251 code points
+    // (502 JS string units since each emoji is a surrogate pair).
+    const overByteLimit = "😀".repeat(251);
+    expect(overByteLimit.length).toBeLessThan(1000);
+    expect(new TextEncoder().encode(overByteLimit).length).toBeGreaterThan(1000);
+    await expect(
+      server.callTool("ig_send_message", { recipient_id: "u_1", message: overByteLimit })
+    ).rejects.toThrow();
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("accepts a multibyte string whose byte length is exactly 1000", async () => {
+    // "😀" is 4 bytes; 250 copies = 1000 bytes exactly.
+    const atByteLimit = "😀".repeat(250);
+    expect(new TextEncoder().encode(atByteLimit).length).toBe(1000);
+    await expect(
+      server.callTool("ig_send_message", { recipient_id: "u_1", message: atByteLimit })
+    ).resolves.toBeDefined();
+  });
+});

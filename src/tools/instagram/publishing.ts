@@ -36,10 +36,10 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       description: "Publish a photo to Instagram. Two-step process: creates container then publishes. Requires image_url (publicly accessible HTTPS URL).",
       inputSchema: {
         image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
-        caption: z.string().optional().describe("Post caption (max 2200 chars)"),
+        caption: z.string().max(2200).optional().describe("Post caption (max 2200 chars)"),
         location_id: z.string().optional().describe("Facebook Page location ID"),
         user_tags: z.string().optional().describe("JSON array of user tags: [{username, x, y}]"),
-        alt_text: z.string().optional().describe("Alt text for accessibility"),
+        alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (max 1000 chars per Meta's Instagram media spec)"),
         collaborators: collaboratorsSchema,
       },
       annotations: WRITE_TOOL,
@@ -80,7 +80,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       description: "[DEPRECATED] Use ig_publish_reel instead. Publishes via media_type=REELS under the hood; the legacy VIDEO media_type was deprecated by Meta on Nov 9, 2023. Kept for backward compatibility — new integrations should use ig_publish_reel which exposes Reels-specific options (cover_url, share_to_feed, alt_text).",
       inputSchema: {
         video_url: httpsUrl.describe("Public HTTPS URL of the video"),
-        caption: z.string().optional().describe("Post caption"),
+        caption: z.string().max(2200).optional().describe("Post caption (max 2200 chars)"),
         thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
         location_id: z.string().optional().describe("Facebook Page location ID"),
         collaborators: collaboratorsSchema,
@@ -124,14 +124,14 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           z.object({
             type: z.literal("IMAGE"),
             url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
-            alt_text: z.string().optional().describe("Alt text for accessibility (IMAGE items only)"),
+            alt_text: z.string().max(1000).optional().describe("Alt text for accessibility (IMAGE items only, max 1000 chars per Meta's Instagram media spec)"),
           }),
           z.object({
             type: z.literal("VIDEO"),
             url: httpsUrl.describe("Public HTTPS URL of the video"),
           }),
         ])).min(2).max(10).describe("Array of media items"),
-        caption: z.string().optional().describe("Post caption"),
+        caption: z.string().max(2200).optional().describe("Post caption (max 2200 chars)"),
         location_id: z.string().optional().describe("Facebook Page location ID"),
         collaborators: collaboratorsSchema,
       },
@@ -189,7 +189,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
       description: "Publish a Reel (short video). Waits for video processing.",
       inputSchema: {
         video_url: httpsUrl.describe("Public HTTPS URL of the video"),
-        caption: z.string().optional().describe("Reel caption"),
+        caption: z.string().max(2200).optional().describe("Reel caption (max 2200 chars)"),
         cover_url: httpsUrl.optional().describe("Custom cover image HTTPS URL"),
         share_to_feed: z.boolean().optional().describe("Also share to feed (default true)"),
         thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
