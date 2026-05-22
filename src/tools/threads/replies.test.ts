@@ -4,7 +4,7 @@ import {
   REPLIES_TOP_LEVEL_DEFAULT_FIELDS,
   REPLIES_FULL_TREE_DEFAULT_FIELDS,
 } from "./replies.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, HttpMethod } from "../../services/meta-client.js";
 
 function makeMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
@@ -161,7 +161,7 @@ describe("threads_get_replies mode", () => {
 function makePublishMockClient(): MetaClient {
   return {
     threadsUserId: "threads-123",
-    threads: vi.fn(async (method: string, _path: string) => {
+    threads: vi.fn(async (method: HttpMethod, _path: string) => {
       if (method === "GET") {
         return { data: { status: "FINISHED" }, rateLimit: undefined };
       }
@@ -269,7 +269,7 @@ describe("threads_reply video timeout (#49 regression)", () => {
     let getCount = 0;
     const client = {
       threadsUserId: "threads-123",
-      threads: vi.fn(async (method: string, path: string, params?: Record<string, unknown>) => {
+      threads: vi.fn(async (method: HttpMethod, path: string, params?: Record<string, unknown>) => {
         calls.push([method, path, params]);
         if (method === "GET") {
           getCount++;

@@ -1,6 +1,6 @@
-import { MetaClient, ClientResponse, FormParams } from "../services/meta-client.js";
+import { MetaClient, ClientResponse, FormParams, HttpMethod } from "../services/meta-client.js";
 
-type ApiCallFn = (method: string, path: string, params?: FormParams) => Promise<ClientResponse>;
+type ApiCallFn = (method: HttpMethod, path: string, params?: FormParams) => Promise<ClientResponse>;
 
 // Image containers typically finish in a single poll. Video containers can need
 // up to 5 minutes — Meta recommends "querying a container's status once per minute,
