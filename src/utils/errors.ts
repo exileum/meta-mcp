@@ -39,6 +39,39 @@ export class MetaApiError extends Error {
   }
 }
 
+export type NetworkErrorKind = "timeout" | "network";
+
+interface MetaNetworkErrorInit {
+  kind: NetworkErrorKind;
+  endpoint: string;
+  method: HttpMethod;
+  cause: unknown;
+  timeoutMs: number;
+}
+
+export class MetaNetworkError extends Error {
+  readonly kind: NetworkErrorKind;
+  readonly endpoint: string;
+  readonly method: HttpMethod;
+  readonly timeoutMs: number;
+
+  constructor(init: MetaNetworkErrorInit) {
+    const causeMessage =
+      init.cause instanceof Error ? init.cause.message : String(init.cause);
+    const timeoutSeconds = init.timeoutMs / 1000;
+    const message =
+      init.kind === "timeout"
+        ? `Meta API ${init.method} ${init.endpoint}: request timed out after ${timeoutSeconds}s`
+        : `Meta API ${init.method} ${init.endpoint}: network error — ${causeMessage}`;
+    super(message, { cause: init.cause });
+    this.name = "MetaNetworkError";
+    this.kind = init.kind;
+    this.endpoint = init.endpoint;
+    this.method = init.method;
+    this.timeoutMs = init.timeoutMs;
+  }
+}
+
 const AUTH_CODES = new Set([10, 102, 190]);
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 341, 613]);
 const VALIDATION_CODES = new Set([100, 200, 803]);
@@ -49,6 +82,10 @@ function isBusinessUseCaseRateLimit(code?: number): boolean {
 }
 
 function categorize(error: unknown): ErrorType {
+  // Must run before the `instanceof Error` block — MetaNetworkError.name is
+  // "MetaNetworkError", so the AbortError/TimeoutError checks below would
+  // otherwise miss it and fall through to "internal".
+  if (error instanceof MetaNetworkError) return "network";
   if (error instanceof MetaApiError) {
     const { httpStatus, apiCode, apiType } = error;
     // Check rate_limit before auth: Meta returns rate-limit errors as
