@@ -4,6 +4,8 @@ export const IG_PROFILE_FIELDS =
 export const IG_MEDIA_FIELDS =
   "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
 
+// thumbnail_url is intentionally omitted — the Instagram Hashtag Search API
+// does not return it on hashtag media results, only on user-owned media.
 export const IG_HASHTAG_MEDIA_FIELDS =
   "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count";
 
