@@ -228,9 +228,9 @@ function buildContentPublishText(args: {
 }
 
 function joinTools(tools: string[]): string {
-  if (tools.length === 1) return tools[0];
-  if (tools.length === 2) return `${tools[0]} or ${tools[1]}`;
-  return `${tools.slice(0, -1).join(", ")}, or ${tools[tools.length - 1]}`;
+  if (tools.length === 1) return tools[0]!;
+  if (tools.length === 2) return `${tools[0]!} or ${tools[1]!}`;
+  return `${tools.slice(0, -1).join(", ")}, or ${tools[tools.length - 1]!}`;
 }
 
 function buildAnalyticsReportText(args: {
