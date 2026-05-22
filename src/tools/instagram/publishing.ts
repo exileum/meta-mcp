@@ -119,9 +119,9 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
     },
     async ({ items, caption, location_id, collaborators }) => {
       try {
-        // Step 1: Create child containers
-        const childIds: string[] = [];
-        for (const item of items) {
+        // Children are independent — create them in parallel. Errors propagate
+        // unwrapped so formatErrorResponse keeps MetaApiError categorization.
+        const childIds = await Promise.all(items.map(async (item) => {
           const params: FormParams = { is_carousel_item: true };
           if (item.type === "IMAGE") {
             params.image_url = item.url;
@@ -134,8 +134,8 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
           await waitForIgContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
-          childIds.push(childId);
-        }
+          return childId;
+        }));
         // Step 2: Create carousel container
         const carouselParams: FormParams = {
           media_type: "CAROUSEL",

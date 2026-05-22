@@ -205,14 +205,14 @@ describe("threads_publish_carousel waits for carousel container", () => {
       ],
     });
 
-    // Calls should be:
-    // 1. POST child 1 container
-    // 2. GET child 1 status (wait)
-    // 3. POST child 2 container
-    // 4. GET child 2 status (wait)
-    // 5. POST carousel container
-    // 6. GET carousel status (wait) ← THIS IS THE FIX
-    // 7. POST publish
+    // Children are created in parallel via Promise.all:
+    // 0. POST child 1 container → container-1
+    // 1. POST child 2 container → container-2
+    // 2. GET child 1 status (wait) → FINISHED
+    // 3. GET child 2 status (wait) → FINISHED
+    // 4. POST carousel container → container-5
+    // 5. GET carousel status (wait) ← regression guard for the carousel poll fix
+    // 6. POST publish
     expect(calls).toHaveLength(7);
     expect(calls[4][2]).toHaveProperty("media_type", "CAROUSEL");
     // The GET after carousel creation is the wait poll
@@ -221,6 +221,33 @@ describe("threads_publish_carousel waits for carousel container", () => {
     // Final call is the publish
     expect(calls[6][0]).toBe("POST");
     expect(calls[6][1]).toContain("threads_publish");
+  });
+
+  it("creates child containers in parallel (all child POSTs precede polls)", async () => {
+    server = makeMockServer();
+    const client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/1.jpg" },
+        { type: "IMAGE", url: "https://example.com/2.jpg" },
+        { type: "IMAGE", url: "https://example.com/3.jpg" },
+      ],
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    // Parallel order: 3× POST child, 3× GET child-poll, POST parent, GET parent-poll, POST publish.
+    // Sequential implementation would interleave POST/GET/POST/GET/POST/GET and fail this assertion.
+    // Ordering is deterministic because vi.fn(async () => …) records the call synchronously on
+    // entry and Array.map starts all three async callbacks before any await resumes.
+    expect(calls).toHaveLength(9);
+    expect(calls.slice(0, 3).every((c) => c[0] === "POST")).toBe(true);
+    expect(calls.slice(3, 6).every((c) => c[0] === "GET")).toBe(true);
+    expect(calls[6][0]).toBe("POST");
+    expect(calls[7][0]).toBe("GET");
+    expect(calls[8][0]).toBe("POST");
+    expect(calls[8][1]).toContain("threads_publish");
   });
 });
 
