@@ -2,6 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
+import { IG_PROFILE_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
@@ -36,7 +37,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     async () => {
       try {
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
-          fields: "id,name,username,biography,followers_count,follows_count,media_count,profile_picture_url,website",
+          fields: IG_PROFILE_FIELDS,
         });
         return formatResponse(data, rateLimit);
       } catch (error) {
