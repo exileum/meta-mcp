@@ -2,29 +2,11 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
+import { THREADS_MEDIA_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
-
-const THREADS_MEDIA_FIELDS = [
-  "id",
-  "media_product_type",
-  "media_type",
-  "media_url",
-  "permalink",
-  "text",
-  "timestamp",
-  "shortcode",
-  "is_quote_post",
-  "has_replies",
-  "reply_audience",
-  "topic_tag",
-  "link_attachment_url",
-  "poll_attachment{option_a,option_b,option_c,option_d,option_a_votes_percentage,option_b_votes_percentage,option_c_votes_percentage,option_d_votes_percentage,total_votes,expiration_timestamp}",
-  "gif_url",
-  "alt_text",
-].join(",");
 
 export const authorUsernameSchema = z
   .string()

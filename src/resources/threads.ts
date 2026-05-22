@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../services/meta-client.js";
+import { THREADS_PROFILE_FIELDS } from "../constants/fields.js";
 import { toMcpResourceError } from "../utils/errors.js";
 
 export function registerThreadsResources(server: McpServer, client: MetaClient) {
@@ -10,7 +11,7 @@ export function registerThreadsResources(server: McpServer, client: MetaClient) 
     async () => {
       try {
         const { data } = await client.threads("GET", `/${client.threadsUserId}`, {
-          fields: "id,username,name,threads_profile_picture_url,threads_biography,is_verified",
+          fields: THREADS_PROFILE_FIELDS,
         });
         return {
           contents: [

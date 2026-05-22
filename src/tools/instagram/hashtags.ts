@@ -2,6 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
+import { IG_HASHTAG_MEDIA_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
@@ -71,7 +72,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         const params = buildParams(
           {
             user_id: client.igUserId,
-            fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
+            fields: IG_HASHTAG_MEDIA_FIELDS,
           },
           { limit, after, before }
         );
@@ -101,7 +102,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         const params = buildParams(
           {
             user_id: client.igUserId,
-            fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",
+            fields: IG_HASHTAG_MEDIA_FIELDS,
           },
           { limit, after, before }
         );

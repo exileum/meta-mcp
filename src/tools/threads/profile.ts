@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
+import { THREADS_PROFILE_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
@@ -16,7 +17,7 @@ export function registerThreadsProfileTools(server: McpServer, client: MetaClien
     async () => {
       try {
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}`, {
-          fields: "id,username,name,threads_profile_picture_url,threads_biography,is_verified,is_eligible_for_geo_gating",
+          fields: THREADS_PROFILE_FIELDS,
         });
         return formatResponse(data, rateLimit);
       } catch (error) {

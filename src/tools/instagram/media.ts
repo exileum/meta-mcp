@@ -2,12 +2,12 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
+import { IG_MEDIA_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
-const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
 const GET_MEDIA_INSIGHTS_DEFAULT_METRIC = "views,reach";
 
 export function registerIgMediaTools(server: McpServer, client: MetaClient): void {
@@ -27,7 +27,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
       try {
         const params = buildParams(
           {
-            fields: "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count",
+            fields: IG_MEDIA_FIELDS,
           },
           { limit, after, before }
         );
@@ -46,7 +46,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
       description: "Get details of a specific Instagram media post.",
       inputSchema: {
         media_id: metaId.describe("Media ID"),
-        fields: z.string().optional().default(GET_MEDIA_DEFAULT_FIELDS).describe(`Comma-separated fields (default: ${GET_MEDIA_DEFAULT_FIELDS})`),
+        fields: z.string().optional().default(IG_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${IG_MEDIA_FIELDS})`),
       },
       annotations: READ_ONLY_TOOL,
     },

@@ -230,7 +230,7 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 | Resource URI | Description |
 |-------------|-------------|
 | `meta-mcp://instagram/profile` | Instagram account profile data |
-| `meta-mcp://threads/profile` | Threads account profile data (includes is_verified) |
+| `meta-mcp://threads/profile` | Threads account profile data (includes is_verified and is_eligible_for_geo_gating) |
 
 ## Prompts
 
