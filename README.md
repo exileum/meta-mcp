@@ -175,18 +175,19 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 | `ig_send_message` | Send a DM (optional `messaging_type` = `RESPONSE`/`UPDATE`/`MESSAGE_TAG` and `tag` = `HUMAN_AGENT` for the 7-day human-agent window) |
 | `ig_get_message` | Get message details |
 
-### Threads — Publishing (8)
+### Threads — Publishing (9)
 
 | Tool | Description |
 |------|-------------|
-| `threads_publish_text` | Publish a text post in a single API call (`auto_publish_text=true`, default; set `auto_publish=false` for the legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, text attachments up to 10K chars with styling |
-| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`) |
-| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`) |
-| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories, geo-gating via `allowlisted_country_codes` on the parent container) |
+| `threads_publish_text` | Publish a text post in a single API call (`auto_publish_text=true`, default; set `auto_publish=false` for the legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`, text attachments up to 10K chars with styling |
+| `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`) |
+| `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`) |
+| `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories, geo-gating via `allowlisted_country_codes` and location tagging via `location_id` on the parent container) |
 | `threads_delete_post` | Delete a post (max 100/day) |
 | `threads_get_container_status` | Check container processing status (unpublished containers only) |
 | `threads_get_publishing_limit` | Check remaining publishing quota (250 posts/day) |
 | `threads_repost` | Repost an existing thread to your profile (requires `threads_content_publish`) |
+| `threads_search_locations` | Search Threads-supported locations by query (`q`) or coordinates (`latitude`+`longitude`) to obtain a `location_id` for the four `threads_publish_*` tools (requires `threads_location_tagging` permission) |
 
 ### Threads — Media & Search (3)
 

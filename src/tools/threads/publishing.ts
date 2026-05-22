@@ -50,7 +50,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_text ────────────────────────────────────
   server.tool(
     "threads_publish_text",
-    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
+    "Publish a text-only post on Threads. By default publishes in a single API call via auto_publish_text=true (faster and avoids the 4279009 'container not propagated' race condition). Supports optional link attachment, poll, GIF, topic tag, quote post, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, location tagging via location_id, and text_attachment for long-form content (up to 10,000 chars with optional styling and link). Only one attachment type per post — text_attachment, poll_options, link_attachment, and gif_id+gif_provider are mutually exclusive. Set auto_publish=false to fall back to the legacy two-step create-then-publish flow.",
     {
       text: z.string().max(500).describe("Post text (max 500 chars)"),
       reply_control: replyControlSchema,
@@ -63,13 +63,14 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
+      location_id: z.string().optional().describe("Location ID for tagging the post. Use threads_search_locations to find IDs. Requires the threads_location_tagging permission on the access token."),
       text_attachment: z.string().min(1).max(10000).optional().describe("Long-form text attachment (max 10,000 chars). Renders as expandable 'Read more' block beneath the primary text. Cannot be combined with poll_options, link_attachment, or gif_id+gif_provider."),
       text_attachment_link: z.string().url().optional().describe("URL to include inside the text attachment card. Requires text_attachment."),
       text_attachment_styling: textAttachmentStylingSchema,
       auto_publish: z.boolean().optional().default(true).describe("When true (default), combine container creation and publishing into a single API call via auto_publish_text=true — one HTTP request instead of two, and no risk of the 4279009 'container not propagated yet' race. Set to false to fall back to the legacy two-step flow (POST /threads, then POST /threads_publish)."),
       alt_text: z.never("alt_text is not supported on text-only Threads posts (media_type=TEXT). Use threads_publish_image, threads_publish_video, or threads_publish_carousel for accessibility labels — those tools accept alt_text on IMAGE/VIDEO/CAROUSEL containers.").optional().describe("Reserved — must be omitted. alt_text is only supported on image, video, and carousel posts; passing it here raises a Zod schema error."),
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, is_spoiler, share_to_ig_story, allowlisted_country_codes, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       try {
         // Validate mutual exclusions
         if (text_attachment && poll_options) {
@@ -143,6 +144,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         }
         applyShareToIgStory(params, share_to_ig_story);
         applyAllowlistedCountryCodes(params, allowlisted_country_codes);
+        if (location_id) params.location_id = location_id;
         // Treat `undefined` as the default (true) so the behavior is stable even
         // if a caller bypasses Zod's schema-level default (e.g., direct handler
         // invocation in tests). Only an explicit `false` takes the legacy path.
@@ -168,7 +170,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_image ───────────────────────────────────
   server.tool(
     "threads_publish_image",
-    "Publish an image post on Threads. Supports topic tag, quote post, alt text, spoiler flag, cross-share to Instagram Stories, and geo-gating via allowlisted_country_codes.",
+    "Publish an image post on Threads. Supports topic tag, quote post, alt text, spoiler flag, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and location tagging via location_id.",
     {
       image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG/PNG, max 8MB)"),
       text: z.string().max(500).optional().describe("Caption text"),
@@ -179,8 +181,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
+      location_id: z.string().optional().describe("Location ID for tagging the post. Use threads_search_locations to find IDs. Requires the threads_location_tagging permission on the access token."),
     },
-    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes }) => {
+    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }) => {
       try {
         const params: FormParams = { media_type: "IMAGE", image_url };
         if (text) params.text = text;
@@ -191,6 +194,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         applyAllowlistedCountryCodes(params, allowlisted_country_codes);
+        if (location_id) params.location_id = location_id;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -208,7 +212,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_video ───────────────────────────────────
   server.tool(
     "threads_publish_video",
-    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, cross-share to Instagram Stories, and geo-gating via allowlisted_country_codes. Note: cross-share to IG Stories may silently fail for video posts (the Threads post still publishes).",
+    "Publish a video post on Threads. Waits for video processing. Supports topic tag, quote post, alt text, spoiler flag, cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and location tagging via location_id. Note: cross-share to IG Stories may silently fail for video posts (the Threads post still publishes).",
     {
       video_url: httpsUrl.describe("Public HTTPS URL of the video (MP4/MOV, max 1GB, up to 5 min)"),
       text: z.string().max(500).optional().describe("Caption text"),
@@ -219,8 +223,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
+      location_id: z.string().optional().describe("Location ID for tagging the post. Use threads_search_locations to find IDs. Requires the threads_location_tagging permission on the access token."),
     },
-    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes }) => {
+    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }) => {
       try {
         const params: FormParams = { media_type: "VIDEO", video_url };
         if (text) params.text = text;
@@ -231,6 +236,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (is_spoiler) params.is_spoiler_media = true;
         applyShareToIgStory(params, share_to_ig_story);
         applyAllowlistedCountryCodes(params, allowlisted_country_codes);
+        if (location_id) params.location_id = location_id;
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
@@ -248,7 +254,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
   // ─── threads_publish_carousel ────────────────────────────────
   server.tool(
     "threads_publish_carousel",
-    "Publish a carousel post on Threads with 2-20 images/videos. Supports cross-share to Instagram Stories and geo-gating via allowlisted_country_codes (parent container only).",
+    "Publish a carousel post on Threads with 2-20 images/videos. Supports cross-share to Instagram Stories, geo-gating via allowlisted_country_codes, and location tagging via location_id (parent container only).",
     {
       items: z.array(z.object({
         type: z.enum(["IMAGE", "VIDEO"]).describe("Media type"),
@@ -261,8 +267,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       quote_post_id: z.string().optional().describe("ID of a post to quote"),
       share_to_ig_story: shareToIgStorySchema,
       allowlisted_country_codes: allowlistedCountryCodesSchema,
+      location_id: z.string().optional().describe("Location ID for tagging the post. Use threads_search_locations to find IDs. Requires the threads_location_tagging permission on the access token."),
     },
-    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes }) => {
+    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes, location_id }) => {
       try {
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
@@ -290,6 +297,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         if (quote_post_id) carouselParams.quote_post_id = quote_post_id;
         applyShareToIgStory(carouselParams, share_to_ig_story);
         applyAllowlistedCountryCodes(carouselParams, allowlisted_country_codes);
+        if (location_id) carouselParams.location_id = location_id;
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
@@ -374,6 +382,41 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Repost");
+      }
+    }
+  );
+
+  // ─── threads_search_locations ────────────────────────────────
+  server.tool(
+    "threads_search_locations",
+    "Search Threads-supported locations by keyword or coordinates. Returns a list of location objects (id, name, address, city, country, latitude, longitude, postal_code) whose id can be passed as location_id to the four threads_publish_* tools to tag a post. Either q or both latitude+longitude must be provided. Requires the threads_location_tagging permission; without app approval, the endpoint restricts results to the literal query 'Menlo Park' for testing.",
+    {
+      q: z.string().min(1).optional().describe("Search query (e.g., 'Menlo Park'). Either q or both latitude+longitude must be provided. If your app does not yet have the threads_location_tagging permission, the API restricts results to the literal query 'Menlo Park' for testing."),
+      latitude: z.number().min(-90).max(90).optional().describe("Latitude in decimal degrees (-90..90). Must be provided together with longitude."),
+      longitude: z.number().min(-180).max(180).optional().describe("Longitude in decimal degrees (-180..180). Must be provided together with latitude."),
+    },
+    async ({ q, latitude, longitude }) => {
+      try {
+        const hasLat = latitude !== undefined;
+        const hasLng = longitude !== undefined;
+        const hasCoords = hasLat || hasLng;
+        if (q === undefined && !hasCoords) {
+          return validationError("threads_search_locations requires either q or both latitude and longitude.");
+        }
+        if (q !== undefined && hasCoords) {
+          return validationError("threads_search_locations accepts either q or latitude+longitude, not both.");
+        }
+        if (hasCoords && !(hasLat && hasLng)) {
+          return validationError("threads_search_locations requires both latitude and longitude when searching by coordinates.");
+        }
+        const params: FormParams = {};
+        if (q !== undefined) params.q = q;
+        if (hasLat) params.latitude = latitude;
+        if (hasLng) params.longitude = longitude;
+        const { data, rateLimit } = await client.threads("GET", "/location_search", params);
+        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+      } catch (error) {
+        return formatErrorResponse(error, "Search locations");
       }
     }
   );

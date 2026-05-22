@@ -72,6 +72,7 @@ describe("registerAll", () => {
       "threads_get_container_status",
       "threads_get_publishing_limit",
       "threads_repost",
+      "threads_search_locations",
       "threads_get_posts",
       "threads_get_post",
       "threads_search_posts",

@@ -1371,3 +1371,270 @@ describe("threads_repost", () => {
     expect(result.content[0].text).toContain("repost-999");
   });
 });
+
+describe("threads_publish_text location_id", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes location_id in container creation params", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello", location_id: "12345" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[0]).toBe("POST");
+    expect(createCall[2]).toHaveProperty("location_id", "12345");
+  });
+
+  it("excludes location_id when not provided", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("location_id");
+  });
+});
+
+describe("threads_publish_image location_id", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes location_id in container creation params", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg", location_id: "12345" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[0]).toBe("POST");
+    expect(createCall[2]).toHaveProperty("location_id", "12345");
+  });
+
+  it("excludes location_id when not provided", async () => {
+    const handler = server.tools.get("threads_publish_image")!;
+    await handler({ image_url: "https://example.com/photo.jpg" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("location_id");
+  });
+});
+
+describe("threads_publish_video location_id", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes location_id in container creation params", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4", location_id: "12345" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[0]).toBe("POST");
+    expect(createCall[2]).toHaveProperty("location_id", "12345");
+  });
+
+  it("excludes location_id when not provided", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/video.mp4" });
+
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("location_id");
+  });
+});
+
+describe("threads_publish_carousel location_id", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("includes location_id only on the parent CAROUSEL container, not on child containers", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/1.jpg" },
+        { type: "IMAGE", url: "https://example.com/2.jpg" },
+      ],
+      location_id: "12345",
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).toHaveProperty("location_id", "12345");
+
+    const childCalls = calls.filter(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.is_carousel_item === true
+    );
+    expect(childCalls).toHaveLength(2);
+    for (const call of childCalls) {
+      expect(call[2]).not.toHaveProperty("location_id");
+    }
+  });
+
+  it("excludes location_id from parent container when not provided", async () => {
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/1.jpg" },
+        { type: "IMAGE", url: "https://example.com/2.jpg" },
+      ],
+    });
+
+    const calls = (client.threads as ReturnType<typeof vi.fn>).mock.calls;
+    const carouselCreateCall = calls.find(
+      (c: unknown[]) => (c[2] as Record<string, unknown>)?.media_type === "CAROUSEL"
+    );
+    expect(carouselCreateCall).toBeDefined();
+    expect(carouselCreateCall![2]).not.toHaveProperty("location_id");
+  });
+});
+
+function makeParsingMockServer() {
+  const tools = new Map<string, (...args: unknown[]) => unknown>();
+  return {
+    tools,
+    tool: vi.fn((name: string, _desc: string, schema: z.ZodRawShape, handler: (...args: unknown[]) => unknown) => {
+      const parsed = z.object(schema);
+      tools.set(name, async (args: Record<string, unknown> = {}) => handler(parsed.parse(args)));
+    }),
+  };
+}
+
+describe("threads_search_locations", () => {
+  function makeSearchClient(): MetaClient {
+    return {
+      threadsUserId: "threads-123",
+      threads: vi.fn(async () => ({
+        data: { data: [{ id: "12345", name: "Facebook HQ" }] },
+        rateLimit: undefined,
+      })),
+    } as unknown as MetaClient;
+  }
+
+  it("calls GET /location_search and forwards q", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    await handler({ q: "Menlo Park" });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toBe("GET");
+    expect(call[1]).toBe("/location_search");
+    expect(call[2]).toEqual({ q: "Menlo Park" });
+  });
+
+  it("forwards latitude and longitude when provided together", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    await handler({ latitude: 37.48, longitude: -122.15 });
+
+    const call = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[1]).toBe("/location_search");
+    expect(call[2]).toEqual({ latitude: 37.48, longitude: -122.15 });
+  });
+
+  it("returns a validation error when no parameters are provided", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    const result = await handler({}) as { isError: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("either q or both latitude and longitude");
+    expect((client.threads as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it("returns a validation error when only latitude is provided", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    const result = await handler({ latitude: 37.48 }) as { isError: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("both latitude and longitude");
+    expect((client.threads as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it("returns a validation error when only longitude is provided", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    const result = await handler({ longitude: -122.15 }) as { isError: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("both latitude and longitude");
+    expect((client.threads as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it("returns a validation error when q is combined with coordinates", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    const result = await handler({ q: "Menlo Park", latitude: 37.48, longitude: -122.15 }) as { isError: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("not both");
+    expect((client.threads as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it("rejects out-of-range latitude at the schema level", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    await expect(handler({ latitude: 91, longitude: 0 })).rejects.toThrow();
+  });
+
+  it("rejects out-of-range longitude at the schema level", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    await expect(handler({ latitude: 0, longitude: 181 })).rejects.toThrow();
+  });
+
+  it("rejects an empty q string at the schema level", async () => {
+    const server = makeParsingMockServer();
+    const client = makeSearchClient();
+    registerThreadsPublishingTools(server as never, client);
+
+    const handler = server.tools.get("threads_search_locations")!;
+    await expect(handler({ q: "" })).rejects.toThrow();
+  });
+});
