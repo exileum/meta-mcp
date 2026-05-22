@@ -1623,3 +1623,74 @@ describe("computeBackoffDelay", () => {
     expect(computeBackoffDelay(5, 0, () => 1)).toBe(0);
   });
 });
+
+describe("updateConfig", () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // Fresh Response per call — Response bodies can only be read once, so a
+    // shared mockResolvedValue breaks the second client.* call in the same test.
+    fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => jsonResponse({ ok: true }));
+  });
+
+  it("uses the new instagramAccessToken on the next client.ig() call", async () => {
+    const client = new MetaClient(mockConfig());
+
+    client.updateConfig({ instagramAccessToken: "rotated-ig" });
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+    expect(new URL(url).searchParams.get("access_token")).toBe("rotated-ig");
+  });
+
+  it("uses the new threadsAccessToken on the next client.threads() call", async () => {
+    const client = new MetaClient(mockConfig());
+
+    client.updateConfig({ threadsAccessToken: "rotated-threads" });
+    await client.threads("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+    expect(new URL(url).searchParams.get("access_token")).toBe("rotated-threads");
+  });
+
+  it("only mutates fields named in the partial — other fields stay as-configured", async () => {
+    const client = new MetaClient(mockConfig());
+
+    client.updateConfig({ instagramAccessToken: "rotated-ig" });
+    expect(client.igUserId).toBe("ig-user-id");
+    expect(client.threadsUserId).toBe("threads-user-id");
+
+    await client.threads("GET", "/me");
+    const [threadsUrl] = fetchSpy.mock.calls[0] as [string];
+    expect(new URL(threadsUrl).searchParams.get("access_token")).toBe("threads-token");
+  });
+
+  it("treats an empty partial as a no-op (existing config preserved)", async () => {
+    const client = new MetaClient(mockConfig());
+
+    client.updateConfig({});
+    await client.ig("GET", "/me");
+
+    const [url] = fetchSpy.mock.calls[0] as [string];
+    expect(new URL(url).searchParams.get("access_token")).toBe("ig-token");
+  });
+
+  it("can update both tokens in a single call", async () => {
+    const client = new MetaClient(mockConfig());
+
+    client.updateConfig({
+      instagramAccessToken: "rotated-ig",
+      threadsAccessToken: "rotated-threads",
+    });
+    await client.ig("GET", "/me");
+    await client.threads("GET", "/me");
+
+    const [igUrl] = fetchSpy.mock.calls[0] as [string];
+    const [threadsUrl] = fetchSpy.mock.calls[1] as [string];
+    expect(new URL(igUrl).searchParams.get("access_token")).toBe("rotated-ig");
+    expect(new URL(threadsUrl).searchParams.get("access_token")).toBe("rotated-threads");
+  });
+});
