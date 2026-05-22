@@ -29,7 +29,7 @@ describe("ig_get_comments fields override", () => {
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/media_1/comments");
     expect(call[2]).toEqual({
-      fields: "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}",
+      fields: "id,text,username,timestamp,like_count,hidden,from,replies{id,text,username,timestamp,like_count,hidden}",
     });
   });
 
@@ -57,7 +57,7 @@ describe("ig_get_comment fields override", () => {
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/c_1");
     expect(call[2]).toEqual({
-      fields: "id,text,username,timestamp,like_count,parent_id,media",
+      fields: "id,text,username,timestamp,like_count,hidden,from,parent_id,media",
     });
   });
 
@@ -85,7 +85,7 @@ describe("ig_get_replies fields override", () => {
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[1]).toBe("/c_1/replies");
     expect(call[2]).toEqual({
-      fields: "id,text,username,timestamp,like_count",
+      fields: "id,text,username,timestamp,like_count,hidden,from",
     });
   });
 
