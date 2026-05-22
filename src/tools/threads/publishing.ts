@@ -6,6 +6,7 @@ import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIM
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
+import { makeProgressNotifier, ProgressExtra } from "../../utils/progress.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_TOOL } from "../annotations.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
@@ -202,7 +203,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       },
       annotations: WRITE_TOOL,
     },
-    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }) => {
+    async ({ image_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }, extra?: ProgressExtra) => {
       try {
         const params = buildParams(
           { media_type: "IMAGE", image_url },
@@ -221,7 +222,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForThreadsContainer(client, containerId);
+        await waitForThreadsContainer(client, containerId, IMAGE_PROCESSING_TIMEOUT, { onProgress: makeProgressNotifier(extra) });
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
@@ -251,7 +252,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       },
       annotations: WRITE_TOOL,
     },
-    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }) => {
+    async ({ video_url, text, reply_control, topic_tag, quote_post_id, alt_text, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id }, extra?: ProgressExtra) => {
       try {
         const params = buildParams(
           { media_type: "VIDEO", video_url },
@@ -270,7 +271,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: container } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof container.id !== "string") throw new Error("Container creation did not return a valid id");
         const containerId = container.id;
-        await waitForThreadsContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT);
+        await waitForThreadsContainer(client, containerId, VIDEO_PROCESSING_TIMEOUT, { onProgress: makeProgressNotifier(extra) });
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
@@ -302,7 +303,10 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       },
       annotations: WRITE_TOOL,
     },
-    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes, location_id }) => {
+    async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes, location_id }, extra?: ProgressExtra) => {
+      // See ig_publish_carousel — shared notifier keeps progress monotonic
+      // across parallel child polls.
+      const onProgress = makeProgressNotifier(extra, "shared");
       try {
         // Children are independent — create them in parallel. Errors propagate
         // unwrapped so formatErrorResponse keeps MetaApiError categorization.
@@ -318,7 +322,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           const { data: child } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
-          await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
+          await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT, { onProgress });
           return childId;
         }));
         const carouselParams = buildParams(
@@ -330,13 +334,17 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: carousel } = await client.threads("POST", `/${client.threadsUserId}/threads`, carouselParams);
         if (typeof carousel.id !== "string") throw new Error("Container creation did not return a valid id");
         const carouselId = carousel.id;
-        await waitForThreadsContainer(client, carouselId);
+        await waitForThreadsContainer(client, carouselId, IMAGE_PROCESSING_TIMEOUT, { onProgress });
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: carouselId,
         });
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel");
+      } finally {
+        // Sibling polls still in-flight after a Promise.all rejection must
+        // not keep emitting progress for the now-completed request.
+        onProgress?.stop();
       }
     }
   );

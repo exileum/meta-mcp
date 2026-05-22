@@ -93,6 +93,8 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 - Rate limit tracking via `x-app-usage` header — and **automatic client-side throttling** at 80% (1s slowdown) / 90% (5s backoff) so a burst of tool calls stays under Meta's per-app quota
 - **Automatic retry** for transient Meta API failures (HTTP `429`/`500`/`502`/`503`/`504`, network errors, `fetch` timeouts) with exponential backoff and `Retry-After` honoring; tunable via `MetaClient`'s `maxRetries` option (default 3, set to 0 to disable)
 - **Structured error responses** with `error_type` (`auth`, `validation`, `rate_limit`, `server`, `network`, `internal`), HTTP status, Meta API code/subcode/type, and a `remediation` hint where actionable — see [`CHANGELOG.md`](./CHANGELOG.md) for the JSON shape
+- **MCP server `instructions`** sent during `initialize` so clients know required env vars, the two-step publish flow, expected video processing times, and the `_rateLimit` envelope without re-reading the README
+- **MCP `notifications/progress`** emitted while polling container status during publishing — attach a `progressToken` to `ig_publish_*` / `threads_publish_image|video|carousel` calls and the server reports each poll attempt
 
 ## Tools
 

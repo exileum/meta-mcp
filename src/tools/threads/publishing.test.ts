@@ -1639,3 +1639,62 @@ describe("threads_search_locations", () => {
     await expect(handler({ q: "" })).rejects.toThrow();
   });
 });
+
+describe("Threads publish progress notifications", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  it("emits a notifications/progress event during threads_publish_video when a progressToken is set", async () => {
+    const sendNotification = vi.fn(async () => undefined);
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler(
+      { video_url: "https://example.com/v.mp4" },
+      { _meta: { progressToken: 7 }, sendNotification }
+    );
+    expect(sendNotification).toHaveBeenCalled();
+    const call = sendNotification.mock.calls[0][0] as { method: string; params: { progressToken: number } };
+    expect(call.method).toBe("notifications/progress");
+    expect(call.params.progressToken).toBe(7);
+  });
+
+  it("does not emit progress when no progressToken is set", async () => {
+    const sendNotification = vi.fn(async () => undefined);
+    const handler = server.tools.get("threads_publish_video")!;
+    await handler({ video_url: "https://example.com/v.mp4" }, { _meta: {}, sendNotification });
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when extra is omitted", async () => {
+    const handler = server.tools.get("threads_publish_video")!;
+    await expect(handler({ video_url: "https://example.com/v.mp4" })).resolves.toBeDefined();
+  });
+
+  it("threads_publish_carousel emits strictly increasing progress values via the shared notifier", async () => {
+    const sendNotification = vi.fn(async () => undefined);
+    const handler = server.tools.get("threads_publish_carousel")!;
+    await handler(
+      {
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg" },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+        ],
+      },
+      { _meta: { progressToken: 99 }, sendNotification }
+    );
+    // 2 child polls + 1 final carousel poll = 3 emissions on the shared token.
+    expect(sendNotification).toHaveBeenCalledTimes(3);
+    const progressValues = sendNotification.mock.calls.map(
+      (call) => (call[0] as { params: { progress: number } }).params.progress
+    );
+    expect(progressValues).toEqual([1, 2, 3]);
+    const firstCall = sendNotification.mock.calls[0][0] as { params: { progressToken: number; total?: number } };
+    expect(firstCall.params.progressToken).toBe(99);
+    expect(firstCall.params.total).toBeUndefined();
+  });
+});

@@ -13,6 +13,15 @@ import { setupFatalErrorHandlers, setupShutdownHandlers } from "./shutdown.js";
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json") as { version: string };
 
+const SERVER_INSTRUCTIONS = [
+  "Meta MCP server for managing Instagram and Threads via the Meta Graph API.",
+  "Instagram tools require INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID; Threads tools require THREADS_ACCESS_TOKEN and THREADS_USER_ID.",
+  "Token-rotation tools (meta_exchange_token, meta_refresh_token) additionally need META_APP_ID and META_APP_SECRET.",
+  "Most publishing tools follow a two-step flow internally: create a container, wait for processing (up to 30s for images, up to 5 minutes for videos), then publish — exposed as a single MCP tool call.",
+  "When the client sets a progressToken on a publish call, the server emits notifications/progress events while polling container status.",
+  "Tool responses include a _rateLimit field when the Meta API returns rate-limit headers; check it to throttle subsequent calls.",
+].join(" ");
+
 async function main(): Promise<void> {
   let config: MetaConfig;
   try {
@@ -25,6 +34,8 @@ async function main(): Promise<void> {
   const server = new McpServer({
     name: "meta-mcp",
     version: SERVER_VERSION,
+  }, {
+    instructions: SERVER_INSTRUCTIONS,
   });
 
   registerAll(server, client);
@@ -40,6 +51,8 @@ export function createSandboxServer(): McpServer {
   const sandbox = new McpServer({
     name: "meta-mcp",
     version: SERVER_VERSION,
+  }, {
+    instructions: SERVER_INSTRUCTIONS,
   });
 
   const mockConfig: MetaConfig = {

@@ -98,6 +98,28 @@ describe("pollContainerStatus", () => {
     await promise;
     expect(apiCall).toHaveBeenCalledTimes(2);
   });
+
+  it("invokes onProgress after every poll with 1-based progress, maxAttempts total, and status message", async () => {
+    const apiCall = makeApiCall(["IN_PROGRESS", "IN_PROGRESS", "FINISHED"], "status");
+    const onProgress = vi.fn();
+    const promise = pollContainerStatus("c-1", { ...defaults, apiCall, maxWait: 30, interval: 5000, onProgress });
+    await vi.advanceTimersByTimeAsync(15_000);
+    await promise;
+    expect(onProgress).toHaveBeenCalledTimes(3);
+    expect(onProgress).toHaveBeenNthCalledWith(1, 1, 6, "Container status: IN_PROGRESS");
+    expect(onProgress).toHaveBeenNthCalledWith(2, 2, 6, "Container status: IN_PROGRESS");
+    expect(onProgress).toHaveBeenNthCalledWith(3, 3, 6, "Container status: FINISHED");
+  });
+
+  it("does not abort the poll when onProgress throws", async () => {
+    const apiCall = makeApiCall(["IN_PROGRESS", "FINISHED"], "status");
+    const onProgress = vi.fn(() => { throw new Error("notifier blew up"); });
+    const promise = pollContainerStatus("c-1", { ...defaults, apiCall, interval: 1000, onProgress });
+    await vi.advanceTimersByTimeAsync(2_000);
+    await expect(promise).resolves.toBeUndefined();
+    expect(onProgress).toHaveBeenCalledTimes(2);
+    expect(apiCall).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("waitForIgContainer", () => {
