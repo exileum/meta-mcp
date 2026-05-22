@@ -4,6 +4,7 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL } from "../annotations.js";
 
 const THREADS_MEDIA_FIELDS = [
   "id",
@@ -36,16 +37,19 @@ export const authorUsernameSchema = z
 
 export function registerThreadsMediaTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_posts ───────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "threads_get_posts",
-    "Get a list of Threads posts published by the authenticated user.",
     {
-      limit: z.number().optional().describe("Number of results (default 25)"),
-      since: z.string().optional().describe("Start date (ISO 8601 or Unix timestamp)"),
-      until: z.string().optional().describe("End date (ISO 8601 or Unix timestamp)"),
-      after: z.string().optional().describe("Pagination cursor"),
-      before: z.string().optional().describe("Pagination cursor"),
-      fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
+      description: "Get a list of Threads posts published by the authenticated user.",
+      inputSchema: {
+        limit: z.number().optional().describe("Number of results (default 25)"),
+        since: z.string().optional().describe("Start date (ISO 8601 or Unix timestamp)"),
+        until: z.string().optional().describe("End date (ISO 8601 or Unix timestamp)"),
+        after: z.string().optional().describe("Pagination cursor"),
+        before: z.string().optional().describe("Pagination cursor"),
+        fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ limit, since, until, after, before, fields }) => {
       try {
@@ -64,12 +68,15 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
   );
 
   // ─── threads_get_post ────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "threads_get_post",
-    "Get details of a specific Threads post.",
     {
-      post_id: metaId.describe("Threads post ID"),
-      fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
+      description: "Get details of a specific Threads post.",
+      inputSchema: {
+        post_id: metaId.describe("Threads post ID"),
+        fields: z.string().optional().default(THREADS_MEDIA_FIELDS).describe(`Comma-separated fields (default: ${THREADS_MEDIA_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ post_id, fields }) => {
       try {
@@ -82,19 +89,22 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
   );
 
   // ─── threads_search_posts ────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "threads_search_posts",
-    "Search for public Threads posts by keyword or topic tag. Requires threads_keyword_search permission.",
     {
-      q: z.string().describe("Search keyword or query"),
-      search_type: z.enum(["TOP", "RECENT"]).optional().describe("Result ordering: TOP (default) or RECENT"),
-      search_mode: z.enum(["KEYWORD", "TAG"]).optional().describe("Search by KEYWORD (default) or TAG"),
-      media_type: z.enum(["TEXT", "IMAGE", "VIDEO"]).optional().describe("Filter results by media type"),
-      author_username: authorUsernameSchema,
-      since: z.string().optional().describe("Start date (Unix timestamp)"),
-      until: z.string().optional().describe("End date (Unix timestamp)"),
-      limit: z.number().min(1).max(100).optional().describe("Number of results (max 100, default 25)"),
-      after: z.string().optional().describe("Pagination cursor"),
+      description: "Search for public Threads posts by keyword or topic tag. Requires threads_keyword_search permission.",
+      inputSchema: {
+        q: z.string().describe("Search keyword or query"),
+        search_type: z.enum(["TOP", "RECENT"]).optional().describe("Result ordering: TOP (default) or RECENT"),
+        search_mode: z.enum(["KEYWORD", "TAG"]).optional().describe("Search by KEYWORD (default) or TAG"),
+        media_type: z.enum(["TEXT", "IMAGE", "VIDEO"]).optional().describe("Filter results by media type"),
+        author_username: authorUsernameSchema,
+        since: z.string().optional().describe("Start date (Unix timestamp)"),
+        until: z.string().optional().describe("End date (Unix timestamp)"),
+        limit: z.number().min(1).max(100).optional().describe("Number of results (max 100, default 25)"),
+        after: z.string().optional().describe("Pagination cursor"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ q, search_type, search_mode, media_type, author_username, since, until, limit, after }) => {
       try {

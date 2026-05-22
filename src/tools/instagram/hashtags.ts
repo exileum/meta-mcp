@@ -4,14 +4,18 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL } from "../annotations.js";
 
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
   // ─── ig_search_hashtag ───────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_search_hashtag",
-    "Search for a hashtag ID by name. Required before querying hashtag media. Limited to 30 unique hashtags per 7-day rolling window.",
     {
-      q: z.string().describe("Hashtag name to search (without #)"),
+      description: "Search for a hashtag ID by name. Required before querying hashtag media. Limited to 30 unique hashtags per 7-day rolling window.",
+      inputSchema: {
+        q: z.string().describe("Hashtag name to search (without #)"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ q }) => {
       try {
@@ -27,11 +31,14 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_hashtag ──────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_hashtag",
-    "Get hashtag information by ID.",
     {
-      hashtag_id: metaId.describe("Hashtag ID (from ig_search_hashtag)"),
+      description: "Get hashtag information by ID.",
+      inputSchema: {
+        hashtag_id: metaId.describe("Hashtag ID (from ig_search_hashtag)"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ hashtag_id }) => {
       try {
@@ -46,14 +53,17 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_hashtag_recent ───────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_hashtag_recent",
-    "Get recent media tagged with a specific hashtag.",
     {
-      hashtag_id: metaId.describe("Hashtag ID"),
-      limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor for next page"),
-      before: z.string().optional().describe("Pagination cursor for previous page"),
+      description: "Get recent media tagged with a specific hashtag.",
+      inputSchema: {
+        hashtag_id: metaId.describe("Hashtag ID"),
+        limit: z.number().optional().describe("Number of results"),
+        after: z.string().optional().describe("Pagination cursor for next page"),
+        before: z.string().optional().describe("Pagination cursor for previous page"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ hashtag_id, limit, after, before }) => {
       try {
@@ -73,14 +83,17 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_hashtag_top ──────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_hashtag_top",
-    "Get top (most popular) media tagged with a specific hashtag.",
     {
-      hashtag_id: metaId.describe("Hashtag ID"),
-      limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor for next page"),
-      before: z.string().optional().describe("Pagination cursor for previous page"),
+      description: "Get top (most popular) media tagged with a specific hashtag.",
+      inputSchema: {
+        hashtag_id: metaId.describe("Hashtag ID"),
+        limit: z.number().optional().describe("Number of results"),
+        after: z.string().optional().describe("Pagination cursor for next page"),
+        before: z.string().optional().describe("Pagination cursor for previous page"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ hashtag_id, limit, after, before }) => {
       try {

@@ -4,6 +4,7 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 export const igBusinessDiscoveryUsernameSchema = z
   .string()
@@ -24,10 +25,13 @@ const BUSINESS_DISCOVERY_DEFAULT_FIELDS = "id,username,name,biography,followers_
 
 export function registerIgProfileTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_profile ──────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_profile",
-    "Get Instagram Business/Creator account profile information.",
-    {},
+    {
+      description: "Get Instagram Business/Creator account profile information.",
+      inputSchema: {},
+      annotations: READ_ONLY_TOOL,
+    },
     async () => {
       try {
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
@@ -41,25 +45,28 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_account_insights ─────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_account_insights",
-    "Get Instagram account insights. Use the optional `metric_type` to control whether results come back as a single total per metric or as a daily breakdown. Note: 'impressions', 'email_contacts', 'phone_call_clicks', 'text_message_clicks', 'get_directions_clicks', 'website_clicks', 'profile_views' were deprecated in v22.0. Use 'views', 'reach', 'follower_count', 'reposts' instead.",
     {
-      metric: z.string().describe(
-        "Comma-separated metrics. Time-series metrics (use period=day/week/days_28): " +
-        "views,reach,accounts_engaged,total_interactions,reposts,profile_links_taps. " +
-        "Lifetime-only metrics (use period=lifetime): " +
-        "follower_count,follower_demographics,engaged_audience_demographics."
-      ),
-      period: z.enum(["day", "week", "days_28", "lifetime"]).describe(
-        "Aggregation period. Use 'day', 'week', or 'days_28' for time-series metrics " +
-        "(views,reach,accounts_engaged,total_interactions,reposts,profile_links_taps). " +
-        "Use 'lifetime' only for follower_count and demographic metrics " +
-        "(follower_demographics,engaged_audience_demographics)."
-      ),
-      metric_type: z.enum(["total_value", "time_series"]).optional().describe("Aggregation shape: 'total_value' for a single aggregated number per metric, 'time_series' for daily breakdowns. Per the Instagram User Insights docs, only 'reach' supports both; most metrics (views, likes, reposts, accounts_engaged, total_interactions, saves, shares, comments, replies, quotes, profile_links_taps, demographics) support only 'total_value'. Omit to use the API default for each metric."),
-      since: z.string().optional().describe("Start date (Unix timestamp or ISO 8601)"),
-      until: z.string().optional().describe("End date (Unix timestamp or ISO 8601)"),
+      description: "Get Instagram account insights. Use the optional `metric_type` to control whether results come back as a single total per metric or as a daily breakdown. Note: 'impressions', 'email_contacts', 'phone_call_clicks', 'text_message_clicks', 'get_directions_clicks', 'website_clicks', 'profile_views' were deprecated in v22.0. Use 'views', 'reach', 'follower_count', 'reposts' instead.",
+      inputSchema: {
+        metric: z.string().describe(
+          "Comma-separated metrics. Time-series metrics (use period=day/week/days_28): " +
+          "views,reach,accounts_engaged,total_interactions,reposts,profile_links_taps. " +
+          "Lifetime-only metrics (use period=lifetime): " +
+          "follower_count,follower_demographics,engaged_audience_demographics."
+        ),
+        period: z.enum(["day", "week", "days_28", "lifetime"]).describe(
+          "Aggregation period. Use 'day', 'week', or 'days_28' for time-series metrics " +
+          "(views,reach,accounts_engaged,total_interactions,reposts,profile_links_taps). " +
+          "Use 'lifetime' only for follower_count and demographic metrics " +
+          "(follower_demographics,engaged_audience_demographics)."
+        ),
+        metric_type: z.enum(["total_value", "time_series"]).optional().describe("Aggregation shape: 'total_value' for a single aggregated number per metric, 'time_series' for daily breakdowns. Per the Instagram User Insights docs, only 'reach' supports both; most metrics (views, likes, reposts, accounts_engaged, total_interactions, saves, shares, comments, replies, quotes, profile_links_taps, demographics) support only 'total_value'. Omit to use the API default for each metric."),
+        since: z.string().optional().describe("Start date (Unix timestamp or ISO 8601)"),
+        until: z.string().optional().describe("End date (Unix timestamp or ISO 8601)"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ metric, period, metric_type, since, until }) => {
       try {
@@ -76,12 +83,15 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_business_discovery ───────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_business_discovery",
-    "Look up another Instagram Business/Creator account's public info by username.",
     {
-      username: igBusinessDiscoveryUsernameSchema,
-      fields: z.string().optional().default(BUSINESS_DISCOVERY_DEFAULT_FIELDS).describe(`Fields to retrieve (default: ${BUSINESS_DISCOVERY_DEFAULT_FIELDS})`),
+      description: "Look up another Instagram Business/Creator account's public info by username.",
+      inputSchema: {
+        username: igBusinessDiscoveryUsernameSchema,
+        fields: z.string().optional().default(BUSINESS_DISCOVERY_DEFAULT_FIELDS).describe(`Fields to retrieve (default: ${BUSINESS_DISCOVERY_DEFAULT_FIELDS})`),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ username, fields }) => {
       try {
@@ -96,13 +106,16 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_get_collaboration_invites ────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_collaboration_invites",
-    "Get pending collaboration invites for the Instagram account. Added in December 2025.",
     {
-      limit: z.number().optional().describe("Number of results"),
-      after: z.string().optional().describe("Pagination cursor for next page"),
-      before: z.string().optional().describe("Pagination cursor for previous page"),
+      description: "Get pending collaboration invites for the Instagram account. Added in December 2025.",
+      inputSchema: {
+        limit: z.number().optional().describe("Number of results"),
+        after: z.string().optional().describe("Pagination cursor for next page"),
+        before: z.string().optional().describe("Pagination cursor for previous page"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ limit, after, before }) => {
       try {
@@ -119,12 +132,15 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
   );
 
   // ─── ig_respond_collaboration_invite ─────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_respond_collaboration_invite",
-    "Accept or decline a collaboration invite by media_id (the IG Media ID of the tagged post; available via the `id` field returned by `ig_get_collaboration_invites`). Pass `accept: true` to accept, `accept: false` to decline. Per the Instagram Collaboration API. Added in December 2025.",
     {
-      media_id: metaId.describe("IG Media ID of the tagged post (from `ig_get_collaboration_invites` response `id` field)"),
-      accept: z.boolean().describe("true to accept the invite, false to decline"),
+      description: "Accept or decline a collaboration invite by media_id (the IG Media ID of the tagged post; available via the `id` field returned by `ig_get_collaboration_invites`). Pass `accept: true` to accept, `accept: false` to decline. Per the Instagram Collaboration API. Added in December 2025.",
+      inputSchema: {
+        media_id: metaId.describe("IG Media ID of the tagged post (from `ig_get_collaboration_invites` response `id` field)"),
+        accept: z.boolean().describe("true to accept the invite, false to decline"),
+      },
+      annotations: WRITE_IDEMPOTENT_TOOL,
     },
     async ({ media_id, accept }) => {
       try {

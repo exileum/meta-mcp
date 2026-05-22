@@ -5,14 +5,13 @@ import { MetaClient } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { registerIgPublishingTools, collaboratorsSchema } from "./publishing.js";
 
-/** Captures the tool handlers registered via server.tool() */
+/** Captures the tool handlers registered via server.registerTool() */
 function captureTools(server: McpServer) {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
-  vi.spyOn(server, "tool").mockImplementation(
-    (name: unknown, ..._rest: unknown[]) => {
-      // Last argument is always the handler function
-      const handler = _rest[_rest.length - 1];
+  vi.spyOn(server, "registerTool").mockImplementation(
+    (name: unknown, _config: unknown, handler: unknown) => {
       handlers.set(name as string, handler as (...args: unknown[]) => unknown);
+      return undefined as never;
     }
   );
   return handlers;
@@ -36,9 +35,9 @@ function makeMockServer() {
   return {
     tools,
     descriptions,
-    tool: vi.fn((name: string, desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
+    registerTool: vi.fn((name: string, config: { description?: string }, handler: (...args: unknown[]) => unknown) => {
       tools.set(name, handler);
-      descriptions.set(name, desc);
+      descriptions.set(name, config.description ?? "");
     }),
   };
 }

@@ -11,7 +11,7 @@ function makeMockServer() {
     tools,
     resources,
     prompts,
-    tool: vi.fn((name: string) => tools.push(name)),
+    registerTool: vi.fn((name: string) => tools.push(name)),
     resource: vi.fn((name: string, uri: string) => resources.push({ name, uri })),
     prompt: vi.fn((name: string) => prompts.push(name)),
   };

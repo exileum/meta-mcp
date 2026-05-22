@@ -1,13 +1,21 @@
 import { z } from "zod";
 import { vi } from "vitest";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 
 export type ZodShape = Record<string, z.ZodTypeAny>;
 export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
+export interface RegisterToolConfig {
+  description?: string;
+  inputSchema?: ZodShape;
+  annotations?: ToolAnnotations;
+}
+
 export interface MockServer {
   tools: Map<string, { schema: ZodShape; handler: ToolHandler }>;
   descriptions: Map<string, string>;
-  tool: ReturnType<typeof vi.fn>;
+  annotations: Map<string, ToolAnnotations | undefined>;
+  registerTool: ReturnType<typeof vi.fn>;
   callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
 
@@ -17,14 +25,17 @@ export interface MockServer {
 export function makeMockServer(): MockServer {
   const tools = new Map<string, { schema: ZodShape; handler: ToolHandler }>();
   const descriptions = new Map<string, string>();
-  const tool = vi.fn((name: string, desc: string, schema: ZodShape, handler: ToolHandler) => {
-    tools.set(name, { schema, handler });
-    descriptions.set(name, desc);
+  const annotations = new Map<string, ToolAnnotations | undefined>();
+  const registerTool = vi.fn((name: string, config: RegisterToolConfig, handler: ToolHandler) => {
+    tools.set(name, { schema: config.inputSchema ?? {}, handler });
+    descriptions.set(name, config.description ?? "");
+    annotations.set(name, config.annotations);
   });
   return {
     tools,
     descriptions,
-    tool,
+    annotations,
+    registerTool,
     async callTool(name: string, args: Record<string, unknown>) {
       const t = tools.get(name);
       if (!t) throw new Error(`Tool ${name} not registered`);

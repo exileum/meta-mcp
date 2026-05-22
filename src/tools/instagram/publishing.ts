@@ -5,6 +5,7 @@ import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForIgContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL, WRITE_TOOL } from "../annotations.js";
 
 const collaboratorUsername = z
   .string()
@@ -28,16 +29,19 @@ export const collaboratorsSchema = z
 
 export function registerIgPublishingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_publish_photo ────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_publish_photo",
-    "Publish a photo to Instagram. Two-step process: creates container then publishes. Requires image_url (publicly accessible HTTPS URL).",
     {
-      image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
-      caption: z.string().optional().describe("Post caption (max 2200 chars)"),
-      location_id: z.string().optional().describe("Facebook Page location ID"),
-      user_tags: z.string().optional().describe("JSON array of user tags: [{username, x, y}]"),
-      alt_text: z.string().optional().describe("Alt text for accessibility"),
-      collaborators: collaboratorsSchema,
+      description: "Publish a photo to Instagram. Two-step process: creates container then publishes. Requires image_url (publicly accessible HTTPS URL).",
+      inputSchema: {
+        image_url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
+        caption: z.string().optional().describe("Post caption (max 2200 chars)"),
+        location_id: z.string().optional().describe("Facebook Page location ID"),
+        user_tags: z.string().optional().describe("JSON array of user tags: [{username, x, y}]"),
+        alt_text: z.string().optional().describe("Alt text for accessibility"),
+        collaborators: collaboratorsSchema,
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ image_url, caption, location_id, user_tags, alt_text, collaborators }) => {
       try {
@@ -65,15 +69,18 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   );
 
   // ─── ig_publish_video ────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_publish_video",
-    "[DEPRECATED] Use ig_publish_reel instead. Publishes via media_type=REELS under the hood; the legacy VIDEO media_type was deprecated by Meta on Nov 9, 2023. Kept for backward compatibility — new integrations should use ig_publish_reel which exposes Reels-specific options (cover_url, share_to_feed, alt_text).",
     {
-      video_url: httpsUrl.describe("Public HTTPS URL of the video"),
-      caption: z.string().optional().describe("Post caption"),
-      thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
-      location_id: z.string().optional().describe("Facebook Page location ID"),
-      collaborators: collaboratorsSchema,
+      description: "[DEPRECATED] Use ig_publish_reel instead. Publishes via media_type=REELS under the hood; the legacy VIDEO media_type was deprecated by Meta on Nov 9, 2023. Kept for backward compatibility — new integrations should use ig_publish_reel which exposes Reels-specific options (cover_url, share_to_feed, alt_text).",
+      inputSchema: {
+        video_url: httpsUrl.describe("Public HTTPS URL of the video"),
+        caption: z.string().optional().describe("Post caption"),
+        thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
+        location_id: z.string().optional().describe("Facebook Page location ID"),
+        collaborators: collaboratorsSchema,
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ video_url, caption, thumb_offset, location_id, collaborators }) => {
       try {
@@ -99,24 +106,27 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   );
 
   // ─── ig_publish_carousel ─────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_publish_carousel",
-    "Publish a carousel (album) post with 2-10 images/videos. Each item needs a `url` (JPEG image or MP4 video) and a `type` (IMAGE or VIDEO).",
     {
-      items: z.array(z.discriminatedUnion("type", [
-        z.object({
-          type: z.literal("IMAGE"),
-          url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
-          alt_text: z.string().optional().describe("Alt text for accessibility (IMAGE items only)"),
-        }),
-        z.object({
-          type: z.literal("VIDEO"),
-          url: httpsUrl.describe("Public HTTPS URL of the video"),
-        }),
-      ])).min(2).max(10).describe("Array of media items"),
-      caption: z.string().optional().describe("Post caption"),
-      location_id: z.string().optional().describe("Facebook Page location ID"),
-      collaborators: collaboratorsSchema,
+      description: "Publish a carousel (album) post with 2-10 images/videos. Each item needs a `url` (JPEG image or MP4 video) and a `type` (IMAGE or VIDEO).",
+      inputSchema: {
+        items: z.array(z.discriminatedUnion("type", [
+          z.object({
+            type: z.literal("IMAGE"),
+            url: httpsUrl.describe("Public HTTPS URL of the image (JPEG only)"),
+            alt_text: z.string().optional().describe("Alt text for accessibility (IMAGE items only)"),
+          }),
+          z.object({
+            type: z.literal("VIDEO"),
+            url: httpsUrl.describe("Public HTTPS URL of the video"),
+          }),
+        ])).min(2).max(10).describe("Array of media items"),
+        caption: z.string().optional().describe("Post caption"),
+        location_id: z.string().optional().describe("Facebook Page location ID"),
+        collaborators: collaboratorsSchema,
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ items, caption, location_id, collaborators }) => {
       try {
@@ -162,16 +172,19 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   );
 
   // ─── ig_publish_reel ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_publish_reel",
-    "Publish a Reel (short video). Waits for video processing.",
     {
-      video_url: httpsUrl.describe("Public HTTPS URL of the video"),
-      caption: z.string().optional().describe("Reel caption"),
-      cover_url: httpsUrl.optional().describe("Custom cover image HTTPS URL"),
-      share_to_feed: z.boolean().optional().describe("Also share to feed (default true)"),
-      thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
-      collaborators: collaboratorsSchema,
+      description: "Publish a Reel (short video). Waits for video processing.",
+      inputSchema: {
+        video_url: httpsUrl.describe("Public HTTPS URL of the video"),
+        caption: z.string().optional().describe("Reel caption"),
+        cover_url: httpsUrl.optional().describe("Custom cover image HTTPS URL"),
+        share_to_feed: z.boolean().optional().describe("Also share to feed (default true)"),
+        thumb_offset: z.number().optional().describe("Thumbnail offset in ms"),
+        collaborators: collaboratorsSchema,
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ video_url, caption, cover_url, share_to_feed, thumb_offset, collaborators }) => {
       try {
@@ -196,12 +209,15 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   );
 
   // ─── ig_publish_story ────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_publish_story",
-    "Publish a Story (image or video). Stories disappear after 24 hours.",
     {
-      media_type: z.enum(["IMAGE", "VIDEO"]).describe("Story media type"),
-      media_url: httpsUrl.describe("Public HTTPS URL of the media"),
+      description: "Publish a Story (image or video). Stories disappear after 24 hours.",
+      inputSchema: {
+        media_type: z.enum(["IMAGE", "VIDEO"]).describe("Story media type"),
+        media_url: httpsUrl.describe("Public HTTPS URL of the media"),
+      },
+      annotations: WRITE_TOOL,
     },
     async ({ media_type, media_url }) => {
       try {
@@ -226,11 +242,14 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   );
 
   // ─── ig_get_container_status ─────────────────────────────────
-  server.tool(
+  server.registerTool(
     "ig_get_container_status",
-    "Check the processing status of a media container (useful for videos).",
     {
-      container_id: metaId.describe("Container ID to check"),
+      description: "Check the processing status of a media container (useful for videos).",
+      inputSchema: {
+        container_id: metaId.describe("Container ID to check"),
+      },
+      annotations: READ_ONLY_TOOL,
     },
     async ({ container_id }) => {
       try {

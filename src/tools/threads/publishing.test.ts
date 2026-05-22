@@ -27,7 +27,7 @@ function makeMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
   return {
     tools,
-    tool: vi.fn((name: string, _desc: string, _schema: unknown, handler: (...args: unknown[]) => unknown) => {
+    registerTool: vi.fn((name: string, _config: unknown, handler: (...args: unknown[]) => unknown) => {
       tools.set(name, handler);
     }),
   };
@@ -944,9 +944,10 @@ describe("threads_publish_text alt_text rejection at the schema level", () => {
   });
 
   function getTextSchema(): z.ZodObject<z.ZodRawShape> {
-    const call = (server.tool as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === "threads_publish_text");
+    const call = (server.registerTool as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === "threads_publish_text");
     if (!call) throw new Error("threads_publish_text was not registered");
-    return z.object(call[2] as z.ZodRawShape);
+    const config = call[1] as { inputSchema?: z.ZodRawShape };
+    return z.object(config.inputSchema ?? {});
   }
 
   it("rejects alt_text with a descriptive message that points to the right tools", () => {
@@ -1514,8 +1515,8 @@ function makeParsingMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
   return {
     tools,
-    tool: vi.fn((name: string, _desc: string, schema: z.ZodRawShape, handler: (...args: unknown[]) => unknown) => {
-      const parsed = z.object(schema);
+    registerTool: vi.fn((name: string, config: { inputSchema: z.ZodRawShape }, handler: (...args: unknown[]) => unknown) => {
+      const parsed = z.object(config.inputSchema);
       tools.set(name, async (args: Record<string, unknown> = {}) => handler(parsed.parse(args)));
     }),
   };

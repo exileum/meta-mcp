@@ -2,13 +2,17 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { READ_ONLY_TOOL } from "../annotations.js";
 
 export function registerThreadsProfileTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_profile ─────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "threads_get_profile",
-    "Get Threads user profile information including verification status and geo-gating eligibility (is_eligible_for_geo_gating).",
-    {},
+    {
+      description: "Get Threads user profile information including verification status and geo-gating eligibility (is_eligible_for_geo_gating).",
+      inputSchema: {},
+      annotations: READ_ONLY_TOOL,
+    },
     async () => {
       try {
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}`, {
