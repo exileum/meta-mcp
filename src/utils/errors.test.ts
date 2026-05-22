@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { MetaApiError, formatErrorResponse, toMcpResourceError, validationError, sanitizeRaw } from "./errors.js";
+import { MetaApiError, MetaNetworkError, formatErrorResponse, toMcpResourceError, validationError, sanitizeRaw } from "./errors.js";
 
 interface ErrorPayload {
   error: true;
@@ -202,6 +202,59 @@ describe("formatErrorResponse — Meta API errors", () => {
   });
 });
 
+describe("MetaNetworkError", () => {
+  it("builds the timeout message with endpoint and method", () => {
+    const cause = new Error("The operation was aborted");
+    cause.name = "TimeoutError";
+    const err = new MetaNetworkError({ kind: "timeout", endpoint: "/me", method: "GET", cause });
+    expect(err.message).toBe("Meta API GET /me: request timed out after 30s");
+    expect(err.name).toBe("MetaNetworkError");
+    expect(err.kind).toBe("timeout");
+    expect(err.endpoint).toBe("/me");
+    expect(err.method).toBe("GET");
+  });
+
+  it("builds the network message with cause.message included", () => {
+    const cause = new TypeError("fetch failed");
+    const err = new MetaNetworkError({
+      kind: "network",
+      endpoint: "/123/media",
+      method: "POST",
+      cause,
+    });
+    expect(err.message).toBe("Meta API POST /123/media: network error — fetch failed");
+    expect(err.kind).toBe("network");
+  });
+
+  it("preserves the original error on .cause", () => {
+    const cause = new TypeError("fetch failed");
+    const err = new MetaNetworkError({ kind: "network", endpoint: "/x", method: "GET", cause });
+    expect(err.cause).toBe(cause);
+  });
+
+  it("stringifies a non-Error cause when building the message", () => {
+    const err = new MetaNetworkError({
+      kind: "network",
+      endpoint: "/x",
+      method: "GET",
+      cause: "raw string failure",
+    });
+    expect(err.message).toBe("Meta API GET /x: network error — raw string failure");
+    expect(err.cause).toBe("raw string failure");
+  });
+
+  it("is both an Error and a MetaNetworkError", () => {
+    const err = new MetaNetworkError({
+      kind: "timeout",
+      endpoint: "/x",
+      method: "GET",
+      cause: new Error("boom"),
+    });
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(MetaNetworkError);
+  });
+});
+
 describe("formatErrorResponse — non-MetaApiError", () => {
   it("categorizes AbortError as network", () => {
     const error = new Error("The operation was aborted");
@@ -218,6 +271,38 @@ describe("formatErrorResponse — non-MetaApiError", () => {
   it("categorizes 'fetch failed' message as network", () => {
     const error = new Error("fetch failed");
     expect(parsePayload(formatErrorResponse(error, "X")).error_type).toBe("network");
+  });
+
+  it("categorizes MetaNetworkError (timeout) as network and surfaces normalized message", () => {
+    const cause = new Error("The operation was aborted");
+    cause.name = "TimeoutError";
+    const error = new MetaNetworkError({
+      kind: "timeout",
+      endpoint: "/123/media",
+      method: "POST",
+      cause,
+    });
+    const payload = parsePayload(formatErrorResponse(error, "Publish photo"));
+    expect(payload.error_type).toBe("network");
+    expect(payload.message).toBe(
+      "Publish photo failed: Meta API POST /123/media: request timed out after 30s"
+    );
+    expect(payload.remediation).toContain("Retry");
+  });
+
+  it("categorizes MetaNetworkError (network) as network with cause message included", () => {
+    const cause = new TypeError("fetch failed");
+    const error = new MetaNetworkError({
+      kind: "network",
+      endpoint: "/me",
+      method: "GET",
+      cause,
+    });
+    const payload = parsePayload(formatErrorResponse(error, "Get profile"));
+    expect(payload.error_type).toBe("network");
+    expect(payload.message).toBe(
+      "Get profile failed: Meta API GET /me: network error — fetch failed"
+    );
   });
 
   it("categorizes plain Error as internal", () => {

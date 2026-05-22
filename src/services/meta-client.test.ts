@@ -13,7 +13,7 @@ import {
   computeBackoffDelay,
 } from "./meta-client.js";
 import { MetaConfig } from "../config.js";
-import { MetaApiError, formatErrorResponse } from "../utils/errors.js";
+import { MetaApiError, MetaNetworkError, formatErrorResponse } from "../utils/errors.js";
 
 function mockConfig(overrides: Partial<MetaConfig> = {}): MetaConfig {
   return {
@@ -1155,7 +1155,7 @@ describe("MetaClient retry logic (#61)", () => {
       expect(sleep).toHaveBeenCalledTimes(3);
     });
 
-    it("rethrows the last network error after exhausted retries", async () => {
+    it("wraps the last network error in MetaNetworkError after exhausted retries", async () => {
       const fetchSpy = vi.spyOn(globalThis, "fetch");
       const finalErr = new TypeError("fetch failed");
       fetchSpy
@@ -1178,7 +1178,9 @@ describe("MetaClient retry logic (#61)", () => {
         thrown = e;
       }
 
-      expect(thrown).toBe(finalErr);
+      expect(thrown).toBeInstanceOf(MetaNetworkError);
+      expect((thrown as MetaNetworkError).kind).toBe("network");
+      expect((thrown as MetaNetworkError).cause).toBe(finalErr);
       expect(fetchSpy).toHaveBeenCalledTimes(4);
       expect(sleep).toHaveBeenCalledTimes(3);
     });
@@ -1250,7 +1252,7 @@ describe("MetaClient retry logic (#61)", () => {
       } catch (err) {
         caught = err;
       }
-      expect(caught).toBeInstanceOf(TypeError);
+      expect(caught).toBeInstanceOf(MetaNetworkError);
 
       const formatted = formatErrorResponse(caught, "Get profile");
       const payload = JSON.parse(formatted.content[0].text) as Record<string, unknown>;
@@ -1316,14 +1318,23 @@ describe("MetaClient retry logic (#61)", () => {
       expect(sleep).not.toHaveBeenCalled();
     });
 
-    it("makes a single fetch call on a network error and rethrows immediately", async () => {
+    it("makes a single fetch call on a network error and wraps it in MetaNetworkError", async () => {
       const fetchSpy = vi.spyOn(globalThis, "fetch");
       const err = new TypeError("fetch failed");
       fetchSpy.mockRejectedValueOnce(err);
       const sleep = vi.fn().mockResolvedValue(undefined);
 
       const client = new MetaClient(mockConfig(), { maxRetries: 0, sleep });
-      await expect(client.ig("GET", "/me")).rejects.toBe(err);
+
+      let thrown: unknown;
+      try {
+        await client.ig("GET", "/me");
+      } catch (e) {
+        thrown = e;
+      }
+      expect(thrown).toBeInstanceOf(MetaNetworkError);
+      expect((thrown as MetaNetworkError).cause).toBe(err);
+      expect((thrown as MetaNetworkError).kind).toBe("network");
 
       expect(fetchSpy).toHaveBeenCalledOnce();
       expect(sleep).not.toHaveBeenCalled();
@@ -1413,6 +1424,133 @@ describe("MetaClient retry logic (#61)", () => {
       expect(signals[1]).not.toBe(signals[2]);
       expect(signals[0]).not.toBe(signals[2]);
     });
+  });
+});
+
+// Regression guards for #72 — MetaClient.request() previously rethrew raw
+// fetch() errors after retries were exhausted, surfacing as "Publish photo
+// failed: The operation was aborted" with no endpoint context or
+// timeout-vs-network distinction. Failures now arrive as MetaNetworkError.
+describe("MetaNetworkError wrapping (#72)", () => {
+  function freshJsonResponse(body: object): Response {
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wraps a TimeoutError with kind=timeout and a normalized message", async () => {
+    const timeout = new Error("The operation was aborted");
+    timeout.name = "TimeoutError";
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(timeout);
+
+    const client = new MetaClient(mockConfig(), { maxRetries: 0 });
+    let thrown: unknown;
+    try {
+      await client.ig("GET", "/me");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBeInstanceOf(MetaNetworkError);
+    const err = thrown as MetaNetworkError;
+    expect(err.kind).toBe("timeout");
+    expect(err.endpoint).toBe("/me");
+    expect(err.method).toBe("GET");
+    expect(err.message).toBe("Meta API GET /me: request timed out after 30s");
+    expect(err.cause).toBe(timeout);
+  });
+
+  it("wraps an AbortError with kind=timeout (defensive cover for older spelling)", async () => {
+    const abort = new Error("The operation was aborted");
+    abort.name = "AbortError";
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(abort);
+
+    const client = new MetaClient(mockConfig(), { maxRetries: 0 });
+    let thrown: unknown;
+    try {
+      await client.ig("GET", "/me");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBeInstanceOf(MetaNetworkError);
+    expect((thrown as MetaNetworkError).kind).toBe("timeout");
+  });
+
+  it("wraps a TypeError('fetch failed') with kind=network and cause.message in the text", async () => {
+    const cause = new TypeError("fetch failed");
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(cause);
+
+    const client = new MetaClient(mockConfig(), { maxRetries: 0 });
+    let thrown: unknown;
+    try {
+      await client.threads("POST", "/123456/threads");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBeInstanceOf(MetaNetworkError);
+    const err = thrown as MetaNetworkError;
+    expect(err.kind).toBe("network");
+    expect(err.endpoint).toBe("/123456/threads");
+    expect(err.method).toBe("POST");
+    expect(err.message).toBe(
+      "Meta API POST /123456/threads: network error — fetch failed"
+    );
+    expect(err.cause).toBe(cause);
+  });
+
+  it("captures the DELETE method and path in the wrapped message", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("connect ECONNREFUSED 127.0.0.1:443"));
+
+    const client = new MetaClient(mockConfig(), { maxRetries: 0 });
+    let thrown: unknown;
+    try {
+      await client.ig("DELETE", "/abc123");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect((thrown as MetaNetworkError).message).toBe(
+      "Meta API DELETE /abc123: network error — connect ECONNREFUSED 127.0.0.1:443"
+    );
+  });
+
+  it("only wraps after retries are exhausted — recovered fetches still resolve", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(freshJsonResponse({ id: "recovered" }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    const client = new MetaClient(mockConfig(), { retryBaseDelayMs: 0, sleep });
+    const result = await client.ig("GET", "/me");
+
+    expect(result.data).toEqual({ id: "recovered" });
+  });
+
+  it("formatErrorResponse routes the wrapped error to network with remediation", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
+
+    const client = new MetaClient(mockConfig(), { maxRetries: 0 });
+    let caught: unknown;
+    try {
+      await client.ig("GET", "/me");
+    } catch (e) {
+      caught = e;
+    }
+
+    const formatted = formatErrorResponse(caught, "Get profile");
+    const payload = JSON.parse(formatted.content[0].text) as Record<string, unknown>;
+    expect(payload.error_type).toBe("network");
+    expect(payload.message).toBe(
+      "Get profile failed: Meta API GET /me: network error — fetch failed"
+    );
+    expect(payload.remediation).toEqual(expect.stringContaining("Retry"));
   });
 });
 

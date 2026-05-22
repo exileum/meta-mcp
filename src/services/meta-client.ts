@@ -1,5 +1,5 @@
 import { MetaConfig } from "../config.js";
-import { MetaApiError } from "../utils/errors.js";
+import { MetaApiError, MetaNetworkError } from "../utils/errors.js";
 
 // Default Meta Graph API and Threads API versions — last verified 2026-05-06.
 // The Graph API ships a new minor version every ~4 months and supports each
@@ -387,7 +387,16 @@ export class MetaClient {
           await this.sleep(computeBackoffDelay(attempt, this.retryBaseDelayMs));
           continue;
         }
-        throw err;
+        // AbortSignal.timeout per WHATWG throws name="TimeoutError"; "AbortError"
+        // is defensive cover for environments using the older spelling (#72).
+        const isTimeout =
+          err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+        throw new MetaNetworkError({
+          kind: isTimeout ? "timeout" : "network",
+          endpoint: path,
+          method,
+          cause: err,
+        });
       }
 
       // Parse rate-limit on every response (a 429 still carries `x-app-usage`);
