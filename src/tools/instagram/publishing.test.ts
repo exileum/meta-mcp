@@ -664,3 +664,116 @@ describe("ig_publish_story collaborators (not supported)", () => {
     expect(createCall[2]).not.toHaveProperty("collaborators");
   });
 });
+
+describe("Instagram publishing text-field length validation", () => {
+  let server: ReturnType<typeof makeMockServer>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    registerIgPublishingTools(server as never, makeParamMockClient());
+  });
+
+  function getSchema(toolName: string): z.ZodObject<z.ZodRawShape> {
+    const call = (server.registerTool as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === toolName);
+    if (!call) throw new Error(`${toolName} was not registered`);
+    const config = call[1] as { inputSchema?: z.ZodRawShape };
+    return z.object(config.inputSchema ?? {});
+  }
+
+  describe("caption (max 2200 chars)", () => {
+    it.each([
+      ["ig_publish_photo", { image_url: "https://example.com/a.jpg" }],
+      ["ig_publish_video", { video_url: "https://example.com/a.mp4" }],
+      ["ig_publish_reel",  { video_url: "https://example.com/a.mp4" }],
+      ["ig_publish_carousel", {
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg" },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+        ],
+      }],
+    ])("%s accepts a caption at the 2200-char boundary", (toolName, base) => {
+      const schema = getSchema(toolName);
+      expect(schema.safeParse({ ...base, caption: "a".repeat(2200) }).success).toBe(true);
+    });
+
+    it.each([
+      ["ig_publish_photo", { image_url: "https://example.com/a.jpg" }],
+      ["ig_publish_video", { video_url: "https://example.com/a.mp4" }],
+      ["ig_publish_reel",  { video_url: "https://example.com/a.mp4" }],
+      ["ig_publish_carousel", {
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg" },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+        ],
+      }],
+    ])("%s rejects a caption exceeding 2200 chars", (toolName, base) => {
+      const schema = getSchema(toolName);
+      expect(schema.safeParse({ ...base, caption: "a".repeat(2201) }).success).toBe(false);
+    });
+
+    it("counts emoji as single code points, not UTF-16 surrogate pairs", () => {
+      const schema = getSchema("ig_publish_photo");
+      // 2200 emoji = 2200 code points (4400 UTF-16 units). A UTF-16-based
+      // .max(2200) would falsely reject this; the code-point refine accepts it.
+      const emojiCaption = "😀".repeat(2200);
+      expect(emojiCaption.length).toBe(4400);
+      expect([...emojiCaption].length).toBe(2200);
+      expect(schema.safeParse({ image_url: "https://example.com/a.jpg", caption: emojiCaption }).success).toBe(true);
+    });
+
+    it("rejects a caption with 2201 emoji code points", () => {
+      const schema = getSchema("ig_publish_photo");
+      expect(schema.safeParse({
+        image_url: "https://example.com/a.jpg",
+        caption: "😀".repeat(2201),
+      }).success).toBe(false);
+    });
+  });
+
+  describe("alt_text (max 1000 chars)", () => {
+    it("ig_publish_photo accepts alt_text at the 1000-char boundary", () => {
+      const schema = getSchema("ig_publish_photo");
+      expect(schema.safeParse({
+        image_url: "https://example.com/a.jpg",
+        alt_text: "a".repeat(1000),
+      }).success).toBe(true);
+    });
+
+    it("ig_publish_photo rejects alt_text exceeding 1000 chars", () => {
+      const schema = getSchema("ig_publish_photo");
+      expect(schema.safeParse({
+        image_url: "https://example.com/a.jpg",
+        alt_text: "a".repeat(1001),
+      }).success).toBe(false);
+    });
+
+    it("ig_publish_carousel accepts alt_text at the 1000-char boundary on IMAGE items", () => {
+      const schema = getSchema("ig_publish_carousel");
+      expect(schema.safeParse({
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg", alt_text: "a".repeat(1000) },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+        ],
+      }).success).toBe(true);
+    });
+
+    it("ig_publish_carousel rejects alt_text exceeding 1000 chars on IMAGE items", () => {
+      const schema = getSchema("ig_publish_carousel");
+      expect(schema.safeParse({
+        items: [
+          { type: "IMAGE", url: "https://example.com/a.jpg", alt_text: "a".repeat(1001) },
+          { type: "IMAGE", url: "https://example.com/b.jpg" },
+        ],
+      }).success).toBe(false);
+    });
+
+    it("counts emoji alt_text as code points, not UTF-16 units", () => {
+      const schema = getSchema("ig_publish_photo");
+      // 1000 emoji code points = 2000 UTF-16 units; passes the code-point refine.
+      expect(schema.safeParse({
+        image_url: "https://example.com/a.jpg",
+        alt_text: "😀".repeat(1000),
+      }).success).toBe(true);
+    });
+  });
+});
