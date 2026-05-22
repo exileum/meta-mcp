@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 export const igBusinessDiscoveryUsernameSchema = z
@@ -70,10 +71,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     },
     async ({ metric, period, metric_type, since, until }) => {
       try {
-        const params: FormParams = { metric, period };
-        if (metric_type) params.metric_type = metric_type;
-        if (since) params.since = since;
-        if (until) params.until = until;
+        const params = buildParams({ metric, period }, { metric_type, since, until });
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/insights`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {
@@ -119,10 +117,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     },
     async ({ limit, after, before }) => {
       try {
-        const params: FormParams = {};
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams({}, { limit, after, before });
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/collaboration_invites`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

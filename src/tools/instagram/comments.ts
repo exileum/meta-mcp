@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
 
 const GET_COMMENTS_DEFAULT_FIELDS = "id,text,username,timestamp,like_count,replies{id,text,username,timestamp}";
@@ -27,10 +28,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     },
     async ({ media_id, limit, after, before, fields }) => {
       try {
-        const params: FormParams = { fields };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams({ fields }, { limit, after, before });
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/comments`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {
@@ -97,10 +95,7 @@ export function registerIgCommentTools(server: McpServer, client: MetaClient): v
     },
     async ({ comment_id, limit, after, before, fields }) => {
       try {
-        const params: FormParams = { fields };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams({ fields }, { limit, after, before });
         const { data, rateLimit } = await client.ig("GET", `/${comment_id}/replies`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

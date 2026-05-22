@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
 const THREADS_MEDIA_FIELDS = [
@@ -53,12 +54,7 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     },
     async ({ limit, since, until, after, before, fields }) => {
       try {
-        const params: FormParams = { fields };
-        if (limit !== undefined) params.limit = limit;
-        if (since) params.since = since;
-        if (until) params.until = until;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams({ fields }, { limit, since, until, after, before });
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/threads`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {
@@ -108,18 +104,13 @@ export function registerThreadsMediaTools(server: McpServer, client: MetaClient)
     },
     async ({ q, search_type, search_mode, media_type, author_username, since, until, limit, after }) => {
       try {
-        const params: FormParams = {
-          q,
-          fields: "id,text,username,permalink,timestamp,media_type,media_url,topic_tag",
-        };
-        if (search_type) params.search_type = search_type;
-        if (search_mode) params.search_mode = search_mode;
-        if (media_type) params.media_type = media_type;
-        if (author_username) params.author_username = author_username;
-        if (since) params.since = since;
-        if (until) params.until = until;
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
+        const params = buildParams(
+          {
+            q,
+            fields: "id,text,username,permalink,timestamp,media_type,media_url,topic_tag",
+          },
+          { search_type, search_mode, media_type, author_username, since, until, limit, after }
+        );
         const { data, rateLimit } = await client.threads("GET", `/keyword_search`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {

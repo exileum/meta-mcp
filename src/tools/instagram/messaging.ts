@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient, FormParams } from "../../services/meta-client.js";
+import { MetaClient } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
+import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, WRITE_TOOL } from "../annotations.js";
 
 const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
@@ -27,14 +28,10 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     },
     async ({ folder, limit, after, before, fields }) => {
       try {
-        const params: FormParams = {
-          platform: "instagram",
-          fields,
-        };
-        if (folder) params.folder = folder;
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams(
+          { platform: "instagram", fields },
+          { folder, limit, after, before }
+        );
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/conversations`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {
@@ -59,10 +56,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
     },
     async ({ conversation_id, limit, after, before, fields }) => {
       try {
-        const params: FormParams = { fields };
-        if (limit !== undefined) params.limit = limit;
-        if (after) params.after = after;
-        if (before) params.before = before;
+        const params = buildParams({ fields }, { limit, after, before });
         const { data, rateLimit } = await client.ig("GET", `/${conversation_id}/messages`, params);
         return formatResponse(data, rateLimit);
       } catch (error) {
