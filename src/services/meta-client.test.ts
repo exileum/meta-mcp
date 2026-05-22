@@ -3,6 +3,10 @@ import {
   MetaClient,
   DEFAULT_META_API_VERSION,
   DEFAULT_THREADS_API_VERSION,
+  RATE_LIMIT_SLOWDOWN_THRESHOLD,
+  RATE_LIMIT_BACKOFF_THRESHOLD,
+  RATE_LIMIT_SLOWDOWN_MS,
+  RATE_LIMIT_BACKOFF_MS,
 } from "./meta-client.js";
 import { MetaConfig } from "../config.js";
 import { MetaApiError } from "../utils/errors.js";
@@ -584,6 +588,194 @@ describe("MetaClient API version override (#70)", () => {
     const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toContain(`https://graph.instagram.com/${DEFAULT_META_API_VERSION}/me`);
     expect(errSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Regression guard for #60 — `parseRateLimit()` already surfaced
+// `x-app-usage` as `_rateLimit` on tool responses, but the client never
+// throttled itself. A burst of MCP tool calls walked into Meta's 100%
+// threshold and got 429-ed for up to an hour. The client now consults the
+// most recent snapshot before every request and pre-sleeps once usage
+// crosses 80% / 90%.
+describe("MetaClient rate-limit throttling (#60)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  function usageResponse(usage: Partial<{ call_count: number; total_cpu_time: number; total_time: number }>) {
+    return jsonResponse({ ok: true }, { "x-app-usage": JSON.stringify(usage) });
+  }
+
+  it("does not throttle the first request (no snapshot yet)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(usageResponse({ call_count: 95 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("delays the next request by RATE_LIMIT_SLOWDOWN_MS when prior callCount is 85%", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 85 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_SLOWDOWN_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await second;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("delays the next request by RATE_LIMIT_BACKOFF_MS when prior usage is >= 90%", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await second;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not delay the next request when prior usage stays below 80%", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 78, total_cpu_time: 70, total_time: 50 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+    await client.ig("GET", "/me");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the max of callCount, totalCpuTime, totalTime to pick the delay", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 10, total_cpu_time: 85, total_time: 20 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_SLOWDOWN_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await second;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats undefined fields as 0 — only totalTime present at 95% triggers backoff", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ total_time: 95 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await second;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("updates the snapshot from an error response so the next request still throttles", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ error: { message: "Token expired", code: 190, type: "OAuthException" } }),
+          {
+            status: 401,
+            headers: {
+              "content-type": "application/json",
+              "x-app-usage": JSON.stringify({ call_count: 95 }),
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await expect(client.ig("GET", "/me")).rejects.toBeDefined();
+
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await second;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not clear an existing snapshot when a response lacks x-app-usage", async () => {
+    // 1: usage 92%; 2: header-less response (e.g. a token endpoint);
+    // 3: still throttled by the 92% snapshot from request 1.
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 3 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS);
+    await second;
+
+    const third = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await third;
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("logs the throttle decision once per throttled call", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+    expect(errSpy).not.toHaveBeenCalled();
+
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS);
+    await second;
+
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/x-app-usage at 92%.*delaying next request by 5000ms/)
+    );
+  });
+
+  it("uses the documented threshold and delay constants", () => {
+    expect(RATE_LIMIT_SLOWDOWN_THRESHOLD).toBe(80);
+    expect(RATE_LIMIT_BACKOFF_THRESHOLD).toBe(90);
+    expect(RATE_LIMIT_SLOWDOWN_MS).toBe(1000);
+    expect(RATE_LIMIT_BACKOFF_MS).toBe(5000);
   });
 });
 

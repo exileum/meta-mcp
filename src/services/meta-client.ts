@@ -53,6 +53,15 @@ export interface RateLimit {
   totalTime?: number;
 }
 
+// Pre-request throttle thresholds — Meta throttles at 100% usage on any of
+// callCount / totalCpuTime / totalTime per
+// https://developers.facebook.com/docs/graph-api/overview/rate-limiting/,
+// so we back off well before the cliff.
+export const RATE_LIMIT_SLOWDOWN_THRESHOLD = 80;
+export const RATE_LIMIT_BACKOFF_THRESHOLD = 90;
+export const RATE_LIMIT_SLOWDOWN_MS = 1000;
+export const RATE_LIMIT_BACKOFF_MS = 5000;
+
 export interface ClientResponse {
   data: Record<string, unknown>;
   rateLimit?: RateLimit;
@@ -126,6 +135,7 @@ export class MetaClient {
   private igBase: string;
   private fbBase: string;
   private threadsBase: string;
+  private lastRateLimit?: RateLimit;
 
   constructor(config: MetaConfig, options?: MetaClientOptions) {
     this.config = config;
@@ -157,6 +167,30 @@ export class MetaClient {
     } catch {
       return undefined;
     }
+  }
+
+  // Take `max(callCount, totalCpuTime, totalTime)` because Meta throttles on
+  // whichever quota hits 100% first. Concurrent calls at high usage both
+  // sleep their full delay and then fire together — acceptable for MCP's
+  // typically sequential call pattern, still safer than no throttling.
+  private async maybeThrottle(): Promise<void> {
+    const rl = this.lastRateLimit;
+    if (!rl) return;
+    const max = Math.max(rl.callCount ?? 0, rl.totalCpuTime ?? 0, rl.totalTime ?? 0);
+    let delay: number;
+    if (max >= RATE_LIMIT_BACKOFF_THRESHOLD) {
+      delay = RATE_LIMIT_BACKOFF_MS;
+    } else if (max >= RATE_LIMIT_SLOWDOWN_THRESHOLD) {
+      delay = RATE_LIMIT_SLOWDOWN_MS;
+    } else {
+      return;
+    }
+    console.error(
+      `[meta-mcp] x-app-usage at ${max}% (callCount=${rl.callCount ?? "?"}, ` +
+      `totalTime=${rl.totalTime ?? "?"}, totalCpuTime=${rl.totalCpuTime ?? "?"}); ` +
+      `delaying next request by ${delay}ms to stay under Meta's per-app quota.`
+    );
+    await new Promise<void>((resolve) => setTimeout(resolve, delay));
   }
 
   // Used for both form bodies (POST/PUT) and query strings (GET/DELETE) — every
@@ -217,7 +251,13 @@ export class MetaClient {
       url += (url.includes("?") ? "&" : "?") + qs.toString();
     }
 
+    await this.maybeThrottle();
     const res = await fetch(url, init);
+
+    // Parse rate-limit on every response (a 429 still carries `x-app-usage`);
+    // header-less responses (OAuth token endpoints) leave state intact.
+    const rateLimit = this.parseRateLimit(res.headers);
+    if (rateLimit) this.lastRateLimit = rateLimit;
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -236,7 +276,6 @@ export class MetaClient {
       });
     }
 
-    const rateLimit = this.parseRateLimit(res.headers);
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const data = (await res.json()) as Record<string, unknown>;
