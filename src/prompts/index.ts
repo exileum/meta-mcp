@@ -1,10 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerPrompts(server: McpServer) {
-  server.prompt(
+  server.registerPrompt(
     "content_publish",
-    "Cross-post content to Instagram and Threads simultaneously",
-    {},
+    { description: "Cross-post content to Instagram and Threads simultaneously" },
     () => ({
       messages: [
         {
@@ -36,10 +35,9 @@ export function registerPrompts(server: McpServer) {
     })
   );
 
-  server.prompt(
+  server.registerPrompt(
     "analytics_report",
-    "Generate a combined analytics report for Instagram and Threads",
-    {},
+    { description: "Generate a combined analytics report for Instagram and Threads" },
     () => ({
       messages: [
         {

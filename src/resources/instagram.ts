@@ -3,7 +3,7 @@ import { MetaClient } from "../services/meta-client.js";
 import { toMcpResourceError } from "../utils/errors.js";
 
 export function registerInstagramResources(server: McpServer, client: MetaClient) {
-  server.resource(
+  server.registerResource(
     "instagram-profile",
     "meta-mcp://instagram/profile",
     { description: "Instagram Business/Creator account profile information", mimeType: "application/json" },

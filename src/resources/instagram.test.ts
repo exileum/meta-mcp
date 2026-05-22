@@ -15,7 +15,7 @@ function makeMockServer() {
   const resources: ResourceCall[] = [];
   return {
     resources,
-    resource: vi.fn(
+    registerResource: vi.fn(
       (
         name: string,
         uri: string,

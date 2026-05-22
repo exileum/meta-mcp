@@ -3,7 +3,7 @@ import { MetaClient } from "../services/meta-client.js";
 import { toMcpResourceError } from "../utils/errors.js";
 
 export function registerThreadsResources(server: McpServer, client: MetaClient) {
-  server.resource(
+  server.registerResource(
     "threads-profile",
     "meta-mcp://threads/profile",
     { description: "Threads user profile information", mimeType: "application/json" },
