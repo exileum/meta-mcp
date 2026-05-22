@@ -7,6 +7,7 @@ import {
   RATE_LIMIT_BACKOFF_THRESHOLD,
   RATE_LIMIT_SLOWDOWN_MS,
   RATE_LIMIT_BACKOFF_MS,
+  RATE_LIMIT_SNAPSHOT_TTL_MS,
 } from "./meta-client.js";
 import { MetaConfig } from "../config.js";
 import { MetaApiError } from "../utils/errors.js";
@@ -105,6 +106,29 @@ describe("parseRateLimit", () => {
     const result = await client.ig("GET", "/me");
 
     expect(result.rateLimit).toBeUndefined();
+  });
+
+  // Defensive coercion for the Claude-review PR #233 — `JSON.parse` returns
+  // `any`, and if Meta ever serializes a usage field as a string, leaving the
+  // value through as-is would feed `Math.max` a string at the throttle site.
+  it("coerces stringified numbers in x-app-usage to numeric RateLimit fields", async () => {
+    const usage = JSON.stringify({ call_count: "85", total_cpu_time: 12, total_time: "20.5" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "123" }, { "x-app-usage": usage }));
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.rateLimit).toEqual({ callCount: 85, totalCpuTime: 12, totalTime: 20.5 });
+  });
+
+  it("drops non-finite values (NaN, Infinity) from RateLimit rather than propagating them", async () => {
+    const usage = JSON.stringify({ call_count: "not-a-number", total_cpu_time: null, total_time: 50 });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "123" }, { "x-app-usage": usage }));
+
+    const client = new MetaClient(mockConfig());
+    const result = await client.ig("GET", "/me");
+
+    expect(result.rateLimit).toEqual({ callCount: undefined, totalCpuTime: undefined, totalTime: 50 });
   });
 });
 
@@ -776,6 +800,79 @@ describe("MetaClient rate-limit throttling (#60)", () => {
     expect(RATE_LIMIT_BACKOFF_THRESHOLD).toBe(90);
     expect(RATE_LIMIT_SLOWDOWN_MS).toBe(1000);
     expect(RATE_LIMIT_BACKOFF_MS).toBe(5000);
+    expect(RATE_LIMIT_SNAPSHOT_TTL_MS).toBe(60 * 60 * 1000);
+  });
+
+  // Claude-review on PR #233 — a stale 92% snapshot from yesterday should not
+  // cause a spurious 5s backoff today. Meta's window is rolling 1h, so we age
+  // out the snapshot after RATE_LIMIT_SNAPSHOT_TTL_MS.
+  it("discards a stale snapshot after RATE_LIMIT_SNAPSHOT_TTL_MS and does not throttle", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    // Advance fake clock past the TTL — the next call should bypass throttling.
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_SNAPSHOT_TTL_MS + 1);
+
+    await client.ig("GET", "/me");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("still throttles when the snapshot is fresh (just below the TTL)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+    const client = new MetaClient(mockConfig());
+
+    await client.ig("GET", "/me");
+
+    // Just under the TTL — must still throttle.
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_SNAPSHOT_TTL_MS - 1);
+    const second = client.ig("GET", "/me");
+    // After the wait it should still need RATE_LIMIT_BACKOFF_MS more before firing.
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS - 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await second;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // Regression for the Codex review on PR #233 — the abort signal must be
+  // armed AFTER the throttle sleep, otherwise a 5s backoff would eat 5s of
+  // the 30s network budget and slow Meta endpoints would spuriously time out.
+  it("arms AbortSignal.timeout AFTER the throttle sleep, not before", async () => {
+    const timeoutCallTimes: number[] = [];
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+      timeoutCallTimes.push(Date.now());
+      return realTimeout(ms);
+    });
+
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const client = new MetaClient(mockConfig());
+
+    // Seed the 92% snapshot. AbortSignal.timeout fires once for this call.
+    await client.ig("GET", "/me");
+    expect(timeoutSpy).toHaveBeenCalledTimes(1);
+    const seedSignalAt = timeoutCallTimes[0];
+
+    // Trigger throttled second call. If the signal were armed at request()
+    // entry (the buggy pattern), timeoutSpy would tick to 2 immediately — and
+    // its timestamp would equal seedSignalAt. We expect the spy to tick to 2
+    // only AFTER the fake clock advances by RATE_LIMIT_BACKOFF_MS.
+    const second = client.ig("GET", "/me");
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS);
+    await second;
+
+    expect(timeoutSpy).toHaveBeenCalledTimes(2);
+    expect(timeoutCallTimes[1] - seedSignalAt).toBe(RATE_LIMIT_BACKOFF_MS);
   });
 });
 
