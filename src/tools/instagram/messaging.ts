@@ -11,6 +11,8 @@ const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{
 // Both /conversations/{id}/messages and /messages/{id} share the same Message resource shape, so they reuse the same default field set.
 const MESSAGE_DEFAULT_FIELDS = "id,message,from,created_time,attachments";
 
+const textEncoder = new TextEncoder();
+
 export function registerIgMessagingTools(server: McpServer, client: MetaClient): void {
   // ─── ig_get_conversations ────────────────────────────────────
   server.registerTool(
@@ -74,7 +76,7 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
         recipient_id: z.string().describe("Instagram-scoped user ID of the recipient"),
         message: z.string()
           .min(1)
-          .refine((s) => new TextEncoder().encode(s).length <= 1000, {
+          .refine((s) => textEncoder.encode(s).length <= 1000, {
             message: "Message text must be 1000 UTF-8 bytes or less",
           })
           .describe("Message text to send (max 1000 UTF-8 bytes per Meta's Instagram Messaging API)"),
