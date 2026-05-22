@@ -6,6 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { loadConfig, MetaConfig } from "./config.js";
 import { MetaClient } from "./services/meta-client.js";
 import { registerAll } from "./register-all.js";
+import { setupShutdownHandlers } from "./shutdown.js";
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json") as { version: string };
@@ -29,6 +30,7 @@ registerAll(server, client);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  setupShutdownHandlers(server);
 }
 
 main().catch((err) => {
