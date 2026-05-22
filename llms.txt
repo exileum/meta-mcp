@@ -52,7 +52,7 @@ Tool failures return `isError: true` and a JSON-encoded body in `content[0].text
 
 See [README.md "Troubleshooting"](https://github.com/exileum/meta-mcp#troubleshooting) for setup-time issues (expired tokens, account type, missing scopes, rate limits, "Messaging is not supported", wrong user-ID format).
 
-## Tools (58)
+## Tools (59)
 
 ### Meta Platform (6)
 - meta_exchange_token — Exchange short-lived token for long-lived (~60 days). Requires `platform` (instagram or threads)
@@ -109,15 +109,16 @@ See [README.md "Troubleshooting"](https://github.com/exileum/meta-mcp#troublesho
 - ig_send_message — Send a DM (optional messaging_type=RESPONSE/UPDATE/MESSAGE_TAG; tag=HUMAN_AGENT extends the messaging window to 7 days for human-sent support replies)
 - ig_get_message — Get message details
 
-### Threads — Publishing (8)
-- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, text attachments up to 10K chars with styling
-- threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes)
-- threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes)
-- threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories, geo-gating via allowlisted_country_codes on the parent container)
+### Threads — Publishing (9)
+- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id, text attachments up to 10K chars with styling
+- threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id)
+- threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id)
+- threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories, geo-gating via allowlisted_country_codes and location tagging via location_id on the parent container)
 - threads_delete_post — Delete a post (max 100/day)
 - threads_get_container_status — Check container processing status (unpublished containers only)
 - threads_get_publishing_limit — Check remaining quota (250 posts/day)
 - threads_repost — Repost an existing thread to your profile (requires threads_content_publish)
+- threads_search_locations — Search Threads-supported locations by query (q) or coordinates (latitude+longitude) to obtain a location_id for the four threads_publish_* tools (requires threads_location_tagging permission)
 
 ### Threads — Media & Search (3)
 - threads_get_posts — List published posts (optional `fields` to override the default field list)
