@@ -146,5 +146,5 @@ See [README.md "Troubleshooting"](https://github.com/exileum/meta-mcp#troublesho
 - meta-mcp://threads/profile — Threads account profile data
 
 ## Prompts
-- content_publish — Cross-post content to Instagram and Threads
-- analytics_report — Generate combined analytics report
+- content_publish — Cross-post content to Instagram and Threads. Optional args: platform (instagram|threads|both), content_type (text|image|video|carousel), media_url, caption
+- analytics_report — Generate combined analytics report. Optional args: platform (instagram|threads|both), time_range (7d|30d|90d), focus (engagement|growth|content)
