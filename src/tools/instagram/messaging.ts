@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
-import { formatErrorResponse } from "../../utils/errors.js";
+import { formatErrorResponse, validationError } from "../../utils/errors.js";
 
 const GET_CONVERSATIONS_DEFAULT_FIELDS = "id,updated_time,participants,messages{id,message,from,created_time}";
 // Both /conversations/{id}/messages and /messages/{id} share the same Message resource shape, so they reuse the same default field set.
@@ -66,20 +66,35 @@ export function registerIgMessagingTools(server: McpServer, client: MetaClient):
   // ─── ig_send_message ─────────────────────────────────────────
   server.tool(
     "ig_send_message",
-    "Send a DM to a user. Requires 'instagram_business_manage_messages' permission. Can only message users who have messaged you first (24hr window).",
+    "Send a DM to a user. Requires 'instagram_business_manage_messages' permission. The recipient must have messaged the account first. Messaging window depends on messaging_type: RESPONSE/UPDATE allow replies within 24 hours of the user's last message; MESSAGE_TAG with tag=HUMAN_AGENT extends the window to 7 days (human-sent support replies only — the HUMAN_AGENT feature requires App Review and forbids automated use, per https://developers.facebook.com/docs/features-reference/human-agent). Other tag values are Messenger-oriented; HUMAN_AGENT is the documented reliable choice on Instagram.",
     {
       recipient_id: z.string().describe("Instagram-scoped user ID of the recipient"),
       message: z.string().describe("Message text to send"),
+      messaging_type: z
+        .enum(["RESPONSE", "UPDATE", "MESSAGE_TAG"])
+        .optional()
+        .default("RESPONSE")
+        .describe("Send API messaging classification. RESPONSE = reply within the 24-hour window (default). UPDATE = proactive update within the 24-hour window. MESSAGE_TAG = send outside the 24-hour window using one of the tag values below (Instagram reliably supports HUMAN_AGENT for the 7-day window). See https://developers.facebook.com/docs/messenger-platform/reference/send-api/."),
+      tag: z
+        .enum(["HUMAN_AGENT", "CONFIRMED_EVENT_UPDATE", "POST_PURCHASE_UPDATE", "ACCOUNT_UPDATE", "CUSTOMER_FEEDBACK"])
+        .optional()
+        .describe("Message tag, required when messaging_type=MESSAGE_TAG and forbidden otherwise. HUMAN_AGENT extends the window to 7 days for human-sent support replies and is the only tag with documented Instagram support; the remaining values are Messenger-oriented and may be silently rejected on Instagram."),
     },
-    async ({ recipient_id, message }) => {
+    async ({ recipient_id, message, messaging_type, tag }) => {
       try {
-        const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/messages`, undefined, {
-          jsonBody: {
-            recipient: { id: recipient_id },
-            message: { text: message },
-            messaging_type: "RESPONSE",
-          },
-        });
+        if (messaging_type === "MESSAGE_TAG" && tag === undefined) {
+          return validationError("messaging_type=MESSAGE_TAG requires a tag (e.g., HUMAN_AGENT for the 7-day window).");
+        }
+        if (tag !== undefined && messaging_type !== "MESSAGE_TAG") {
+          return validationError("tag is only valid when messaging_type=MESSAGE_TAG. Omit tag or set messaging_type=MESSAGE_TAG.");
+        }
+        const jsonBody: Record<string, unknown> = {
+          recipient: { id: recipient_id },
+          message: { text: message },
+          messaging_type,
+        };
+        if (tag !== undefined) jsonBody.tag = tag;
+        const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/messages`, undefined, { jsonBody });
         return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
       } catch (error) {
         return formatErrorResponse(error, "Send message");

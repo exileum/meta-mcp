@@ -106,7 +106,7 @@ See [README.md "Troubleshooting"](https://github.com/exileum/meta-mcp#troublesho
 ### Instagram — Messaging (4)
 - ig_get_conversations — List DM conversations
 - ig_get_messages — Get messages in a conversation
-- ig_send_message — Send a DM
+- ig_send_message — Send a DM (optional messaging_type=RESPONSE/UPDATE/MESSAGE_TAG; tag=HUMAN_AGENT extends the messaging window to 7 days for human-sent support replies)
 - ig_get_message — Get message details
 
 ### Threads — Publishing (8)
