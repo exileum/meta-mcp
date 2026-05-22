@@ -1,30 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAll } from "./register-all.js";
 import type { MetaClient } from "./services/meta-client.js";
 
-type RegistrationLog = {
-  tools: string[];
-  resources: { name: string; uri: string }[];
-  prompts: string[];
-};
-
-function makeMockServer(): RegistrationLog & {
-  tool: ReturnType<typeof vi.fn>;
-  resource: ReturnType<typeof vi.fn>;
-  prompt: ReturnType<typeof vi.fn>;
-} {
-  const log: RegistrationLog = { tools: [], resources: [], prompts: [] };
+function makeMockServer() {
+  const tools: string[] = [];
+  const resources: { name: string; uri: string }[] = [];
+  const prompts: string[] = [];
   return {
-    ...log,
-    tool: vi.fn((name: string) => {
-      log.tools.push(name);
-    }),
-    resource: vi.fn((name: string, uri: string) => {
-      log.resources.push({ name, uri });
-    }),
-    prompt: vi.fn((name: string) => {
-      log.prompts.push(name);
-    }),
+    tools,
+    resources,
+    prompts,
+    tool: vi.fn((name: string) => tools.push(name)),
+    resource: vi.fn((name: string, uri: string) => resources.push({ name, uri })),
+    prompt: vi.fn((name: string) => prompts.push(name)),
   };
 }
 
@@ -33,7 +22,7 @@ describe("registerAll", () => {
     const server = makeMockServer();
     const client = {} as unknown as MetaClient;
 
-    registerAll(server as never, client);
+    registerAll(server as unknown as McpServer, client);
 
     expect(server.tools).toEqual([
       "meta_exchange_token",
