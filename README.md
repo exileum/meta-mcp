@@ -172,7 +172,7 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 |------|-------------|
 | `ig_get_conversations` | List DM conversations |
 | `ig_get_messages` | Get messages in a conversation |
-| `ig_send_message` | Send a DM |
+| `ig_send_message` | Send a DM (optional `messaging_type` = `RESPONSE`/`UPDATE`/`MESSAGE_TAG` and `tag` = `HUMAN_AGENT` for the 7-day human-agent window) |
 | `ig_get_message` | Get message details |
 
 ### Threads — Publishing (8)

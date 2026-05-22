@@ -168,3 +168,131 @@ describe("ig_get_messages pagination cursors", () => {
     expect(call[2]).toMatchObject({ after: "cursor-next", before: "cursor-prev" });
   });
 });
+
+describe("ig_send_message messaging_type and tag", () => {
+  let server: MockServer;
+  let client: MetaClient;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeMockClient();
+    registerIgMessagingTools(server as never, client);
+  });
+
+  it("defaults messaging_type to RESPONSE and omits tag", async () => {
+    await server.callTool("ig_send_message", { recipient_id: "user_1", message: "hello" });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toBe("POST");
+    expect(call[1]).toBe("/123/messages");
+    expect(call[2]).toBeUndefined();
+    expect(call[3].jsonBody).toEqual({
+      recipient: { id: "user_1" },
+      message: { text: "hello" },
+      messaging_type: "RESPONSE",
+    });
+    expect(call[3].jsonBody).not.toHaveProperty("tag");
+  });
+
+  it("forwards explicit messaging_type=UPDATE without a tag", async () => {
+    await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "shipping update",
+      messaging_type: "UPDATE",
+    });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[3].jsonBody.messaging_type).toBe("UPDATE");
+    expect(call[3].jsonBody).not.toHaveProperty("tag");
+  });
+
+  it("forwards MESSAGE_TAG + HUMAN_AGENT for the 7-day window", async () => {
+    await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "support follow-up",
+      messaging_type: "MESSAGE_TAG",
+      tag: "HUMAN_AGENT",
+    });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[3].jsonBody).toEqual({
+      recipient: { id: "user_1" },
+      message: { text: "support follow-up" },
+      messaging_type: "MESSAGE_TAG",
+      tag: "HUMAN_AGENT",
+    });
+  });
+
+  it.each([
+    "CONFIRMED_EVENT_UPDATE",
+    "POST_PURCHASE_UPDATE",
+    "ACCOUNT_UPDATE",
+    "CUSTOMER_FEEDBACK",
+  ] as const)("accepts %s tag via MESSAGE_TAG", async (tag) => {
+    await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "tagged",
+      messaging_type: "MESSAGE_TAG",
+      tag,
+    });
+
+    const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[3].jsonBody.messaging_type).toBe("MESSAGE_TAG");
+    expect(call[3].jsonBody.tag).toBe(tag);
+  });
+
+  it("rejects MESSAGE_TAG without a tag and skips the API call", async () => {
+    const result = await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "missing tag",
+      messaging_type: "MESSAGE_TAG",
+    }) as { isError?: boolean; content: { text: string }[] };
+
+    expect(result.isError).toBe(true);
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.error_type).toBe("validation");
+    expect(payload.message).toMatch(/messaging_type=MESSAGE_TAG requires a tag/);
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects tag when messaging_type defaults to RESPONSE", async () => {
+    const result = await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "stray tag",
+      tag: "HUMAN_AGENT",
+    }) as { isError?: boolean; content: { text: string }[] };
+
+    expect(result.isError).toBe(true);
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.error_type).toBe("validation");
+    expect(payload.message).toMatch(/tag is only valid when messaging_type=MESSAGE_TAG/);
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects tag when messaging_type is explicit UPDATE", async () => {
+    const result = await server.callTool("ig_send_message", {
+      recipient_id: "user_1",
+      message: "stray tag with UPDATE",
+      messaging_type: "UPDATE",
+      tag: "HUMAN_AGENT",
+    }) as { isError?: boolean; content: { text: string }[] };
+
+    expect(result.isError).toBe(true);
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.error_type).toBe("validation");
+    expect(payload.message).toMatch(/tag is only valid when messaging_type=MESSAGE_TAG/);
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown tag values via the Zod enum", async () => {
+    await expect(
+      server.callTool("ig_send_message", {
+        recipient_id: "user_1",
+        message: "bad tag",
+        messaging_type: "MESSAGE_TAG",
+        tag: "NOT_A_REAL_TAG",
+      })
+    ).rejects.toThrow();
+    expect(client.ig).not.toHaveBeenCalled();
+  });
+});
