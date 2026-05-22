@@ -124,14 +124,14 @@ describe("ig_publish_carousel", () => {
     });
 
     const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
-    // Expected call sequence:
-    // 1. POST /{userId}/media (child 1 container)
+    // Children are created in parallel via Promise.all, so the sequence is:
+    // 0. POST /{userId}/media (child 1 container)
+    // 1. POST /{userId}/media (child 2 container)
     // 2. GET /container-1 (poll child 1 status)
-    // 3. POST /{userId}/media (child 2 container)
-    // 4. GET /container-1 (poll child 2 status)
-    // 5. POST /{userId}/media (carousel container)
-    // 6. GET /container-1 (poll carousel status) <-- this was missing before the fix
-    // 7. POST /{userId}/media_publish
+    // 3. GET /container-1 (poll child 2 status)
+    // 4. POST /{userId}/media (carousel container)
+    // 5. GET /container-1 (poll carousel status) <-- regression guard for #29
+    // 6. POST /{userId}/media_publish
     expect(calls.length).toBe(7);
 
     // Verify the carousel container status poll (call index 5)
@@ -141,6 +141,28 @@ describe("ig_publish_carousel", () => {
     // Verify media_publish is the last call (call index 6)
     expect(calls[6][0]).toBe("POST");
     expect(calls[6][1]).toBe("/123/media_publish");
+  });
+
+  it("creates child containers in parallel (all child POSTs precede polls)", async () => {
+    const handler = server.tools.get("ig_publish_carousel")!;
+    await handler({
+      items: [
+        { type: "IMAGE", url: "https://example.com/a.jpg" },
+        { type: "IMAGE", url: "https://example.com/b.jpg" },
+        { type: "IMAGE", url: "https://example.com/c.jpg" },
+      ],
+    });
+
+    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
+    // Parallel order: 3× POST child, 3× GET child-poll, POST parent, GET parent-poll, POST publish.
+    // Sequential implementation would interleave POST/GET/POST/GET/POST/GET and fail this assertion.
+    expect(calls).toHaveLength(9);
+    expect(calls.slice(0, 3).every((c) => c[0] === "POST")).toBe(true);
+    expect(calls.slice(3, 6).every((c) => c[0] === "GET")).toBe(true);
+    expect(calls[6][0]).toBe("POST");
+    expect(calls[7][0]).toBe("GET");
+    expect(calls[8][0]).toBe("POST");
+    expect(calls[8][1]).toBe("/123/media_publish");
   });
 });
 
@@ -294,13 +316,15 @@ describe("ig_publish_carousel alt_text", () => {
       ],
     });
 
-    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
-    // Child container POSTs are at index 0 and 2 (poll calls at 1 and 3).
-    expect(calls[0][2]).toMatchObject({
+    const childPosts = (client.ig as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0] === "POST" && (c[2] as Record<string, unknown>)?.is_carousel_item === true
+    );
+    expect(childPosts).toHaveLength(2);
+    expect(childPosts[0][2]).toMatchObject({
       image_url: "https://example.com/a.jpg",
       alt_text: "First photo",
     });
-    expect(calls[2][2]).toMatchObject({
+    expect(childPosts[1][2]).toMatchObject({
       image_url: "https://example.com/b.jpg",
       alt_text: "Second photo",
     });
@@ -317,9 +341,13 @@ describe("ig_publish_carousel alt_text", () => {
       ],
     } as unknown as Parameters<typeof handler>[0]);
 
-    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls[0][2]).not.toHaveProperty("alt_text");
-    expect(calls[2][2]).not.toHaveProperty("alt_text");
+    const childPosts = (client.ig as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0] === "POST" && (c[2] as Record<string, unknown>)?.is_carousel_item === true
+    );
+    expect(childPosts).toHaveLength(2);
+    for (const call of childPosts) {
+      expect(call[2]).not.toHaveProperty("alt_text");
+    }
   });
 
   it("forwards alt_text only for IMAGE in mixed carousel", async () => {
@@ -331,16 +359,26 @@ describe("ig_publish_carousel alt_text", () => {
       ],
     });
 
-    const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls[0][2]).toMatchObject({
+    const childPosts = (client.ig as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0] === "POST" && (c[2] as Record<string, unknown>)?.is_carousel_item === true
+    );
+    const imagePost = childPosts.find(
+      (c) => (c[2] as Record<string, unknown>)?.image_url === "https://example.com/a.jpg"
+    );
+    const videoPost = childPosts.find(
+      (c) => (c[2] as Record<string, unknown>)?.video_url === "https://example.com/b.mp4"
+    );
+    expect(imagePost).toBeDefined();
+    expect(videoPost).toBeDefined();
+    expect(imagePost![2]).toMatchObject({
       image_url: "https://example.com/a.jpg",
       alt_text: "Photo alt",
     });
-    expect(calls[2][2]).toMatchObject({
+    expect(videoPost![2]).toMatchObject({
       video_url: "https://example.com/b.mp4",
       media_type: "VIDEO",
     });
-    expect(calls[2][2]).not.toHaveProperty("alt_text");
+    expect(videoPost![2]).not.toHaveProperty("alt_text");
   });
 });
 

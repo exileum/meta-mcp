@@ -264,8 +264,9 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     },
     async ({ items, text, reply_control, topic_tag, quote_post_id, share_to_ig_story, allowlisted_country_codes }) => {
       try {
-        const childIds: string[] = [];
-        for (const item of items) {
+        // Children are independent — create them in parallel. Errors propagate
+        // unwrapped so formatErrorResponse keeps MetaApiError categorization.
+        const childIds = await Promise.all(items.map(async (item) => {
           const params: FormParams = { media_type: item.type, is_carousel_item: true };
           if (item.type === "IMAGE") {
             params.image_url = item.url;
@@ -277,8 +278,8 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
           if (typeof child.id !== "string") throw new Error("Container creation did not return a valid id");
           const childId = child.id;
           await waitForThreadsContainer(client, childId, item.type === "VIDEO" ? VIDEO_PROCESSING_TIMEOUT : IMAGE_PROCESSING_TIMEOUT);
-          childIds.push(childId);
-        }
+          return childId;
+        }));
         const carouselParams: FormParams = {
           media_type: "CAROUSEL",
           children: childIds.join(","),
