@@ -8,6 +8,7 @@ import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { makeProgressNotifier, ProgressExtra } from "../../utils/progress.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_TOOL } from "../annotations.js";
+import { THREADS_PROFILE_CACHE_PREFIX } from "./profile.js";
 
 export const topicTagSchema = z.string().min(1).max(50).regex(/^[^.&]+$/, "Topic tags cannot contain periods or ampersands").optional().describe("Topic tag for the post (1-50 chars, no periods or ampersands)");
 
@@ -174,6 +175,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof createResponse.id !== "string") throw new Error("Container creation did not return a valid id");
         if (useAutoPublish) {
+          client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
           return formatResponse(createResponse, createRateLimit);
         }
         containerId = createResponse.id;
@@ -181,6 +183,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish text", { step, containerId });
@@ -234,6 +237,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish image", { step, containerId });
@@ -287,6 +291,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish video", { step, containerId });
@@ -370,6 +375,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel", {
@@ -397,6 +403,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     async ({ post_id }) => {
       try {
         const { data, rateLimit } = await client.threads("DELETE", `/${post_id}`);
+        client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
         return formatResponse({ success: true, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Delete post");
@@ -463,6 +470,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
     async ({ post_id }) => {
       try {
         const { data, rateLimit } = await client.threads("POST", `/${post_id}/repost`, {});
+        client.invalidateCache(THREADS_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Repost");

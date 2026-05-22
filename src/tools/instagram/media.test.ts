@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerIgMediaTools } from "./media.js";
 import { MetaClient } from "../../services/meta-client.js";
-import { makeMockServer, type MockServer } from "../test-utils.js";
+import { makeMockServer, makeMockCache, type MockServer } from "../test-utils.js";
 
 function makeMockClient(): MetaClient {
   return {
@@ -10,6 +10,7 @@ function makeMockClient(): MetaClient {
       data: { data: [] },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient;
 }
 

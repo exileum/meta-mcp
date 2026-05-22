@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, HttpMethod } from "../../services/meta-client.js";
 import { httpsUrl } from "../../schemas.js";
 import { registerIgPublishingTools, collaboratorsSchema } from "./publishing.js";
+import { makeMockCache } from "../test-utils.js";
 
 /** Captures the tool handlers registered via server.registerTool() */
 function captureTools(server: McpServer) {
@@ -24,6 +25,7 @@ function makeStoryMockClient(): MetaClient & { ig: ReturnType<typeof vi.fn> } {
       data: { id: "container-1", status_code: "FINISHED" },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient & { ig: ReturnType<typeof vi.fn> };
   return client;
 }
@@ -49,6 +51,7 @@ function makeParamMockClient(): MetaClient {
       data: { id: "container-1", status_code: "FINISHED" },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient;
 }
 

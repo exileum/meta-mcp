@@ -3,6 +3,7 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { registerInstagramResources } from "./instagram.js";
 import { MetaClient } from "../services/meta-client.js";
 import { MetaApiError } from "../utils/errors.js";
+import { makeMockCache } from "../tools/test-utils.js";
 
 type ResourceCall = {
   name: string;
@@ -39,6 +40,7 @@ function makeMockClient(): MetaClient {
       },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient;
 }
 
@@ -109,6 +111,7 @@ describe("instagram-profile resource", () => {
           method: "GET",
         });
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
     registerInstagramResources(server as never, client);
 
@@ -130,6 +133,7 @@ describe("instagram-profile resource", () => {
           "fetch failed: https://graph.instagram.com/ig-123?access_token=EAAB_token_secret",
         );
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
     registerInstagramResources(server as never, client);
 

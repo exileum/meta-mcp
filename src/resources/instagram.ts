@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../services/meta-client.js";
+import { MetaClient, PROFILE_CACHE_TTL_MS } from "../services/meta-client.js";
 import { IG_PROFILE_FIELDS } from "../constants/fields.js";
+import { igProfileCacheKey } from "../tools/instagram/profile.js";
 import { toMcpResourceError } from "../utils/errors.js";
 
 export function registerInstagramResources(server: McpServer, client: MetaClient) {
@@ -10,9 +11,15 @@ export function registerInstagramResources(server: McpServer, client: MetaClient
     { description: "Instagram Business/Creator account profile information", mimeType: "application/json" },
     async () => {
       try {
-        const { data } = await client.ig("GET", `/${client.igUserId}`, {
-          fields: IG_PROFILE_FIELDS,
-        });
+        const cacheKey = igProfileCacheKey(client.igUserId);
+        let data = client.getCached<Record<string, unknown>>(cacheKey);
+        if (!data) {
+          const result = await client.ig("GET", `/${client.igUserId}`, {
+            fields: IG_PROFILE_FIELDS,
+          });
+          data = result.data;
+          client.setCache(cacheKey, data, PROFILE_CACHE_TTL_MS);
+        }
         return {
           contents: [
             {

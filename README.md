@@ -368,7 +368,7 @@ Triggered by Meta API codes `4`, `17`, `32`, `341`, `613`, the business-use-case
 What to do:
 
 1. Inspect the `_rateLimit` field on prior successful tool responses. `callCount`, `totalCpuTime`, and `totalTime` come from Meta's `x-app-usage` header; when any approaches `100` you are near the per-app threshold.
-2. meta-mcp already self-throttles once `max(callCount, totalCpuTime, totalTime)` crosses 80% (1s slowdown) or 90% (5s backoff) — see the `[meta-mcp] x-app-usage at N%…` lines on stderr. If you are still hitting `rate_limit` errors despite that, reduce request volume further and cache profile metadata between calls.
+2. meta-mcp already self-throttles once `max(callCount, totalCpuTime, totalTime)` crosses 80% (1s slowdown) or 90% (5s backoff) — see the `[meta-mcp] x-app-usage at N%…` lines on stderr. Profile reads (`ig_get_profile`, `threads_get_profile`, and the matching `meta-mcp://*/profile` resources) and hashtag-name lookups (`ig_search_hashtag`) are also cached in-process for 5 minutes / 7 days respectively, with cache hits skipping the network entirely. If you are still hitting `rate_limit` errors despite all that, reduce request volume further.
 3. Threads has hard daily quotas (250 publishes, 100 deletes) — query the remaining quota with `threads_get_publishing_limit` before bulk operations.
 
 ### `error_type: "validation"` — bad parameter, wrong ID, or unsupported field

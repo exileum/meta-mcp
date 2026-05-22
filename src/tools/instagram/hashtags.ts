@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, HASHTAG_CACHE_TTL_MS } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { IG_HASHTAG_MEDIA_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
@@ -8,12 +8,14 @@ import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL } from "../annotations.js";
 
+export const igHashtagCacheKey = (userId: string, q: string): string => `ig:hashtag:${userId}:${q}`;
+
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
   // ─── ig_search_hashtag ───────────────────────────────────────
   server.registerTool(
     "ig_search_hashtag",
     {
-      description: "Search for a hashtag ID by name. Required before querying hashtag media. Limited to 30 unique hashtags per 7-day rolling window.",
+      description: "Search for a hashtag ID by name. Required before querying hashtag media. Limited to 30 unique hashtags per 7-day rolling window — meta-mcp caches results in-process to maximize quota utilization on repeated lookups.",
       inputSchema: {
         q: z.string().describe("Hashtag name to search (without #)"),
       },
@@ -21,10 +23,14 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
     },
     async ({ q }) => {
       try {
+        const cacheKey = igHashtagCacheKey(client.igUserId, q);
+        const cached = client.getCached<Record<string, unknown>>(cacheKey);
+        if (cached) return formatResponse(cached);
         const { data, rateLimit } = await client.ig("GET", "/ig_hashtag_search", {
           q,
           user_id: client.igUserId,
         });
+        client.setCache(cacheKey, data, HASHTAG_CACHE_TTL_MS);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Hashtag search");

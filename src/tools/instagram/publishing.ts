@@ -8,6 +8,7 @@ import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { makeProgressNotifier, ProgressExtra } from "../../utils/progress.js";
 import { READ_ONLY_TOOL, WRITE_TOOL } from "../annotations.js";
+import { IG_PROFILE_CACHE_PREFIX } from "./profile.js";
 
 // Counts code points (the spread iterator yields one entry per code point) rather
 // than UTF-16 code units, so emoji-heavy strings under Meta's documented
@@ -79,6 +80,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(IG_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish photo", { step, containerId });
@@ -124,6 +126,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(IG_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish video", { step, containerId });
@@ -212,6 +215,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(IG_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel", {
@@ -265,6 +269,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(IG_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish reel", { step, containerId });
@@ -303,6 +308,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
+        client.invalidateCache(IG_PROFILE_CACHE_PREFIX);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish story", { step, containerId });

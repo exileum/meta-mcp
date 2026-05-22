@@ -143,6 +143,12 @@ export const RATE_LIMIT_BACKOFF_MS = 5000;
 // a long-idle client doesn't pay a spurious backoff on its first post-idle call.
 export const RATE_LIMIT_SNAPSHOT_TTL_MS = 60 * 60 * 1000;
 
+// Response cache TTLs (#90). Hashtag TTL matches Meta's 30-unique-hashtag /
+// 7-day API quota so a session-long cache stays warm for the full quota window;
+// profile TTL is kept short to bound follower-count staleness.
+export const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
+export const HASHTAG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface ClientResponse {
   data: Record<string, unknown>;
   rateLimit?: RateLimit;
@@ -220,6 +226,7 @@ export class MetaClient {
   private threadsBase: string;
   private lastRateLimit?: RateLimit;
   private lastRateLimitAt?: number;
+  private cache = new Map<string, { data: unknown; expiry: number }>();
   private maxRetries: number;
   private retryBaseDelayMs: number;
   private sleep: (ms: number) => Promise<void>;
@@ -575,8 +582,37 @@ export class MetaClient {
 
   // Request methods re-read `this.config.<field>` per call, so mutating
   // `this.config` is enough for runtime token rotation — no URL or token
-  // cache needs invalidation (#65).
+  // cache needs invalidation (#65). The response cache (#90), however, holds
+  // per-account profile data that no longer applies after the rotation.
   updateConfig(partial: Partial<MetaConfig>): void {
     this.config = { ...this.config, ...partial };
+    this.invalidateCache();
+  }
+
+  // Expired entries are evicted lazily on read; the cache is bounded by use
+  // (≤2 profile keys + ≤30 hashtag keys per the 7-day API quota), so no
+  // background sweep is needed.
+  getCached<T>(key: string): T | undefined {
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
+    if (Date.now() >= entry.expiry) {
+      this.cache.delete(key);
+      return undefined;
+    }
+    return entry.data as T;
+  }
+
+  setCache(key: string, data: unknown, ttlMs: number): void {
+    this.cache.set(key, { data, expiry: Date.now() + ttlMs });
+  }
+
+  invalidateCache(prefix?: string): void {
+    if (prefix === undefined) {
+      this.cache.clear();
+      return;
+    }
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) this.cache.delete(key);
+    }
   }
 }

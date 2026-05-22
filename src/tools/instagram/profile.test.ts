@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
 import { registerIgProfileTools, igBusinessDiscoveryUsernameSchema } from "./profile.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, PROFILE_CACHE_TTL_MS } from "../../services/meta-client.js";
+import { makeMockCache } from "../test-utils.js";
 
 function makeMockServer() {
   const tools = new Map<string, (...args: unknown[]) => unknown>();
@@ -25,6 +26,7 @@ function makeMockClient(): MetaClient {
       data: { data: [{ name: "views", values: [{ value: 100 }] }] },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient;
 }
 
@@ -457,5 +459,55 @@ describe("ig_get_collaboration_invites pagination cursors", () => {
 
     const call = (client.ig as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[2]).toMatchObject({ after: "cursor-next", before: "cursor-prev" });
+  });
+});
+
+describe("ig_get_profile cache (#90)", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeMockClient>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    server = makeMockServer();
+    client = makeMockClient();
+    (client.ig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { id: "ig-1", followers_count: 100 },
+      rateLimit: { callCount: 5 },
+    });
+    registerIgProfileTools(server as never, client);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("first call fetches; second within TTL hits the cache and skips the network", async () => {
+    const handler = server.tools.get("ig_get_profile")!;
+    await handler({});
+    await handler({});
+
+    expect((client.ig as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+  });
+
+  it("cache hit omits _rateLimit (no fresh HTTP response was made)", async () => {
+    const handler = server.tools.get("ig_get_profile")!;
+    const firstResult = (await handler({})) as { content: { text: string }[] };
+    const secondResult = (await handler({})) as { content: { text: string }[] };
+
+    const firstPayload = JSON.parse(firstResult.content[0].text) as Record<string, unknown>;
+    const secondPayload = JSON.parse(secondResult.content[0].text) as Record<string, unknown>;
+
+    expect(firstPayload._rateLimit).toEqual({ callCount: 5 });
+    expect(secondPayload._rateLimit).toBeUndefined();
+    expect(secondPayload).toMatchObject({ id: "ig-1", followers_count: 100 });
+  });
+
+  it("re-fetches after the TTL has elapsed", async () => {
+    const handler = server.tools.get("ig_get_profile")!;
+    await handler({});
+    vi.advanceTimersByTime(PROFILE_CACHE_TTL_MS);
+    await handler({});
+
+    expect((client.ig as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(2);
   });
 });
