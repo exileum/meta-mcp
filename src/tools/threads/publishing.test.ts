@@ -1839,3 +1839,25 @@ describe("threads_publish_text error context", () => {
     expect(payload.message).toBe("Publish text failed at publishing (container: tc-1): publish POST failed");
   });
 });
+
+describe("threads_publish_video error context", () => {
+  it("reports processing step + container_id when video poll fails", async () => {
+    const server = makeMockServer();
+    let callIndex = 0;
+    const client = {
+      threadsUserId: "t-99",
+      threads: vi.fn(async (method: HttpMethod) => {
+        if (callIndex++ === 0) return { data: { id: "vid-c-1" }, rateLimit: undefined };
+        if (method === "GET") return { data: { status: "ERROR" }, rateLimit: undefined };
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+    registerThreadsPublishingTools(server as never, client);
+    const handler = server.tools.get("threads_publish_video")!;
+    const result = await handler({ video_url: "https://example.com/v.mp4" });
+    const payload = parsePayload(result);
+    expect(payload.step).toBe("processing");
+    expect(payload.container_id).toBe("vid-c-1");
+    expect(payload.message).toContain("Publish video failed at processing (container: vid-c-1)");
+  });
+});

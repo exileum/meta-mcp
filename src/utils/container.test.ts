@@ -170,6 +170,27 @@ describe("pollContainerStatus", () => {
     await promise;
   });
 
+  it("polls at the deadline even when the next backoff would overrun maxWait", async () => {
+    const apiCall = makeApiCall(Array(10).fill("IN_PROGRESS"), "status");
+    const promise = pollContainerStatus("c-1", {
+      ...defaults,
+      apiCall,
+      interval: 1000,
+      backoffFactor: 2,
+      maxWait: 4,
+    });
+    const rejection = expect(promise).rejects.toThrow(
+      "Container processing timed out after 4s (last status: IN_PROGRESS)"
+    );
+    // Without the sleep clamp the 3rd backoff (4000 ms) would push the loop
+    // past the 4 s deadline and throw at ~3 s. With clamping the loop sleeps
+    // only the remaining budget and the 4th poll fires AT the deadline,
+    // before the next iteration's remaining-budget check throws.
+    await vi.advanceTimersByTimeAsync(10_000);
+    await rejection;
+    expect(apiCall).toHaveBeenCalledTimes(4);
+  });
+
   it("adds jitter from random() * jitterMs to each delay", async () => {
     const apiCall = makeApiCall(["IN_PROGRESS", "FINISHED"], "status");
     const promise = pollContainerStatus("c-1", {

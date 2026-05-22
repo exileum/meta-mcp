@@ -76,12 +76,15 @@ export async function pollContainerStatus(containerId: string, options: PollCont
     if (status === "PUBLISHED") throw new Error(`${label} already published`);
     if (!status) throw new Error(`${label} status field missing from API response`);
     if (status !== "IN_PROGRESS") throw new Error(`Unexpected ${label.toLowerCase()} status: ${status}`);
-    const baseDelay = Math.min(interval * Math.pow(backoffFactor, attempt), maxInterval);
-    const delay = baseDelay + random() * jitterMs;
-    if (Date.now() + delay > deadline) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
       throw new Error(`${label} processing timed out after ${maxWait}s (last status: ${lastStatus ?? "unknown"})`);
     }
-    await new Promise((r) => setTimeout(r, delay));
+    const baseDelay = Math.min(interval * Math.pow(backoffFactor, attempt), maxInterval);
+    const delay = baseDelay + random() * jitterMs;
+    // Clamp the sleep to the remaining budget so the next poll fires AT the
+    // deadline rather than aborting early when the next backoff would overrun.
+    await new Promise((r) => setTimeout(r, Math.min(delay, remaining)));
     attempt++;
   }
 }

@@ -974,3 +974,65 @@ describe("ig_publish_carousel error context", () => {
     expect(payload.message).toContain("Publish carousel failed at parent processing (container: c-3)");
   });
 });
+
+describe("ig_publish_video / _reel / _story error context", () => {
+  function makeFailingClient(failAt: "create" | "poll" | "publish"): MetaClient {
+    let postIndex = 0;
+    return {
+      igUserId: "ig-99",
+      ig: vi.fn(async (method: HttpMethod, path: string) => {
+        if (method === "POST") {
+          postIndex++;
+          if (failAt === "create" && postIndex === 1) throw new Error("create fail");
+          if (failAt === "publish" && path.endsWith("/media_publish")) throw new Error("publish fail");
+          return { data: { id: "container-X" }, rateLimit: undefined };
+        }
+        if (method === "GET") {
+          if (failAt === "poll") return { data: { status_code: "ERROR" }, rateLimit: undefined };
+          return { data: { status_code: "FINISHED" }, rateLimit: undefined };
+        }
+        throw new Error("unexpected call");
+      }),
+    } as unknown as MetaClient;
+  }
+
+  for (const [tool, label, inputs] of [
+    ["ig_publish_video", "Publish video", { video_url: "https://example.com/v.mp4" }],
+    ["ig_publish_reel", "Publish reel", { video_url: "https://example.com/r.mp4" }],
+    ["ig_publish_story", "Publish story", { media_type: "IMAGE", media_url: "https://example.com/s.jpg" }],
+  ] as const) {
+    it(`${tool} reports container creation step on POST failure`, async () => {
+      const server = makeMockServer();
+      const client = makeFailingClient("create");
+      registerIgPublishingTools(server as never, client);
+      const handler = server.tools.get(tool)!;
+      const result = await handler(inputs);
+      const payload = parsePayload(result);
+      expect(payload.step).toBe("container creation");
+      expect(payload.container_id).toBeUndefined();
+      expect(payload.message).toBe(`${label} failed at container creation: create fail`);
+    });
+
+    it(`${tool} reports processing step + container_id on poll ERROR`, async () => {
+      const server = makeMockServer();
+      const client = makeFailingClient("poll");
+      registerIgPublishingTools(server as never, client);
+      const handler = server.tools.get(tool)!;
+      const result = await handler(inputs);
+      const payload = parsePayload(result);
+      expect(payload.step).toBe("processing");
+      expect(payload.container_id).toBe("container-X");
+    });
+
+    it(`${tool} reports publishing step + container_id on publish POST failure`, async () => {
+      const server = makeMockServer();
+      const client = makeFailingClient("publish");
+      registerIgPublishingTools(server as never, client);
+      const handler = server.tools.get(tool)!;
+      const result = await handler(inputs);
+      const payload = parsePayload(result);
+      expect(payload.step).toBe("publishing");
+      expect(payload.container_id).toBe("container-X");
+    });
+  }
+});
