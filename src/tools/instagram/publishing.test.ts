@@ -156,6 +156,8 @@ describe("ig_publish_carousel", () => {
     const calls = (client.ig as ReturnType<typeof vi.fn>).mock.calls;
     // Parallel order: 3× POST child, 3× GET child-poll, POST parent, GET parent-poll, POST publish.
     // Sequential implementation would interleave POST/GET/POST/GET/POST/GET and fail this assertion.
+    // Ordering is deterministic because vi.fn(async () => …) records the call synchronously on
+    // entry and Array.map starts all three async callbacks before any await resumes.
     expect(calls).toHaveLength(9);
     expect(calls.slice(0, 3).every((c) => c[0] === "POST")).toBe(true);
     expect(calls.slice(3, 6).every((c) => c[0] === "GET")).toBe(true);
