@@ -2,6 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 export function registerThreadsMentionsTools(server: McpServer, client: MetaClient): void {
   // ─── threads_get_mentions ────────────────────────────────────
@@ -24,7 +25,7 @@ export function registerThreadsMentionsTools(server: McpServer, client: MetaClie
         if (until) params.until = until;
         if (after) params.after = after;
         const { data, rateLimit } = await client.threads("GET", `/${client.threadsUserId}/mentions`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get mentions");
       }

@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 export function registerIgHashtagTools(server: McpServer, client: MetaClient): void {
   // ─── ig_search_hashtag ───────────────────────────────────────
@@ -18,7 +19,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
           q,
           user_id: client.igUserId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Hashtag search");
       }
@@ -37,7 +38,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}`, {
           fields: "id,name,media_count",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get hashtag");
       }
@@ -64,7 +65,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/recent_media`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get hashtag recent");
       }
@@ -91,7 +92,7 @@ export function registerIgHashtagTools(server: McpServer, client: MetaClient): v
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${hashtag_id}/top_media`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get hashtag top");
       }

@@ -4,6 +4,7 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForIgContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 const collaboratorUsername = z
   .string()
@@ -56,7 +57,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish photo");
       }
@@ -90,7 +91,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish video");
       }
@@ -153,7 +154,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: carouselId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish carousel");
       }
@@ -187,7 +188,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish reel");
       }
@@ -217,7 +218,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("POST", `/${client.igUserId}/media_publish`, {
           creation_id: containerId,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Publish story");
       }
@@ -236,7 +237,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.ig("GET", `/${container_id}`, {
           fields: "id,status,status_code",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get container status");
       }

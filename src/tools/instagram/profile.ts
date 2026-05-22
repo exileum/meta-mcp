@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 export const igBusinessDiscoveryUsernameSchema = z
   .string()
@@ -32,7 +33,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
           fields: "id,name,username,biography,followers_count,follows_count,media_count,profile_picture_url,website",
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get profile");
       }
@@ -67,7 +68,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         if (since) params.since = since;
         if (until) params.until = until;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/insights`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get account insights");
       }
@@ -87,7 +88,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
           fields: `business_discovery.username(${username}){${fields}}`,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Business discovery");
       }
@@ -110,7 +111,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/collaboration_invites`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get collaboration invites");
       }
@@ -131,7 +132,7 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
           media_id,
           accept,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Respond to collaboration invite");
       }

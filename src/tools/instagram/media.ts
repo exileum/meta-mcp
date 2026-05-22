@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { formatErrorResponse } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 const GET_MEDIA_DEFAULT_FIELDS = "id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count";
 const GET_MEDIA_INSIGHTS_DEFAULT_METRIC = "views,reach";
@@ -26,7 +27,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         if (after) params.after = after;
         if (before) params.before = before;
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}/media`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get media list");
       }
@@ -44,7 +45,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     async ({ media_id, fields }) => {
       try {
         const { data, rateLimit } = await client.ig("GET", `/${media_id}`, { fields });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get media");
       }
@@ -61,7 +62,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     async ({ media_id }) => {
       try {
         const { data, rateLimit } = await client.ig("DELETE", `/${media_id}`);
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Delete media");
       }
@@ -83,7 +84,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     async ({ media_id, metric }) => {
       try {
         const { data, rateLimit } = await client.ig("GET", `/${media_id}/insights`, { metric });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get media insights");
       }
@@ -103,7 +104,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
         const { data, rateLimit } = await client.ig("POST", `/${media_id}`, {
           comment_enabled: enabled,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, comment_enabled: enabled, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, comment_enabled: enabled, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Toggle comments");
       }

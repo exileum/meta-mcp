@@ -4,6 +4,7 @@ import { MetaClient, FormParams } from "../../services/meta-client.js";
 import { httpsUrl, metaId } from "../../schemas.js";
 import { waitForThreadsContainer, IMAGE_PROCESSING_TIMEOUT, VIDEO_PROCESSING_TIMEOUT } from "../../utils/container.js";
 import { formatErrorResponse, validationError } from "../../utils/errors.js";
+import { formatResponse } from "../../utils/response.js";
 
 const REPLIES_BASE_FIELDS = "id,text,username,permalink,timestamp,media_type,media_url,has_replies,hide_status,root_post,replied_to,is_reply,is_quote_post";
 
@@ -40,7 +41,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         if (after) params.after = after;
         const edge = mode === "full_tree" ? "conversation" : "replies";
         const { data, rateLimit } = await client.threads("GET", `/${post_id}/${edge}`, params);
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get replies");
       }
@@ -84,7 +85,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const { data: createResponse, rateLimit: createRateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads`, params);
         if (typeof createResponse.id !== "string") throw new Error("Container creation did not return a valid id");
         if (useAutoPublish) {
-          return { content: [{ type: "text", text: JSON.stringify({ ...createResponse, _rateLimit: createRateLimit }, null, 2) }] };
+          return formatResponse(createResponse, createRateLimit);
         }
         if (image_url || video_url) {
           await waitForThreadsContainer(
@@ -96,7 +97,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
         const { data, rateLimit } = await client.threads("POST", `/${client.threadsUserId}/threads_publish`, {
           creation_id: createResponse.id,
         });
-        return { content: [{ type: "text", text: JSON.stringify({ ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Reply");
       }
@@ -113,7 +114,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     async ({ reply_id }) => {
       try {
         const { data, rateLimit } = await client.threads("POST", `/${reply_id}/manage_reply`, { hide: true });
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: true, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, hidden: true, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Hide reply");
       }
@@ -130,7 +131,7 @@ export function registerThreadsReplyTools(server: McpServer, client: MetaClient)
     async ({ reply_id }) => {
       try {
         const { data, rateLimit } = await client.threads("POST", `/${reply_id}/manage_reply`, { hide: false });
-        return { content: [{ type: "text", text: JSON.stringify({ success: true, hidden: false, ...data, _rateLimit: rateLimit }, null, 2) }] };
+        return formatResponse({ success: true, hidden: false, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Unhide reply");
       }
