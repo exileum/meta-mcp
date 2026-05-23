@@ -1,9 +1,12 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
 export const SHUTDOWN_SIGNALS = ["SIGINT", "SIGTERM"] as const;
 export type ShutdownSignal = (typeof SHUTDOWN_SIGNALS)[number];
 
 export const SHUTDOWN_TIMEOUT_MS = 5_000;
+
+// Both McpServer (stdio path) and the HTTP transport handle satisfy this.
+export interface Closeable {
+  close(): Promise<void>;
+}
 
 export interface ShutdownOptions {
   exit?: (code: number) => never;
@@ -12,7 +15,7 @@ export interface ShutdownOptions {
 }
 
 export function setupShutdownHandlers(
-  server: Pick<McpServer, "close">,
+  closeable: Closeable,
   options: ShutdownOptions = {}
 ): void {
   const exit = options.exit ?? ((code) => process.exit(code));
@@ -30,7 +33,7 @@ export function setupShutdownHandlers(
       );
     });
     try {
-      await Promise.race([server.close(), deadline]);
+      await Promise.race([closeable.close(), deadline]);
     } finally {
       if (timer) clearTimeout(timer);
     }

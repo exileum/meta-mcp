@@ -71,6 +71,34 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "MCP_TRANSPORT",
+          "description": "Transport to serve MCP over: stdio (default) or http (Streamable HTTP, for remote/multi-client/cloud deployments)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "MCP_HTTP_PORT",
+          "description": "TCP port for the HTTP transport when MCP_TRANSPORT=http (defaults to 3000; integer 1-65535)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "MCP_HTTP_HOST",
+          "description": "Bind address for the HTTP transport when MCP_TRANSPORT=http (defaults to 127.0.0.1, loopback only; set 0.0.0.0 to expose it, only behind a TLS/auth reverse proxy)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "MCP_HTTP_ALLOWED_HOSTS",
+          "description": "Comma-separated host:port allowlist for DNS-rebinding protection when MCP_TRANSPORT=http (defaults to loopback variants at the bound port)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
         }
       ]
     }

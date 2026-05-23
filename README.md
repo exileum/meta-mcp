@@ -71,8 +71,24 @@ npm run build
 | `META_APP_SECRET` | For token/webhook tools | Meta App Secret |
 | `META_API_VERSION` | Optional | Meta Graph API version for Instagram and Facebook endpoints — defaults to `v25.0` (verified 2026-05-06). Override only when Meta deprecates a version before meta-mcp ships a new release. Format: `vMAJOR.MINOR` (e.g., `v26.0`); malformed values fall back to the default with a stderr warning. OAuth token endpoints are unversioned and unaffected by this setting |
 | `THREADS_API_VERSION` | Optional | Threads API version — defaults to `v1.0` (verified 2026-05-06). Threads runs a separate single-major-version track and is not bumped in lockstep with the Graph API. Same `vMAJOR.MINOR` format and fallback behavior as `META_API_VERSION` |
+| `MCP_TRANSPORT` | Optional | Transport to serve MCP over — `stdio` (default) or `http`. See [HTTP Transport](#http-transport) |
+| `MCP_HTTP_PORT` | Optional (http) | TCP port for the HTTP transport — defaults to `3000`. Must be an integer 1–65535 |
+| `MCP_HTTP_HOST` | Optional (http) | Bind address for the HTTP transport — defaults to `127.0.0.1` (loopback only). Set to `0.0.0.0` to accept connections from other hosts (e.g. in Docker), but only behind a TLS/auth reverse proxy |
+| `MCP_HTTP_ALLOWED_HOSTS` | Optional (http) | Comma-separated `host:port` allowlist for DNS-rebinding protection. Defaults to loopback variants at the bound port; set this when binding to a non-loopback host so legitimate requests pass the Host check |
 
 The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` cause the process to exit with `Invalid meta-mcp configuration: …`. Setting only one half of a credential pair (e.g., `INSTAGRAM_ACCESS_TOKEN` without `INSTAGRAM_USER_ID`) prints a stderr warning and continues; related tool invocations still fail at call time.
+
+## HTTP Transport
+
+By default the server speaks MCP over **stdio** — the right choice for local clients (Claude Desktop, Claude Code, etc.). Set `MCP_TRANSPORT=http` to instead serve the SDK's **Streamable HTTP** transport, which enables remote/web-based MCP clients, cloud deployments, and multiple concurrent client sessions.
+
+```bash
+MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx @exileum/meta-mcp
+```
+
+The server then listens on `http://127.0.0.1:3000/mcp`: `POST` to send messages, `GET` for the server→client SSE stream, `DELETE` to end a session. Each client gets an isolated session keyed by the `Mcp-Session-Id` header, so multiple clients can connect at once.
+
+**Security.** The transport binds to `127.0.0.1` (loopback) by default and enables DNS-rebinding protection scoped to localhost, so it is not reachable off-host out of the box. To expose it to other machines (e.g. a container), set `MCP_HTTP_HOST=0.0.0.0` and run it **behind a reverse proxy that terminates TLS and handles authentication** — the server itself performs no auth. When bound to a non-loopback address, set `MCP_HTTP_ALLOWED_HOSTS` to the `host:port` values clients will use so the Host-header check passes (otherwise rebinding protection is disabled with a stderr warning).
 
 ## Account Requirements
 
@@ -96,6 +112,7 @@ The server validates these at startup. Malformed values for `INSTAGRAM_USER_ID`,
 - **MCP server `instructions`** sent during `initialize` so clients know required env vars, the two-step publish flow, expected video processing times, and the `_rateLimit` envelope without re-reading the README
 - **MCP `notifications/progress`** emitted while polling container status during publishing — attach a `progressToken` to `ig_publish_*` / `threads_publish_image|video|carousel` calls and the server reports each poll attempt
 - **Structured MCP logging** via the `notifications/message` channel (the server declares the `logging` capability) — each API call logs `debug` (method + path, never the token-bearing URL), terminal failures log `error` (status/code/sanitized message), rate-limit pressure logs `warning`, and `DELETE`/publish operations log an `info` audit line. Clients can raise the floor with `logging/setLevel` (default emits all levels, including `debug`)
+- **Optional HTTP transport** — set `MCP_TRANSPORT=http` to serve the MCP Streamable HTTP transport (stateful multi-session, localhost-bound by default) instead of stdio, for remote/cloud deployments — see [HTTP Transport](#http-transport)
 
 ## Tools
 
