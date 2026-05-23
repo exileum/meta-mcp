@@ -781,23 +781,22 @@ describe("MetaClient rate-limit throttling (#60)", () => {
   });
 
   it("logs the throttle decision once per throttled call", async () => {
-    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnings: unknown[] = [];
+    const logger = { debug() {}, info() {}, warning: (d: unknown) => { warnings.push(d); }, error() {} };
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(usageResponse({ call_count: 92 }))
       .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
-    const client = new MetaClient(mockConfig());
+    const client = new MetaClient(mockConfig(), { logger });
 
     await client.ig("GET", "/me");
-    expect(errSpy).not.toHaveBeenCalled();
+    expect(warnings).toHaveLength(0);
 
     const second = client.ig("GET", "/me");
     await vi.advanceTimersByTimeAsync(RATE_LIMIT_BACKOFF_MS);
     await second;
 
-    expect(errSpy).toHaveBeenCalledTimes(1);
-    expect(errSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/x-app-usage at 92%.*delaying next request by 5000ms/)
-    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ usage_pct: 92, delay_ms: RATE_LIMIT_BACKOFF_MS });
   });
 
   it("uses the documented threshold and delay constants", () => {
@@ -1775,5 +1774,183 @@ describe("MetaClient response cache (#90)", () => {
     client.updateConfig({ instagramAccessToken: "rotated" });
     expect(client.getCached("ig:profile:a")).toBeUndefined();
     expect(client.getCached("ig:hashtag:a:foo")).toBeUndefined();
+  });
+});
+
+// Structured MCP logging routed through the single request() chokepoint (#62):
+// debug per request, error on terminal failure, warning on rate-limit throttle,
+// info audit on destructive/publish operations.
+describe("MetaClient structured logging (#62)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function recordingLogger() {
+    const calls: { level: string; data: unknown }[] = [];
+    const push = (level: string) => (data: unknown) => { calls.push({ level, data }); };
+    return {
+      calls,
+      debug: push("debug"),
+      info: push("info"),
+      warning: push("warning"),
+      error: push("error"),
+    };
+  }
+
+  it("emits a debug log with method and path at request start", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "123" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.ig("GET", "/me");
+
+    expect(logger.calls).toContainEqual({ level: "debug", data: { method: "GET", path: "/me" } });
+  });
+
+  it("emits exactly one debug log per logical request regardless of retries", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({ id: "ok" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger, sleep: () => Promise.resolve() });
+
+    await client.ig("GET", "/me");
+
+    expect(logger.calls.filter((c) => c.level === "debug")).toHaveLength(1);
+    expect(logger.calls.some((c) => c.level === "error")).toBe(false);
+  });
+
+  it("emits an error log with method, path, status and code on a terminal API failure", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "Invalid parameter", code: 100 } }), { status: 400 })
+    );
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await expect(client.ig("GET", "/bad")).rejects.toThrow(MetaApiError);
+
+    const err = logger.calls.find((c) => c.level === "error");
+    expect(err).toBeDefined();
+    expect(err!.data).toMatchObject({ method: "GET", path: "/bad", http_status: 400, code: 100 });
+  });
+
+  it("sanitizes leaked tokens out of the error log message", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "bad access_token=SECRETVALUE", code: 190 } }), { status: 401 })
+    );
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await expect(client.ig("GET", "/x")).rejects.toThrow();
+
+    const err = logger.calls.find((c) => c.level === "error")!;
+    const message = (err.data as { message: string }).message;
+    expect(message).toContain("access_token=***");
+    expect(message).not.toContain("SECRETVALUE");
+  });
+
+  it("emits an error log for a network failure after retries are exhausted", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger, maxRetries: 0 });
+
+    await expect(client.ig("GET", "/down")).rejects.toThrow(MetaNetworkError);
+
+    const err = logger.calls.find((c) => c.level === "error");
+    expect(err!.data).toMatchObject({ method: "GET", path: "/down", kind: "network" });
+  });
+
+  it("emits an info audit log for DELETE operations", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ success: true }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.ig("DELETE", "/media-123");
+
+    expect(logger.calls).toContainEqual({
+      level: "info",
+      data: { operation: "delete", method: "DELETE", path: "/media-123" },
+    });
+  });
+
+  it("emits an info audit log with the returned id for publish operations", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "media-999" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.ig("POST", "/ig-user-id/media_publish", { creation_id: "c1" });
+
+    expect(logger.calls).toContainEqual({
+      level: "info",
+      data: { operation: "publish", method: "POST", path: "/ig-user-id/media_publish", id: "media-999" },
+    });
+  });
+
+  it("emits an info publish audit for a single-call /threads post with auto_publish_text", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "post-1" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.threads("POST", "/threads-user-id/threads", { text: "hi", auto_publish_text: true });
+
+    expect(logger.calls).toContainEqual({
+      level: "info",
+      data: { operation: "publish", method: "POST", path: "/threads-user-id/threads", id: "post-1" },
+    });
+  });
+
+  it("does not audit a two-step /threads container creation (no auto_publish_text)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "container-1" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.threads("POST", "/threads-user-id/threads", { text: "hi", media_type: "TEXT" });
+
+    expect(logger.calls.some((c) => c.level === "info")).toBe(false);
+  });
+
+  it("emits an info publish audit for a repost", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "repost-9" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.threads("POST", "/post-123/repost", {});
+
+    expect(logger.calls).toContainEqual({
+      level: "info",
+      data: { operation: "publish", method: "POST", path: "/post-123/repost", id: "repost-9" },
+    });
+  });
+
+  it("does not emit an info audit log for read-only GETs", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "x" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.ig("GET", "/me");
+
+    expect(logger.calls.some((c) => c.level === "info")).toBe(false);
+  });
+
+  it("emits a warning log when throttling at >= 80% usage", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(jsonResponse({ ok: 1 }, { "x-app-usage": JSON.stringify({ call_count: 85 }) }))
+        .mockResolvedValueOnce(jsonResponse({ ok: 2 }));
+      const logger = recordingLogger();
+      const client = new MetaClient(mockConfig(), { logger });
+
+      await client.ig("GET", "/me"); // records the 85% snapshot
+      const second = client.ig("GET", "/me"); // throttles before firing
+      await vi.advanceTimersByTimeAsync(RATE_LIMIT_SLOWDOWN_MS);
+      await second;
+
+      const warn = logger.calls.find((c) => c.level === "warning");
+      expect(warn).toBeDefined();
+      expect(warn!.data).toMatchObject({ usage_pct: 85, delay_ms: RATE_LIMIT_SLOWDOWN_MS });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

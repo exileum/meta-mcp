@@ -1,5 +1,6 @@
 import { MetaConfig } from "../config.js";
-import { MetaApiError, MetaNetworkError } from "../utils/errors.js";
+import { MetaApiError, MetaNetworkError, sanitizeRaw } from "../utils/errors.js";
+import { Logger, NOOP_LOGGER } from "../utils/logger.js";
 
 // Default Meta Graph API and Threads API versions — last verified 2026-05-06.
 // The Graph API ships a new minor version every ~4 months and supports each
@@ -123,6 +124,12 @@ export interface MetaClientOptions {
    * `Retry-After` header. Defaults to `Date.now`.
    */
   now?: () => number;
+  /**
+   * Structured-logging sink. Defaults to {@link NOOP_LOGGER}; `index.ts` injects
+   * a `createMcpLogger(server)` so request/error/rate-limit/audit events reach
+   * the MCP `notifications/message` channel (#62).
+   */
+  logger?: Logger;
 }
 
 export interface RateLimit {
@@ -219,6 +226,23 @@ function parseMetaErrorBody(text: string): ParsedMetaError | undefined {
   }
 }
 
+// Shape the `data` payload for an error-level log. method + path are safe (the
+// access_token lives only in the query string, never the path); the message is
+// passed through sanitizeRaw as a belt-and-suspenders guard against a token
+// leaking from a Meta error body — the MCP logging spec forbids logging secrets.
+function buildErrorLogData(error: unknown, method: HttpMethod, path: string): Record<string, unknown> {
+  const data: Record<string, unknown> = { method, path };
+  if (error instanceof MetaApiError) {
+    if (error.httpStatus !== undefined) data.http_status = error.httpStatus;
+    if (error.apiCode !== undefined) data.code = error.apiCode;
+    if (error.apiType) data.type = error.apiType;
+  } else if (error instanceof MetaNetworkError) {
+    data.kind = error.kind;
+  }
+  data.message = sanitizeRaw(error instanceof Error ? error.message : String(error));
+  return data;
+}
+
 export class MetaClient {
   private config: MetaConfig;
   private igBase: string;
@@ -231,6 +255,7 @@ export class MetaClient {
   private retryBaseDelayMs: number;
   private sleep: (ms: number) => Promise<void>;
   private now: () => number;
+  private logger: Logger;
 
   constructor(config: MetaConfig, options?: MetaClientOptions) {
     this.config = config;
@@ -259,6 +284,7 @@ export class MetaClient {
       : DEFAULT_RETRY_BASE_DELAY_MS;
     this.sleep = options?.sleep ?? defaultSleep;
     this.now = options?.now ?? Date.now;
+    this.logger = options?.logger ?? NOOP_LOGGER;
   }
 
   private parseRateLimit(headers: Headers): RateLimit | undefined {
@@ -305,11 +331,14 @@ export class MetaClient {
     } else {
       return;
     }
-    console.error(
-      `[meta-mcp] x-app-usage at ${max}% (callCount=${rl.callCount ?? "?"}, ` +
-      `totalTime=${rl.totalTime ?? "?"}, totalCpuTime=${rl.totalCpuTime ?? "?"}); ` +
-      `delaying next request by ${delay}ms to stay under Meta's per-app quota.`
-    );
+    this.logger.warning({
+      message: `x-app-usage at ${max}%; delaying next request by ${delay}ms to stay under Meta's per-app quota`,
+      usage_pct: max,
+      call_count: rl.callCount,
+      total_time: rl.totalTime,
+      total_cpu_time: rl.totalCpuTime,
+      delay_ms: delay,
+    });
     await new Promise<void>((resolve) => setTimeout(resolve, delay));
   }
 
@@ -331,7 +360,62 @@ export class MetaClient {
     }
   }
 
+  // Thin logging wrapper around the retry loop (#62). Keeps all four log events
+  // in the single chokepoint every API call flows through: debug on entry,
+  // error on the terminal throw (transient retries inside requestRaw `continue`
+  // and never reach this catch), and an info audit on success.
   private async request(
+    baseUrl: string,
+    token: string,
+    method: HttpMethod,
+    path: string,
+    params?: FormParams,
+    options?: RequestOptions
+  ): Promise<ClientResponse> {
+    this.logger.debug({ method, path });
+    try {
+      const res = await this.requestRaw(baseUrl, token, method, path, params, options);
+      this.auditMutation(method, path, params, res.data);
+      return res;
+    } catch (err) {
+      this.logger.error(buildErrorLogData(err, method, path));
+      throw err;
+    }
+  }
+
+  // Audit (info) log for state-changing operations so they stay visible even
+  // when a client raises the log level above debug. DELETE is unambiguously
+  // destructive. Publishes are matched by endpoint: /media_publish (IG two-step)
+  // and /threads_publish (Threads two-step) are the terminal publish calls;
+  // /repost is a Threads repost; and a POST to /threads counts only when it
+  // carries auto_publish_text=true (the single-call text publish). That same
+  // /threads endpoint also creates the *unpublished* container in every
+  // two-step Threads flow (no auto_publish_text) — those are deliberately not
+  // audited here because the following /threads_publish call is. Path matching
+  // keeps this in request() rather than threading a logger through the ~11
+  // publish handlers (#62).
+  private auditMutation(
+    method: HttpMethod,
+    path: string,
+    params: FormParams | undefined,
+    data: Record<string, unknown>
+  ): void {
+    if (method === "DELETE") {
+      this.logger.info({ operation: "delete", method, path });
+      return;
+    }
+    const isPublish =
+      path.endsWith("/media_publish") ||
+      path.endsWith("/threads_publish") ||
+      path.endsWith("/repost") ||
+      (path.endsWith("/threads") && params?.auto_publish_text === true);
+    if (isPublish) {
+      const id = typeof data.id === "string" ? data.id : undefined;
+      this.logger.info({ operation: "publish", method, path, id });
+    }
+  }
+
+  private async requestRaw(
     baseUrl: string,
     token: string,
     method: HttpMethod,
