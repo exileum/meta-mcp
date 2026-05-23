@@ -92,7 +92,7 @@ export function registerIgPublishingTools(server: McpServer, client: MetaClient)
   server.registerTool(
     "ig_publish_video",
     {
-      description: "[DEPRECATED] Use ig_publish_reel instead. Publishes via media_type=REELS under the hood; the legacy VIDEO media_type was deprecated by Meta on Nov 9, 2023. Kept for backward compatibility — new integrations should use ig_publish_reel which exposes Reels-specific options (cover_url, share_to_feed, alt_text).",
+      description: "[DEPRECATED] Use ig_publish_reel instead. Publishes via media_type=REELS under the hood; the legacy VIDEO media_type was deprecated by Meta on Nov 9, 2023. Kept for backward compatibility — new integrations should use ig_publish_reel which exposes Reels-specific options (cover_url, share_to_feed).",
       inputSchema: {
         video_url: httpsUrl.describe("Public HTTPS URL of the video"),
         caption: captionSchema.describe("Post caption (max 2200 chars)"),

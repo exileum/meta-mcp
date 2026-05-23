@@ -204,6 +204,7 @@ describe("ig_publish_video media_type", () => {
     const description = server.descriptions.get("ig_publish_video")!;
     expect(description).toContain("DEPRECATED");
     expect(description).toContain("ig_publish_reel");
+    expect(description).not.toContain("alt_text");
   });
 });
 
