@@ -3,6 +3,7 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { registerThreadsResources } from "./threads.js";
 import { MetaClient } from "../services/meta-client.js";
 import { MetaApiError } from "../utils/errors.js";
+import { makeMockCache } from "../tools/test-utils.js";
 
 type ResourceCall = {
   name: string;
@@ -39,6 +40,7 @@ function makeMockClient(): MetaClient {
       },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient;
 }
 
@@ -108,6 +110,7 @@ describe("threads-profile resource", () => {
           method: "GET",
         });
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
     registerThreadsResources(server as never, client);
 
@@ -129,6 +132,7 @@ describe("threads-profile resource", () => {
           "fetch failed: https://graph.threads.net/threads-123?access_token=THX_secret_xyz",
         );
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
     registerThreadsResources(server as never, client);
 

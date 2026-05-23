@@ -7,6 +7,7 @@ import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, DESTRUCTIVE_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
+import { IG_PROFILE_CACHE_PREFIX } from "./profile.js";
 
 const GET_MEDIA_INSIGHTS_DEFAULT_METRIC = "views,reach";
 
@@ -73,6 +74,7 @@ export function registerIgMediaTools(server: McpServer, client: MetaClient): voi
     async ({ media_id }) => {
       try {
         const { data, rateLimit } = await client.ig("DELETE", `/${media_id}`);
+        client.invalidateCache(IG_PROFILE_CACHE_PREFIX);
         return formatResponse({ success: true, ...data }, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Delete media");

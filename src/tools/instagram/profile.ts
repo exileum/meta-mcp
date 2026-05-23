@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MetaClient } from "../../services/meta-client.js";
+import { MetaClient, PROFILE_CACHE_TTL_MS } from "../../services/meta-client.js";
 import { metaId } from "../../schemas.js";
 import { IG_PROFILE_FIELDS } from "../../constants/fields.js";
 import { formatErrorResponse } from "../../utils/errors.js";
 import { formatResponse } from "../../utils/response.js";
 import { buildParams } from "../../utils/params.js";
 import { READ_ONLY_TOOL, WRITE_IDEMPOTENT_TOOL } from "../annotations.js";
+
+export const IG_PROFILE_CACHE_PREFIX = "ig:profile:";
+export const igProfileCacheKey = (userId: string): string => `${IG_PROFILE_CACHE_PREFIX}${userId}`;
 
 export const igBusinessDiscoveryUsernameSchema = z
   .string()
@@ -36,9 +39,13 @@ export function registerIgProfileTools(server: McpServer, client: MetaClient): v
     },
     async () => {
       try {
+        const cacheKey = igProfileCacheKey(client.igUserId);
+        const cached = client.getCached<Record<string, unknown>>(cacheKey);
+        if (cached) return formatResponse(cached);
         const { data, rateLimit } = await client.ig("GET", `/${client.igUserId}`, {
           fields: IG_PROFILE_FIELDS,
         });
+        client.setCache(cacheKey, data, PROFILE_CACHE_TTL_MS);
         return formatResponse(data, rateLimit);
       } catch (error) {
         return formatErrorResponse(error, "Get profile");

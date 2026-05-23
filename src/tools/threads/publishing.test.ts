@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
 import { registerThreadsPublishingTools, topicTagSchema, shareToIgStorySchema, pollOptionsSchema, textAttachmentStylingSchema, allowlistedCountryCodesSchema } from "./publishing.js";
 import { MetaClient, HttpMethod } from "../../services/meta-client.js";
+import { makeMockCache } from "../test-utils.js";
 
 // Mirror the gif_provider schema used in threads_publish_text
 const gifProviderSchema = z.enum(["GIPHY"]).optional();
@@ -40,6 +41,7 @@ function makeParamMockClient(): MetaClient {
       data: { id: "container-1", status: "FINISHED" },
       rateLimit: undefined,
     })),
+    ...makeMockCache(),
   } as unknown as MetaClient;
 }
 
@@ -194,6 +196,7 @@ describe("threads_publish_carousel waits for carousel container", () => {
         // Publish
         return { data: { id: "published-1" }, rateLimit: undefined };
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
 
     registerThreadsPublishingTools(server as never, client);
@@ -261,6 +264,7 @@ describe("threads_get_container_status error handling", () => {
       threads: vi.fn(async () => {
         throw new Error("Tried accessing nonexisting field (status)");
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
 
     registerThreadsPublishingTools(server as never, client);
@@ -279,6 +283,7 @@ describe("threads_get_container_status error handling", () => {
       threads: vi.fn(async () => {
         throw new Error("Some other API error");
       }),
+      ...makeMockCache(),
     } as unknown as MetaClient;
 
     registerThreadsPublishingTools(server as never, client);
@@ -1362,6 +1367,7 @@ describe("threads_repost", () => {
         data: { id: "repost-999" },
         rateLimit: undefined,
       })),
+      ...makeMockCache(),
     } as unknown as MetaClient;
 
     const localServer = makeMockServer();
@@ -1530,6 +1536,7 @@ describe("threads_search_locations", () => {
         data: { data: [{ id: "12345", name: "Facebook HQ" }] },
         rateLimit: undefined,
       })),
+      ...makeMockCache(),
     } as unknown as MetaClient;
   }
 

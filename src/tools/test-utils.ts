@@ -2,6 +2,38 @@ import { z } from "zod";
 import { vi } from "vitest";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 
+// Backing store + the three cache methods every mocked MetaClient now needs
+// (handlers call them unconditionally since #90). Real implementation keeps
+// the tests honest — assertions on cache state hit the same eviction rules
+// the production code uses.
+export function makeMockCache() {
+  const cache = new Map<string, { data: unknown; expiry: number }>();
+  return {
+    cache,
+    getCached: vi.fn(<T>(key: string): T | undefined => {
+      const entry = cache.get(key);
+      if (!entry) return undefined;
+      if (Date.now() >= entry.expiry) {
+        cache.delete(key);
+        return undefined;
+      }
+      return entry.data as T;
+    }),
+    setCache: vi.fn((key: string, data: unknown, ttlMs: number) => {
+      cache.set(key, { data, expiry: Date.now() + ttlMs });
+    }),
+    invalidateCache: vi.fn((prefix?: string) => {
+      if (prefix === undefined) {
+        cache.clear();
+        return;
+      }
+      for (const key of cache.keys()) {
+        if (key.startsWith(prefix)) cache.delete(key);
+      }
+    }),
+  };
+}
+
 export type ZodShape = Record<string, z.ZodTypeAny>;
 export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 

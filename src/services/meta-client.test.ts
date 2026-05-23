@@ -9,6 +9,8 @@ import {
   RATE_LIMIT_BACKOFF_MS,
   RATE_LIMIT_SNAPSHOT_TTL_MS,
   MAX_RETRY_DELAY_MS,
+  PROFILE_CACHE_TTL_MS,
+  HASHTAG_CACHE_TTL_MS,
   parseRetryAfter,
   computeBackoffDelay,
 } from "./meta-client.js";
@@ -1692,5 +1694,86 @@ describe("updateConfig", () => {
     const [threadsUrl] = fetchSpy.mock.calls[1] as [string];
     expect(new URL(igUrl).searchParams.get("access_token")).toBe("rotated-ig");
     expect(new URL(threadsUrl).searchParams.get("access_token")).toBe("rotated-threads");
+  });
+});
+
+// Regression guards for #90 — `MetaClient` now offers an in-memory TTL cache
+// used by profile and hashtag-search handlers. The store, eviction, and
+// invalidation behavior is verified here; the wired-up tool/resource tests
+// live alongside each handler.
+describe("MetaClient response cache (#90)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("exports the documented TTL constants", () => {
+    expect(PROFILE_CACHE_TTL_MS).toBe(5 * 60 * 1000);
+    expect(HASHTAG_CACHE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("getCached returns undefined for a missing key", () => {
+    const client = new MetaClient(mockConfig());
+    expect(client.getCached("ig:profile:abc")).toBeUndefined();
+  });
+
+  it("setCache + getCached round-trips the stored value", () => {
+    const client = new MetaClient(mockConfig());
+    const value = { id: "1", followers_count: 42 };
+    client.setCache("ig:profile:abc", value, PROFILE_CACHE_TTL_MS);
+    expect(client.getCached("ig:profile:abc")).toEqual(value);
+  });
+
+  it("getCached returns undefined and evicts after the TTL has elapsed", () => {
+    const client = new MetaClient(mockConfig());
+    client.setCache("ig:profile:abc", { id: "1" }, PROFILE_CACHE_TTL_MS);
+    vi.advanceTimersByTime(PROFILE_CACHE_TTL_MS);
+    expect(client.getCached("ig:profile:abc")).toBeUndefined();
+    vi.advanceTimersByTime(1);
+    client.setCache("ig:profile:abc", { id: "2" }, PROFILE_CACHE_TTL_MS);
+    expect(client.getCached("ig:profile:abc")).toEqual({ id: "2" });
+  });
+
+  it("getCached still returns the value one tick before the TTL elapses", () => {
+    const client = new MetaClient(mockConfig());
+    client.setCache("ig:profile:abc", { id: "1" }, PROFILE_CACHE_TTL_MS);
+    vi.advanceTimersByTime(PROFILE_CACHE_TTL_MS - 1);
+    expect(client.getCached("ig:profile:abc")).toEqual({ id: "1" });
+  });
+
+  it("invalidateCache() without an argument clears every entry", () => {
+    const client = new MetaClient(mockConfig());
+    client.setCache("ig:profile:a", { id: 1 }, PROFILE_CACHE_TTL_MS);
+    client.setCache("threads:profile:b", { id: 2 }, PROFILE_CACHE_TTL_MS);
+    client.setCache("ig:hashtag:a:foo", { id: 3 }, HASHTAG_CACHE_TTL_MS);
+
+    client.invalidateCache();
+    expect(client.getCached("ig:profile:a")).toBeUndefined();
+    expect(client.getCached("threads:profile:b")).toBeUndefined();
+    expect(client.getCached("ig:hashtag:a:foo")).toBeUndefined();
+  });
+
+  it("invalidateCache(prefix) drops only matching keys", () => {
+    const client = new MetaClient(mockConfig());
+    client.setCache("ig:profile:a", { id: 1 }, PROFILE_CACHE_TTL_MS);
+    client.setCache("threads:profile:b", { id: 2 }, PROFILE_CACHE_TTL_MS);
+    client.setCache("ig:hashtag:a:foo", { id: 3 }, HASHTAG_CACHE_TTL_MS);
+
+    client.invalidateCache("ig:profile:");
+    expect(client.getCached("ig:profile:a")).toBeUndefined();
+    expect(client.getCached("threads:profile:b")).toEqual({ id: 2 });
+    expect(client.getCached("ig:hashtag:a:foo")).toEqual({ id: 3 });
+  });
+
+  it("updateConfig() drops the entire cache so a rotated account starts cold", () => {
+    const client = new MetaClient(mockConfig());
+    client.setCache("ig:profile:a", { id: 1 }, PROFILE_CACHE_TTL_MS);
+    client.setCache("ig:hashtag:a:foo", { id: 2 }, HASHTAG_CACHE_TTL_MS);
+
+    client.updateConfig({ instagramAccessToken: "rotated" });
+    expect(client.getCached("ig:profile:a")).toBeUndefined();
+    expect(client.getCached("ig:hashtag:a:foo")).toBeUndefined();
   });
 });
