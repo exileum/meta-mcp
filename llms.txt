@@ -18,6 +18,10 @@
 - `META_APP_SECRET` (for token/webhook tools) — Meta App Secret
 - `META_API_VERSION` (optional) — Meta Graph API version for Instagram and Facebook endpoints, defaults to `v25.0` (format `vMAJOR.MINOR`; malformed values fall back to default with a stderr warning)
 - `THREADS_API_VERSION` (optional) — Threads API version, defaults to `v1.0` (separate single-major-version track from the Graph API)
+- `MCP_TRANSPORT` (optional) — transport to serve MCP over: `stdio` (default) or `http` (Streamable HTTP, for remote/multi-client/cloud deployments)
+- `MCP_HTTP_PORT` (optional, http only) — TCP port for the HTTP transport, defaults to `3000` (integer 1–65535)
+- `MCP_HTTP_HOST` (optional, http only) — bind address for the HTTP transport, defaults to `127.0.0.1` (loopback only); set `0.0.0.0` to expose it, only behind a TLS/auth reverse proxy
+- `MCP_HTTP_ALLOWED_HOSTS` (optional, http only) — comma-separated `host:port` allowlist for DNS-rebinding protection; defaults to loopback variants at the bound port
 
 Only set variables for the platforms you use. The server validates these at startup: malformed values for `INSTAGRAM_USER_ID`, `THREADS_USER_ID`, or `META_APP_ID` exit with `Invalid meta-mcp configuration: …`; setting only one half of a credential pair prints a stderr warning and continues.
 

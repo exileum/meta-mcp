@@ -6,6 +6,11 @@ import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig, MetaConfig } from "./config.js";
+import {
+  type HttpTransportConfig,
+  parseHttpTransportConfig,
+  startHttpTransport,
+} from "./http-transport.js";
 import { MetaClient } from "./services/meta-client.js";
 import { registerAll } from "./register-all.js";
 import { setupFatalErrorHandlers, setupShutdownHandlers } from "./shutdown.js";
@@ -23,17 +28,10 @@ const SERVER_INSTRUCTIONS = [
   "Tool responses include a _rateLimit field when the Meta API returns rate-limit headers; check it to throttle subsequent calls.",
 ].join(" ");
 
-async function main(): Promise<void> {
-  let config: MetaConfig;
-  try {
-    config = loadConfig();
-  } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  }
-  // Server is built before the client so the client can be handed a logger that
-  // emits to the MCP `notifications/message` channel. `capabilities.logging`
-  // must be declared or sendLoggingMessage is a silent no-op (#62).
+// Server is built before the client so the client can be handed a logger that
+// emits to the MCP `notifications/message` channel. `capabilities.logging`
+// must be declared or sendLoggingMessage is a silent no-op (#62).
+function buildServer(config: MetaConfig): McpServer {
   const server = new McpServer({
     name: "meta-mcp",
     version: SERVER_VERSION,
@@ -42,25 +40,42 @@ async function main(): Promise<void> {
     capabilities: { logging: {} },
   });
   const client = new MetaClient(config, { logger: createMcpLogger(server, "meta-client") });
-
   registerAll(server, client);
+  return server;
+}
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  setupShutdownHandlers(server);
+async function main(): Promise<void> {
+  let config: MetaConfig;
+  let httpConfig: HttpTransportConfig | null = null;
+  try {
+    config = loadConfig();
+    const kind = (process.env.MCP_TRANSPORT ?? "stdio").trim().toLowerCase();
+    if (kind === "http") {
+      httpConfig = parseHttpTransportConfig(process.env);
+    } else if (kind !== "stdio") {
+      throw new Error(`MCP_TRANSPORT must be "stdio" or "http" (got "${kind}")`);
+    }
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+
+  if (httpConfig) {
+    const handle = await startHttpTransport({
+      ...httpConfig,
+      createServer: () => buildServer(config),
+    });
+    setupShutdownHandlers(handle);
+  } else {
+    const server = buildServer(config);
+    await server.connect(new StdioServerTransport());
+    setupShutdownHandlers(server);
+  }
 }
 
 // ── Smithery Sandbox ──
 
 export function createSandboxServer(): McpServer {
-  const sandbox = new McpServer({
-    name: "meta-mcp",
-    version: SERVER_VERSION,
-  }, {
-    instructions: SERVER_INSTRUCTIONS,
-    capabilities: { logging: {} },
-  });
-
   const mockConfig: MetaConfig = {
     appId: "",
     appSecret: "",
@@ -69,11 +84,7 @@ export function createSandboxServer(): McpServer {
     threadsAccessToken: "",
     threadsUserId: "",
   };
-  const mockClient = new MetaClient(mockConfig, { logger: createMcpLogger(sandbox, "meta-client") });
-
-  registerAll(sandbox, mockClient);
-
-  return sandbox;
+  return buildServer(mockConfig);
 }
 
 // Guard keeps `import { createSandboxServer }` and test imports side-effect-free —
