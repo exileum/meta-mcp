@@ -89,8 +89,12 @@ export async function startHttpTransport(
       try {
         body = await readJsonBody(req);
       } catch (err) {
-        const status = err instanceof PayloadTooLargeError ? 413 : 400;
-        sendJsonRpcError(res, status, -32700, errMessage(err));
+        // Fixed messages only — never echo exception text back to a remote client.
+        if (err instanceof PayloadTooLargeError) {
+          sendJsonRpcError(res, 413, -32600, "Request body too large");
+        } else {
+          sendJsonRpcError(res, 400, -32700, "Invalid JSON in request body");
+        }
         return;
       }
 
