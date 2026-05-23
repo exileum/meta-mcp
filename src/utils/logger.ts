@@ -1,7 +1,4 @@
-// RFC 5424 severity levels the MCP logging utility defines are
-// debug/info/notice/warning/error/critical/alert/emergency; this server only
-// emits the four it has events for. The union is a subset of the SDK's
-// `LoggingLevel`, so values stay assignable to `sendLoggingMessage`.
+// Subset of the SDK's RFC 5424 `LoggingLevel` — the four levels this server emits.
 export type LogLevel = "debug" | "info" | "warning" | "error";
 
 export interface Logger {
@@ -11,9 +8,8 @@ export interface Logger {
   error(data: unknown): void;
 }
 
-// Structural subset of `McpServer` — we type only the one method we call so the
-// logger module stays decoupled from the SDK generics and tests can pass a
-// plain fake. Mirrors the `ProgressExtra` shape in progress.ts.
+// Structural subset of `McpServer` (just the method we call) so this module
+// stays decoupled from the SDK generics and tests can pass a plain fake.
 export interface LoggingServer {
   sendLoggingMessage(params: {
     level: LogLevel;
@@ -22,9 +18,7 @@ export interface LoggingServer {
   }): Promise<void>;
 }
 
-// Default sink — used by MetaClient when no server-backed logger is injected
-// (unit tests, the Smithery sandbox client before connect). Every method is a
-// no-op so call sites never need to null-check the logger.
+// Default when no server-backed logger is injected (tests, sandbox); lets call sites skip null-checks.
 export const NOOP_LOGGER: Logger = {
   debug() {},
   info() {},
@@ -47,7 +41,7 @@ export function createMcpLogger(server: LoggingServer, name = "meta-mcp"): Logge
   const emit = (level: LogLevel) => (data: unknown): void => {
     void server
       .sendLoggingMessage({ level, logger: name, data })
-      .catch(() => { /* transport closed — drop the log, never propagate */ });
+      .catch(() => { /* swallow */ });
   };
   return {
     debug: emit("debug"),

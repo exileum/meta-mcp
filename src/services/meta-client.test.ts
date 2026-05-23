@@ -1820,9 +1820,12 @@ describe("MetaClient structured logging (#62)", () => {
     expect(logger.calls.some((c) => c.level === "error")).toBe(false);
   });
 
-  it("emits an error log with method, path, status and code on a terminal API failure", async () => {
+  it("emits an error log with method, path, status, code, subcode and fbtrace_id on a terminal API failure", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ error: { message: "Invalid parameter", code: 100 } }), { status: 400 })
+      new Response(
+        JSON.stringify({ error: { message: "Invalid parameter", code: 100, error_subcode: 2207026, fbtrace_id: "AaBbCc" } }),
+        { status: 400 }
+      )
     );
     const logger = recordingLogger();
     const client = new MetaClient(mockConfig(), { logger });
@@ -1831,7 +1834,14 @@ describe("MetaClient structured logging (#62)", () => {
 
     const err = logger.calls.find((c) => c.level === "error");
     expect(err).toBeDefined();
-    expect(err!.data).toMatchObject({ method: "GET", path: "/bad", http_status: 400, code: 100 });
+    expect(err!.data).toMatchObject({
+      method: "GET",
+      path: "/bad",
+      http_status: 400,
+      code: 100,
+      subcode: 2207026,
+      fbtrace_id: "AaBbCc",
+    });
   });
 
   it("sanitizes leaked tokens out of the error log message", async () => {
@@ -1886,6 +1896,19 @@ describe("MetaClient structured logging (#62)", () => {
     });
   });
 
+  it("emits an info publish audit for the threads_publish two-step terminal publish", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "post-42" }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.threads("POST", "/threads-user-id/threads_publish", { creation_id: "c1" });
+
+    expect(logger.calls).toContainEqual({
+      level: "info",
+      data: { operation: "publish", method: "POST", path: "/threads-user-id/threads_publish", id: "post-42" },
+    });
+  });
+
   it("emits an info publish audit for a single-call /threads post with auto_publish_text", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ id: "post-1" }));
     const logger = recordingLogger();
@@ -1919,6 +1942,19 @@ describe("MetaClient structured logging (#62)", () => {
     expect(logger.calls).toContainEqual({
       level: "info",
       data: { operation: "publish", method: "POST", path: "/post-123/repost", id: "repost-9" },
+    });
+  });
+
+  it("omits the id key from the publish audit when the response carries no id", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ success: true }));
+    const logger = recordingLogger();
+    const client = new MetaClient(mockConfig(), { logger });
+
+    await client.ig("POST", "/ig-user-id/media_publish", { creation_id: "c1" });
+
+    expect(logger.calls).toContainEqual({
+      level: "info",
+      data: { operation: "publish", method: "POST", path: "/ig-user-id/media_publish" },
     });
   });
 

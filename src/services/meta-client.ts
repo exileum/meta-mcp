@@ -235,7 +235,9 @@ function buildErrorLogData(error: unknown, method: HttpMethod, path: string): Re
   if (error instanceof MetaApiError) {
     if (error.httpStatus !== undefined) data.http_status = error.httpStatus;
     if (error.apiCode !== undefined) data.code = error.apiCode;
+    if (error.apiSubcode !== undefined) data.subcode = error.apiSubcode;
     if (error.apiType) data.type = error.apiType;
+    if (error.fbtraceId) data.fbtrace_id = error.fbtraceId;
   } else if (error instanceof MetaNetworkError) {
     data.kind = error.kind;
   }
@@ -331,14 +333,15 @@ export class MetaClient {
     } else {
       return;
     }
-    this.logger.warning({
+    const warning: Record<string, unknown> = {
       message: `x-app-usage at ${max}%; delaying next request by ${delay}ms to stay under Meta's per-app quota`,
       usage_pct: max,
-      call_count: rl.callCount,
-      total_time: rl.totalTime,
-      total_cpu_time: rl.totalCpuTime,
       delay_ms: delay,
-    });
+    };
+    if (rl.callCount !== undefined) warning.call_count = rl.callCount;
+    if (rl.totalTime !== undefined) warning.total_time = rl.totalTime;
+    if (rl.totalCpuTime !== undefined) warning.total_cpu_time = rl.totalCpuTime;
+    this.logger.warning(warning);
     await new Promise<void>((resolve) => setTimeout(resolve, delay));
   }
 
@@ -360,10 +363,9 @@ export class MetaClient {
     }
   }
 
-  // Thin logging wrapper around the retry loop (#62). Keeps all four log events
-  // in the single chokepoint every API call flows through: debug on entry,
-  // error on the terminal throw (transient retries inside requestRaw `continue`
-  // and never reach this catch), and an info audit on success.
+  // Logging wrapper around the retry loop (#62): the terminal error is logged
+  // once here — transient retries `continue` inside requestRaw and never reach
+  // this catch.
   private async request(
     baseUrl: string,
     token: string,
@@ -383,17 +385,12 @@ export class MetaClient {
     }
   }
 
-  // Audit (info) log for state-changing operations so they stay visible even
-  // when a client raises the log level above debug. DELETE is unambiguously
-  // destructive. Publishes are matched by endpoint: /media_publish (IG two-step)
-  // and /threads_publish (Threads two-step) are the terminal publish calls;
-  // /repost is a Threads repost; and a POST to /threads counts only when it
-  // carries auto_publish_text=true (the single-call text publish). That same
-  // /threads endpoint also creates the *unpublished* container in every
-  // two-step Threads flow (no auto_publish_text) — those are deliberately not
-  // audited here because the following /threads_publish call is. Path matching
-  // keeps this in request() rather than threading a logger through the ~11
-  // publish handlers (#62).
+  // Audit (info) for state-changing ops so they stay visible when a client
+  // raises the level above debug. The /threads check is gated on
+  // auto_publish_text because that endpoint ALSO creates the unpublished
+  // container in two-step flows — auditing the bare path would mislabel
+  // container creation as a publish (the two-step publish is caught by
+  // /threads_publish instead).
   private auditMutation(
     method: HttpMethod,
     path: string,
@@ -410,8 +407,9 @@ export class MetaClient {
       path.endsWith("/repost") ||
       (path.endsWith("/threads") && params?.auto_publish_text === true);
     if (isPublish) {
-      const id = typeof data.id === "string" ? data.id : undefined;
-      this.logger.info({ operation: "publish", method, path, id });
+      const entry: Record<string, unknown> = { operation: "publish", method, path };
+      if (typeof data.id === "string") entry.id = data.id;
+      this.logger.info(entry);
     }
   }
 
