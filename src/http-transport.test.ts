@@ -45,11 +45,11 @@ describe("parseHttpTransportConfig", () => {
 describe("startHttpTransport (end-to-end)", () => {
   let handle: HttpTransportHandle | undefined;
 
-  const start = async (): Promise<URL> => {
+  const start = async (allowedHosts?: string[]): Promise<URL> => {
     handle = await startHttpTransport({
       host: "127.0.0.1",
       port: 0,
-      allowedHosts: undefined,
+      allowedHosts,
       createServer: () => createSandboxServer(),
       log: () => undefined,
     });
@@ -115,6 +115,52 @@ describe("startHttpTransport (end-to-end)", () => {
     });
     await res.text();
     expect(res.status).toBe(413);
+  });
+
+  it("returns 405 for unsupported methods and 404 for unknown paths", async () => {
+    const url = await start();
+
+    const optionsRes = await fetch(url, { method: "OPTIONS" });
+    await optionsRes.text();
+    expect(optionsRes.status).toBe(405);
+
+    const pathRes = await fetch(new URL("/nope", url), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    await pathRes.text();
+    expect(pathRes.status).toBe(404);
+  });
+
+  it("rejects an initialize request whose Host is not in the allowlist", async () => {
+    const url = await start(["example.com:9999"]);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "initialize",
+        id: 1,
+        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "x", version: "0" } },
+      }),
+    });
+    await res.text();
+    expect(res.status).toBe(403);
+  });
+
+  it("close() resolves even with a live session still open", async () => {
+    await start();
+    const client = new Client({ name: "lingering", version: "0.0.0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${handle!.port}/mcp`)));
+
+    // Closing the handle must terminate the open SSE stream first, so this resolves.
+    await expect(handle!.close()).resolves.toBeUndefined();
+    handle = undefined;
+    await client.close().catch(() => undefined);
   });
 
   it("keeps two concurrent sessions isolated", async () => {

@@ -122,8 +122,14 @@ export async function startHttpTransport(
           const sid = transport.sessionId;
           if (sid) sessions.delete(sid);
         };
-        await createMcpServer().connect(transport);
-        await transport.handleRequest(req, res, body);
+        try {
+          await createMcpServer().connect(transport);
+          await transport.handleRequest(req, res, body);
+        } catch (err) {
+          // Close so onclose evicts a half-initialized session from the map.
+          await transport.close().catch(() => undefined);
+          throw err;
+        }
         return;
       }
 
@@ -264,7 +270,8 @@ function headerValue(value: string | string[] | undefined): string | undefined {
 }
 
 function isLoopbackHost(host: string): boolean {
-  return host === "127.0.0.1" || host === "localhost" || host === "::1";
+  // The whole 127.0.0.0/8 range is loopback, plus localhost and IPv6 ::1.
+  return host === "localhost" || host === "::1" || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
 }
 
 function loopbackHosts(port: number): string[] {
