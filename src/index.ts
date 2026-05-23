@@ -9,6 +9,7 @@ import { loadConfig, MetaConfig } from "./config.js";
 import { MetaClient } from "./services/meta-client.js";
 import { registerAll } from "./register-all.js";
 import { setupFatalErrorHandlers, setupShutdownHandlers } from "./shutdown.js";
+import { createMcpLogger } from "./utils/logger.js";
 
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json") as { version: string };
@@ -30,13 +31,17 @@ async function main(): Promise<void> {
     console.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
-  const client = new MetaClient(config);
+  // Server is built before the client so the client can be handed a logger that
+  // emits to the MCP `notifications/message` channel. `capabilities.logging`
+  // must be declared or sendLoggingMessage is a silent no-op (#62).
   const server = new McpServer({
     name: "meta-mcp",
     version: SERVER_VERSION,
   }, {
     instructions: SERVER_INSTRUCTIONS,
+    capabilities: { logging: {} },
   });
+  const client = new MetaClient(config, { logger: createMcpLogger(server, "meta-client") });
 
   registerAll(server, client);
 
@@ -53,6 +58,7 @@ export function createSandboxServer(): McpServer {
     version: SERVER_VERSION,
   }, {
     instructions: SERVER_INSTRUCTIONS,
+    capabilities: { logging: {} },
   });
 
   const mockConfig: MetaConfig = {
@@ -63,7 +69,7 @@ export function createSandboxServer(): McpServer {
     threadsAccessToken: "",
     threadsUserId: "",
   };
-  const mockClient = new MetaClient(mockConfig);
+  const mockClient = new MetaClient(mockConfig, { logger: createMcpLogger(sandbox, "meta-client") });
 
   registerAll(sandbox, mockClient);
 

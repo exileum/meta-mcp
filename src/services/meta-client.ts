@@ -1,5 +1,6 @@
 import { MetaConfig } from "../config.js";
-import { MetaApiError, MetaNetworkError } from "../utils/errors.js";
+import { MetaApiError, MetaNetworkError, sanitizeRaw } from "../utils/errors.js";
+import { Logger, NOOP_LOGGER } from "../utils/logger.js";
 
 // Default Meta Graph API and Threads API versions — last verified 2026-05-06.
 // The Graph API ships a new minor version every ~4 months and supports each
@@ -123,6 +124,12 @@ export interface MetaClientOptions {
    * `Retry-After` header. Defaults to `Date.now`.
    */
   now?: () => number;
+  /**
+   * Structured-logging sink. Defaults to {@link NOOP_LOGGER}; `index.ts` injects
+   * a `createMcpLogger(server)` so request/error/rate-limit/audit events reach
+   * the MCP `notifications/message` channel (#62).
+   */
+  logger?: Logger;
 }
 
 export interface RateLimit {
@@ -219,6 +226,25 @@ function parseMetaErrorBody(text: string): ParsedMetaError | undefined {
   }
 }
 
+// Shape the `data` payload for an error-level log. method + path are safe (the
+// access_token lives only in the query string, never the path); the message is
+// passed through sanitizeRaw as a belt-and-suspenders guard against a token
+// leaking from a Meta error body — the MCP logging spec forbids logging secrets.
+function buildErrorLogData(error: unknown, method: HttpMethod, path: string): Record<string, unknown> {
+  const data: Record<string, unknown> = { method, path };
+  if (error instanceof MetaApiError) {
+    if (error.httpStatus !== undefined) data.http_status = error.httpStatus;
+    if (error.apiCode !== undefined) data.code = error.apiCode;
+    if (error.apiSubcode !== undefined) data.subcode = error.apiSubcode;
+    if (error.apiType) data.type = error.apiType;
+    if (error.fbtraceId) data.fbtrace_id = error.fbtraceId;
+  } else if (error instanceof MetaNetworkError) {
+    data.kind = error.kind;
+  }
+  data.message = sanitizeRaw(error instanceof Error ? error.message : String(error));
+  return data;
+}
+
 export class MetaClient {
   private config: MetaConfig;
   private igBase: string;
@@ -231,6 +257,7 @@ export class MetaClient {
   private retryBaseDelayMs: number;
   private sleep: (ms: number) => Promise<void>;
   private now: () => number;
+  private logger: Logger;
 
   constructor(config: MetaConfig, options?: MetaClientOptions) {
     this.config = config;
@@ -259,6 +286,7 @@ export class MetaClient {
       : DEFAULT_RETRY_BASE_DELAY_MS;
     this.sleep = options?.sleep ?? defaultSleep;
     this.now = options?.now ?? Date.now;
+    this.logger = options?.logger ?? NOOP_LOGGER;
   }
 
   private parseRateLimit(headers: Headers): RateLimit | undefined {
@@ -305,11 +333,15 @@ export class MetaClient {
     } else {
       return;
     }
-    console.error(
-      `[meta-mcp] x-app-usage at ${max}% (callCount=${rl.callCount ?? "?"}, ` +
-      `totalTime=${rl.totalTime ?? "?"}, totalCpuTime=${rl.totalCpuTime ?? "?"}); ` +
-      `delaying next request by ${delay}ms to stay under Meta's per-app quota.`
-    );
+    const warning: Record<string, unknown> = {
+      message: `x-app-usage at ${max}%; delaying next request by ${delay}ms to stay under Meta's per-app quota`,
+      usage_pct: max,
+      delay_ms: delay,
+    };
+    if (rl.callCount !== undefined) warning.call_count = rl.callCount;
+    if (rl.totalTime !== undefined) warning.total_time = rl.totalTime;
+    if (rl.totalCpuTime !== undefined) warning.total_cpu_time = rl.totalCpuTime;
+    this.logger.warning(warning);
     await new Promise<void>((resolve) => setTimeout(resolve, delay));
   }
 
@@ -331,7 +363,57 @@ export class MetaClient {
     }
   }
 
+  // Logging wrapper around the retry loop (#62): the terminal error is logged
+  // once here — transient retries `continue` inside requestRaw and never reach
+  // this catch.
   private async request(
+    baseUrl: string,
+    token: string,
+    method: HttpMethod,
+    path: string,
+    params?: FormParams,
+    options?: RequestOptions
+  ): Promise<ClientResponse> {
+    this.logger.debug({ method, path });
+    try {
+      const res = await this.requestRaw(baseUrl, token, method, path, params, options);
+      this.auditMutation(method, path, params, res.data);
+      return res;
+    } catch (err) {
+      this.logger.error(buildErrorLogData(err, method, path));
+      throw err;
+    }
+  }
+
+  // Audit (info) for state-changing ops so they stay visible when a client
+  // raises the level above debug. The /threads check is gated on
+  // auto_publish_text because that endpoint ALSO creates the unpublished
+  // container in two-step flows — auditing the bare path would mislabel
+  // container creation as a publish (the two-step publish is caught by
+  // /threads_publish instead).
+  private auditMutation(
+    method: HttpMethod,
+    path: string,
+    params: FormParams | undefined,
+    data: Record<string, unknown>
+  ): void {
+    if (method === "DELETE") {
+      this.logger.info({ operation: "delete", method, path });
+      return;
+    }
+    const isPublish =
+      path.endsWith("/media_publish") ||
+      path.endsWith("/threads_publish") ||
+      path.endsWith("/repost") ||
+      (path.endsWith("/threads") && params?.auto_publish_text === true);
+    if (isPublish) {
+      const entry: Record<string, unknown> = { operation: "publish", method, path };
+      if (typeof data.id === "string") entry.id = data.id;
+      this.logger.info(entry);
+    }
+  }
+
+  private async requestRaw(
     baseUrl: string,
     token: string,
     method: HttpMethod,
