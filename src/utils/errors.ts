@@ -138,7 +138,7 @@ const SENSITIVE_PARAMS = ["access_token", "client_secret", "input_token"];
 export function sanitizeRaw(text: string): string {
   let result = text;
   for (const param of SENSITIVE_PARAMS) {
-    const queryRegex = new RegExp(`${param}=[^&"\\s]+`, "gi");
+    const queryRegex = new RegExp(`${param}=[^&"\\s]*`, "gi");
     const jsonRegex = new RegExp(`"${param}"\\s*:\\s*"[^"]*"`, "gi");
     result = result.replace(queryRegex, `${param}=***`);
     result = result.replace(jsonRegex, `"${param}":"***"`);

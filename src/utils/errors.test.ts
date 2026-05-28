@@ -446,6 +446,11 @@ describe("formatErrorResponse — raw field & sanitization", () => {
     expect(message).toContain('"input_token":"***"');
     expect(message).not.toContain("leaked_token");
   });
+
+  it("scrubs an empty-value access_token query param", () => {
+    expect(sanitizeRaw("Failed: https://example.com/?access_token=&other=1")).toContain("access_token=***");
+    expect(sanitizeRaw("trailing access_token=")).toBe("trailing access_token=***");
+  });
 });
 
 describe("toMcpResourceError", () => {

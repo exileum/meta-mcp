@@ -84,7 +84,9 @@ export async function startHttpTransport(
     for (const [sid, session] of sessions) {
       if (now - session.lastActivity > sessionIdleTtlMs) {
         sessions.delete(sid);
-        void session.transport.close().catch(() => undefined);
+        void session.transport.close().catch((err: unknown) =>
+          log(`[meta-mcp] reaper failed to close idle session ${sid} — ${errMessage(err)}`)
+        );
       }
     }
   }, reaperIntervalMs);
