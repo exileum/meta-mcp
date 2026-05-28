@@ -199,7 +199,7 @@ The server then listens on `http://127.0.0.1:3000/mcp`: `POST` to send messages,
 
 | Tool | Description |
 |------|-------------|
-| `threads_publish_text` | Publish a text post in a single API call (`auto_publish_text=true`, default; set `auto_publish=false` for the legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote posts, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`, text attachments up to 10K chars with styling |
+| `threads_publish_text` | Publish a text post in a single API call (`auto_publish_text=true`, default; set `auto_publish=false` for the legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote posts, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`, text attachments up to 10K chars with styling |
 | `threads_publish_image` | Publish an image post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`) |
 | `threads_publish_video` | Publish a video post (supports alt_text, topic tags, spoiler flag, cross-share to IG Stories, geo-gating via `allowlisted_country_codes`, location tagging via `location_id`) |
 | `threads_publish_carousel` | Publish a carousel (2-20 items, supports alt_text per item, cross-share to IG Stories, geo-gating via `allowlisted_country_codes` and location tagging via `location_id` on the parent container) |

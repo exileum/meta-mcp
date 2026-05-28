@@ -12,6 +12,14 @@ export const MCP_ENDPOINT = "/mcp";
 // Node's http server imposes no body limit; cap reads to avoid memory exhaustion.
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
+// A Streamable HTTP session only self-evicts on an explicit DELETE / transport
+// close — a client that initializes then drops its connection never fires
+// onclose, so without a reaper the sessions map grows without bound. The reaper
+// closes sessions with no POST/GET for longer than the TTL; a still-connected
+// but silent client is recycled too and reconnects on its next request.
+export const DEFAULT_SESSION_IDLE_TTL_MS = 30 * 60 * 1000;
+export const DEFAULT_REAPER_INTERVAL_MS = 60 * 1000;
+
 export interface HttpTransportConfig {
   host: string;
   port: number;
@@ -23,11 +31,18 @@ export interface StartHttpTransportOptions extends HttpTransportConfig {
   // A fresh McpServer per session keeps each client's state isolated.
   createServer: () => McpServer;
   log?: (msg: string) => void;
+  sessionIdleTtlMs?: number;
+  reaperIntervalMs?: number;
 }
 
 export interface HttpTransportHandle {
   port: number;
   close(): Promise<void>;
+}
+
+interface Session {
+  transport: StreamableHTTPServerTransport;
+  lastActivity: number;
 }
 
 export function parseHttpTransportConfig(env: NodeJS.ProcessEnv): HttpTransportConfig {
@@ -59,8 +74,21 @@ export async function startHttpTransport(
 ): Promise<HttpTransportHandle> {
   const { host, createServer: createMcpServer } = options;
   const log = options.log ?? ((msg: string) => console.error(msg));
+  const sessionIdleTtlMs = options.sessionIdleTtlMs ?? DEFAULT_SESSION_IDLE_TTL_MS;
+  const reaperIntervalMs = options.reaperIntervalMs ?? DEFAULT_REAPER_INTERVAL_MS;
 
-  const sessions = new Map<string, StreamableHTTPServerTransport>();
+  const sessions = new Map<string, Session>();
+
+  const reaper = setInterval(() => {
+    const now = Date.now();
+    for (const [sid, session] of sessions) {
+      if (now - session.lastActivity > sessionIdleTtlMs) {
+        sessions.delete(sid);
+        void session.transport.close().catch(() => undefined);
+      }
+    }
+  }, reaperIntervalMs);
+  reaper.unref();
 
   // Resolved after listen() so DNS-rebinding allowlists can include the actual
   // bound port (matters when port is 0, e.g. in tests).
@@ -99,12 +127,13 @@ export async function startHttpTransport(
       }
 
       if (sessionId) {
-        const transport = sessions.get(sessionId);
-        if (!transport) {
+        const session = sessions.get(sessionId);
+        if (!session) {
           sendJsonRpcError(res, 404, -32001, "Session not found");
           return;
         }
-        await transport.handleRequest(req, res, body);
+        session.lastActivity = Date.now();
+        await session.transport.handleRequest(req, res, body);
         return;
       }
 
@@ -114,10 +143,11 @@ export async function startHttpTransport(
           enableDnsRebindingProtection: dnsRebindingProtection,
           allowedHosts,
           onsessioninitialized: (sid) => {
-            sessions.set(sid, transport);
+            sessions.set(sid, { transport, lastActivity: Date.now() });
           },
         });
-        // Drop the session on close (DELETE or client drop) so the map can't leak.
+        // Evict on transport close (DELETE or explicit teardown). A bare client
+        // disconnect never fires onclose — the idle reaper handles those.
         transport.onclose = () => {
           const sid = transport.sessionId;
           if (sid) sessions.delete(sid);
@@ -142,12 +172,13 @@ export async function startHttpTransport(
         sendJsonRpcError(res, 400, -32000, "Bad Request: missing session ID");
         return;
       }
-      const transport = sessions.get(sessionId);
-      if (!transport) {
+      const session = sessions.get(sessionId);
+      if (!session) {
         sendJsonRpcError(res, 404, -32001, "Session not found");
         return;
       }
-      await transport.handleRequest(req, res);
+      session.lastActivity = Date.now();
+      await session.transport.handleRequest(req, res);
       return;
     }
 
@@ -186,17 +217,20 @@ export async function startHttpTransport(
 
   return {
     port: actualPort,
-    close: () => closeHttpTransport(httpServer, sessions),
+    close: () => {
+      clearInterval(reaper);
+      return closeHttpTransport(httpServer, sessions);
+    },
   };
 }
 
 async function closeHttpTransport(
   httpServer: Server,
-  sessions: Map<string, StreamableHTTPServerTransport>
+  sessions: Map<string, Session>
 ): Promise<void> {
   // Close transports first: each open SSE stream holds a socket that
   // httpServer.close() would otherwise wait on forever.
-  for (const transport of sessions.values()) {
+  for (const { transport } of sessions.values()) {
     try {
       await transport.close();
     } catch {

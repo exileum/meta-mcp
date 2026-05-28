@@ -430,6 +430,22 @@ describe("formatErrorResponse — raw field & sanitization", () => {
     expect(raw).toContain('"access_token":"***"');
     expect(raw).not.toContain("secret123");
   });
+
+  it("scrubs access_token from message, not just raw", () => {
+    const error = new Error("Meta API GET /access_token (400): https://graph.instagram.com/access_token?access_token=EAAB_leaked&client_secret=shh");
+    const message = parsePayload(formatErrorResponse(error, "Token exchange")).message;
+    expect(message).toContain("access_token=***");
+    expect(message).toContain("client_secret=***");
+    expect(message).not.toContain("EAAB_leaked");
+    expect(message).not.toContain("shh");
+  });
+
+  it("scrubs JSON-style input_token from message", () => {
+    const error = new Error('Token debug failed: {"input_token": "leaked_token"}');
+    const message = parsePayload(formatErrorResponse(error, "Token debug")).message;
+    expect(message).toContain('"input_token":"***"');
+    expect(message).not.toContain("leaked_token");
+  });
 });
 
 describe("toMcpResourceError", () => {

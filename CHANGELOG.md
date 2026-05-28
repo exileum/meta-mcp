@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **`formatErrorResponse` now sanitizes the user-facing `message`, not just `raw`** — the error payload returned to MCP clients built `message` from the raw error string without scrubbing, while the sibling `raw` field (and `toMcpResourceError`) ran the same string through `sanitizeRaw`. Because a `MetaApiError` message embeds `Meta API ${method} ${path} (${status}): ${detail}` where `detail` falls back to the raw HTTP response body, an atypical gateway/proxy 5xx echoing the request query string could surface an `access_token` / `client_secret` / `input_token` to the client unredacted. `message` is now passed through `sanitizeRaw`, closing the asymmetry.
+
+### Fixed
+- **HTTP transport reaps idle sessions** — the `sessions` map only evicted on an explicit DELETE or transport close, and a client that sent `initialize` then dropped its connection without a DELETE never fired `onclose`, so its `StreamableHTTPServerTransport` (and per-session `McpServer`) lingered forever — an unbounded-growth leak on the opt-in `MCP_TRANSPORT=http` path. A periodic, `unref()`-ed reaper now closes sessions with no request for longer than `DEFAULT_SESSION_IDLE_TTL_MS` (30 min; tunable via `startHttpTransport` options), and the interval is cleared on shutdown. The TTL is measured from the last POST/GET, so a still-connected but silent client is also recycled and reconnects on its next request. The misleading "client drop evicts the session" comment is corrected.
+
+### Changed
+- **BREAKING: `threads_publish_text` now rejects `is_spoiler`** — per Meta's docs, media spoilers only apply to `IMAGE`/`VIDEO`/`CAROUSEL` posts; sending `is_spoiler_media` on a `media_type=TEXT` container is silently ignored, so the flag advertised a no-op. `is_spoiler` is now `z.never(...)` on `threads_publish_text`, so a call that previously *succeeded* (publishing without a spoiler) now raises a descriptive Zod error pointing to `threads_publish_image`/`threads_publish_video` — mirroring the `alt_text` treatment that shipped in v5.0.0. This is a breaking input-schema change and warrants a major version bump. The flag is unchanged on `threads_publish_image`/`threads_publish_video`, where `is_spoiler_media` is the correct, documented parameter.
+
 ## [8.0.0] — 2026-05-23
 
 ### Added

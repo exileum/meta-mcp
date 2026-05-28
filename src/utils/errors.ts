@@ -188,7 +188,7 @@ export function formatErrorResponse(error: unknown, label: string, context?: Err
   const payload: ErrorPayload = {
     error: true,
     error_type: errorType,
-    message: `${label} failed${stepSuffix}${containerSuffix}: ${original}`,
+    message: sanitizeRaw(`${label} failed${stepSuffix}${containerSuffix}: ${original}`),
   };
   if (error instanceof MetaApiError) {
     assignMetaApiFields(payload as unknown as Record<string, unknown>, error);

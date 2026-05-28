@@ -114,7 +114,7 @@ See [README.md "Troubleshooting"](https://github.com/exileum/meta-mcp#troublesho
 - ig_get_message — Get message details
 
 ### Threads — Publishing (9)
-- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id, text attachments up to 10K chars with styling
+- threads_publish_text — Publish text post in a single API call by default (auto_publish_text=true; set auto_publish=false for legacy two-step flow). Supports polls, GIFs, link attachments, topic tags, quote, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id, text attachments up to 10K chars with styling
 - threads_publish_image — Publish image post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id)
 - threads_publish_video — Publish video post (alt_text, topic tags, spoiler, cross-share to IG Stories, geo-gating via allowlisted_country_codes, location tagging via location_id)
 - threads_publish_carousel — Publish carousel (2-20 items, alt_text per item, cross-share to IG Stories, geo-gating via allowlisted_country_codes and location tagging via location_id on the parent container)
