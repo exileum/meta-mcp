@@ -138,7 +138,7 @@ const SENSITIVE_PARAMS = ["access_token", "client_secret", "input_token"];
 export function sanitizeRaw(text: string): string {
   let result = text;
   for (const param of SENSITIVE_PARAMS) {
-    const queryRegex = new RegExp(`${param}=[^&"\\s]+`, "gi");
+    const queryRegex = new RegExp(`${param}=[^&"\\s]*`, "gi");
     const jsonRegex = new RegExp(`"${param}"\\s*:\\s*"[^"]*"`, "gi");
     result = result.replace(queryRegex, `${param}=***`);
     result = result.replace(jsonRegex, `"${param}":"***"`);
@@ -188,7 +188,7 @@ export function formatErrorResponse(error: unknown, label: string, context?: Err
   const payload: ErrorPayload = {
     error: true,
     error_type: errorType,
-    message: `${label} failed${stepSuffix}${containerSuffix}: ${original}`,
+    message: sanitizeRaw(`${label} failed${stepSuffix}${containerSuffix}: ${original}`),
   };
   if (error instanceof MetaApiError) {
     assignMetaApiFields(payload as unknown as Record<string, unknown>, error);

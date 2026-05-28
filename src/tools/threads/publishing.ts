@@ -66,7 +66,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
         poll_options: pollOptionsSchema,
         gif_id: z.string().min(1).optional().describe("GIPHY GIF ID. Must be provided together with gif_provider — providing only one returns an error."),
         gif_provider: z.enum(["GIPHY"]).optional().describe("GIF provider. Only GIPHY is currently supported. Must be provided together with gif_id — providing only one returns an error."),
-        is_spoiler: z.boolean().optional().describe("Mark content as spoiler"),
+        is_spoiler: z.never("is_spoiler is not supported on text-only Threads posts (media_type=TEXT). Per Meta's docs, media spoilers only apply to IMAGE, VIDEO, or CAROUSEL posts (https://developers.facebook.com/docs/threads/create-posts/spoilers/); text-only spoilers use the text_entities API, which this tool does not expose. Use threads_publish_image or threads_publish_video to mark media as a spoiler.").optional().describe("Reserved — must be omitted. Spoilers only apply to image and video posts; passing it here raises a Zod schema error."),
         share_to_ig_story: shareToIgStorySchema,
         allowlisted_country_codes: allowlistedCountryCodesSchema,
         location_id: z.string().optional().describe("Location ID for tagging the post. Use threads_search_locations to find IDs. Requires the threads_location_tagging permission on the access token."),
@@ -78,7 +78,7 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
       },
       annotations: WRITE_TOOL,
     },
-    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, is_spoiler, share_to_ig_story, allowlisted_country_codes, location_id, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
+    async ({ text, reply_control, link_attachment, topic_tag, quote_post_id, poll_options, gif_id, gif_provider, share_to_ig_story, allowlisted_country_codes, location_id, text_attachment, text_attachment_link, text_attachment_styling, auto_publish }) => {
       let step = "container creation";
       let containerId: string | undefined;
       try {
@@ -162,7 +162,6 @@ export function registerThreadsPublishingTools(server: McpServer, client: MetaCl
             quote_post_id,
             poll_attachment: pollAttachment,
             gif_attachment: gifAttachment,
-            is_spoiler_media: is_spoiler ? true : undefined,
             text_attachment: textAttachmentJson,
             location_id,
             auto_publish_text: useAutoPublish ? true : undefined,

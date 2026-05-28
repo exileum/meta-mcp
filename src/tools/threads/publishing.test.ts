@@ -974,6 +974,52 @@ describe("threads_publish_text alt_text rejection at the schema level", () => {
   });
 });
 
+// ─── is_spoiler rejection at the Zod schema level ───────────────────
+//
+// Media spoilers only apply to IMAGE/VIDEO/CAROUSEL per Meta's docs; sending
+// is_spoiler_media on a media_type=TEXT container is silently ignored, so the
+// flag is declared z.never("…") on threads_publish_text to fail loudly instead
+// of advertising a no-op. threads_publish_image/_video keep is_spoiler.
+
+describe("threads_publish_text is_spoiler rejection at the schema level", () => {
+  let server: ReturnType<typeof makeMockServer>;
+  let client: ReturnType<typeof makeParamMockClient>;
+
+  beforeEach(() => {
+    server = makeMockServer();
+    client = makeParamMockClient();
+    registerThreadsPublishingTools(server as never, client);
+  });
+
+  function getTextSchema(): z.ZodObject<z.ZodRawShape> {
+    const call = (server.registerTool as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === "threads_publish_text");
+    if (!call) throw new Error("threads_publish_text was not registered");
+    const config = call[1] as { inputSchema?: z.ZodRawShape };
+    return z.object(config.inputSchema ?? {});
+  }
+
+  it("rejects is_spoiler with a message that points to the media tools", () => {
+    const result = getTextSchema().safeParse({ text: "Hello", is_spoiler: true });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["is_spoiler"]);
+      expect(result.error.issues[0].message).toContain("is_spoiler is not supported on text-only Threads posts");
+      expect(result.error.issues[0].message).toContain("threads_publish_image");
+    }
+  });
+
+  it("accepts the call when is_spoiler is omitted", () => {
+    expect(getTextSchema().safeParse({ text: "Hello" }).success).toBe(true);
+  });
+
+  it("never forwards is_spoiler_media for a text post", async () => {
+    const handler = server.tools.get("threads_publish_text")!;
+    await handler({ text: "Hello" });
+    const createCall = (client.threads as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(createCall[2]).not.toHaveProperty("is_spoiler_media");
+  });
+});
+
 // ─── text_attachment char→byte offset conversion ────────────────────
 
 describe("threads_publish_text text_attachment byte offset conversion", () => {

@@ -184,4 +184,53 @@ describe("startHttpTransport (end-to-end)", () => {
     await clientA.close();
     await clientB.close();
   });
+
+  it("reaps a session abandoned without a DELETE", async () => {
+    handle = await startHttpTransport({
+      host: "127.0.0.1",
+      port: 0,
+      allowedHosts: undefined,
+      createServer: () => createSandboxServer(),
+      log: () => undefined,
+      sessionIdleTtlMs: 50,
+      reaperIntervalMs: 25,
+    });
+    const url = new URL(`http://127.0.0.1:${handle.port}/mcp`);
+
+    const initRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "initialize",
+        id: 1,
+        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "x", version: "0" } },
+      }),
+    });
+    const sessionId = initRes.headers.get("mcp-session-id");
+    await initRes.text();
+    expect(sessionId).toBeTruthy();
+
+    const reuse = (id: number): Promise<Response> =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          "mcp-session-id": sessionId!,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id }),
+      });
+
+    // The session is registered and usable right after init...
+    const alive = await reuse(2);
+    await alive.text();
+    expect(alive.status).toBe(200);
+
+    // ...but once idle past the TTL without a DELETE, the reaper evicts it.
+    await new Promise((r) => setTimeout(r, 200));
+    const dead = await reuse(3);
+    await dead.text();
+    expect(dead.status).toBe(404);
+  });
 });
