@@ -15,7 +15,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -38,7 +38,7 @@ jobs:
         run: |
           echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
           exit 1
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/restore-deps
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -54,7 +54,7 @@ jobs:
         run: |
           echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
           exit 1
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/restore-deps
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -70,7 +70,7 @@ jobs:
         run: |
           echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
           exit 1
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/restore-deps
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -86,7 +86,7 @@ jobs:
         run: |
           echo "::error::setup job did not succeed (result: ${{ needs.setup.result }})"
           exit 1
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/restore-deps
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -95,7 +95,7 @@ jobs:
   version-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/version-sync
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -117,7 +117,7 @@ jobs:
           echo "::error::An upstream job did not succeed"
           echo "setup=${{ needs.setup.result }} typecheck=${{ needs.typecheck.result }} lint=${{ needs.lint.result }} test=${{ needs.test.result }} audit=${{ needs.audit.result }} version-sync=${{ needs['version-sync'].result }}"
           exit 1
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/restore-deps
         with:
           node-version: ${{ env.NODE_VERSION }}
