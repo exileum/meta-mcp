@@ -49,7 +49,7 @@ jobs:
 
       - name: Setup Node
         if: steps.version.outputs.released == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -83,7 +83,7 @@ jobs:
 
       - name: Setup Node for GitHub Packages
         if: steps.version.outputs.released == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: 'https://npm.pkg.github.com'
